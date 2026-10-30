@@ -32,7 +32,6 @@ import type { UsageStats,
  ModelSource } from '@/lib/types'
 import { bucketedTimeISO, cn, compactNumber, formatDateTime, formatHitRate, formatNumber, percent, startOfRange, USAGE_BUCKET_MS } from '@/lib/utils'
 import type { RangeKey } from '@/components/usage-filter-bar'
-import { setOverviewKpiRange, useOverviewKpiRange, type OverviewKpiRange } from './overview-kpi-range'
 import { TemporalTrendSection } from './overview-trends'
 import { PulseSection } from './overview-pulse'
 
@@ -213,10 +212,11 @@ function SourceHealthScroller({
   )
 }
 
-/** KPI 档位分段选项：累计（默认）/ 今日。 */
+type OverviewKpiRange = 'today' | 'all'
+
 const KPI_RANGE_SEG: SegOption<OverviewKpiRange>[] = [
-  { value: 'all', label: '累计' },
   { value: 'today', label: '今日' },
+  { value: 'all', label: '累计' },
 ]
 
 /** 累计档 hero 副行：无环比语义，改示首次使用日期；空库给占位文案。 */
@@ -264,8 +264,7 @@ const RECENT_FAILURES = 3
 export function OverviewPage() {
   const minuteTick = useMinuteTick()
   const navigate = useNavigate()
-  // KPI 档位（累计/今日，localStorage 记忆）：默认累计，隔天进入不再归零。
-  const kpiRange = useOverviewKpiRange()
+  const [kpiRange, setKpiRange] = useState<OverviewKpiRange>('today')
 
   // 今日 / 昨日窗口（今日 to 取下一 5 分钟边界：键稳定且包含当前桶内新记录）。
   // from 必须用当前时刻算本地日，不能用 ceiled to：临近午夜 to 会落到次日 00:00。
@@ -331,9 +330,9 @@ export function OverviewPage() {
       : null
   const successRate = kpi ? percent(kpi.success, kpi.requests) : '—'
 
-  // 热门模型分布：独立时间窗（右上角 Seg 快捷切换 24小时/7天/30天/全部），
+  // 热门模型分布：独立时间窗，默认今日；
   // to 取下一 5 分钟边界，缓存键稳定且包含当前桶内新记录
-  const [topRange, setTopRange] = useState<RangeKey>('24h')
+  const [topRange, setTopRange] = useState<RangeKey>('today')
   const topModelsParams = useMemo(() => {
     const nowMs = minuteTick * 60_000
     const to = bucketedTimeISO(nowMs, USAGE_BUCKET_MS)
@@ -396,7 +395,7 @@ export function OverviewPage() {
         <PageHeader title="总览" />
 
         {/* 核心 KPI 指标区（无界灵动数据锚点，精选 6 大核心指标，宽敞大气）。
-            用量四卡随「累计/今日」档位切换（记忆持久化）；内存/GC 两卡为
+            用量四卡随「今日/累计」档位切换；内存/GC 两卡为
             进程运行指标，不随档位变化。 */}
         <section aria-label="核心用量">
           <div className="mb-3 flex justify-end">
@@ -405,11 +404,11 @@ export function OverviewPage() {
               aria-label="核心用量时间窗"
               options={KPI_RANGE_SEG}
               value={kpiRange}
-              onChange={setOverviewKpiRange}
+              onChange={setKpiRange}
             />
           </div>
           <KpiGrid cols={6}>
-            {/* HERO 主卡片：当前档位请求数（累计默认，今日档含昨日环比） */}
+            {/* HERO 主卡片：当前档位请求数，今日档含昨日环比 */}
             <KpiCard
               variant="hero"
               label={kpiRange === 'today' ? '今日请求总数' : '累计请求总数'}

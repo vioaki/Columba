@@ -12,7 +12,7 @@ import { bucketedTimeISO, startOfRange, USAGE_BUCKET_MS } from './utils'
  * （状态/状态码/分页）由调用方在 spread params 后追加。
  */
 export function useUsageFilters(onChange?: () => void) {
-  const [range, setRangeState] = useState<RangeKey>('7d')
+  const [range, setRangeState] = useState<RangeKey>('today')
   const [modelNames, setModelNamesState] = useState<string[]>([])
   const [sourceIds, setSourceIdsState] = useState<string[]>([])
   const [keyNames, setKeyNamesState] = useState<string[]>([])

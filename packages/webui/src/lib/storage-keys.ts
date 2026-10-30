@@ -6,6 +6,4 @@ export const STORAGE_KEYS = {
   agentSendKey: 'columba-webui.agent-send-key',
   /** 审批/提问卡的 Esc 快捷键：on | off。 */
   agentEscAction: 'columba-webui.agent-esc-action',
-  /** 总览 KPI 卡时间窗档位：all（累计）| today（今日）。 */
-  overviewKpiRange: 'columba-webui.overview-kpi-range',
 } as const

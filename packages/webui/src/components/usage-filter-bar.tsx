@@ -4,7 +4,7 @@ import { MultiSelect, type MultiSelectOption } from '@/components/ui/multi-selec
 import { Seg } from '@/components/ui/seg'
 import { RANGE_OPTIONS } from '@/lib/range-options'
 
-export type RangeKey = '24h' | '7d' | '30d' | 'all'
+export type RangeKey = 'today' | '7d' | '30d' | 'all'
 
 /**
  * 用量页共用筛选工具栏（调用日志 + Usage 统计）：时间窗 Seg + 模型 /

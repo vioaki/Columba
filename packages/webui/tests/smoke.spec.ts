@@ -5,6 +5,9 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/admin/**', route => {
     const path = new URL(route.request().url()).pathname
     const data = /\/usage\/(trend|by-model|by-model-daily)$/.test(path) ? []
+      : path.endsWith('/health') ? { memory: { alloc: 0, sys: 0, numGC: 0 } }
+      : path.endsWith('/usage/stats') ? { requests: 0, success: 0, failed: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0, cacheHitTokens: 0, cacheHitRate: 0 }
+      : path.endsWith('/usage/pulse') ? { points: [], window: { requests: 0, totalTokens: 0, avgDurationMs: 0, p95DurationMs: 0 } }
       : path.endsWith('/usage/costs') ? { amount: '0.120000000001', attempts: 2, requests: 2, unpriced: 1, models: [], sources: [], keys: [], trend: [] }
       : path.endsWith('/usage/cost-attempts') ? { items: [{ requestId: 'unpriced', attempt: 1, startedMs: 1, modelId: 'demo', sourceId: 'local', status: 'missing_usage', amount: null, reasons: ['provider did not report usage'], usage: {}, price: {} }] }
       : { items: [], total: 0, seq: 1 }
@@ -88,4 +91,83 @@ test('supports neutral themes and keyboard navigation in small windows', async (
   expect(await drawer.evaluate(element => element.contains(document.activeElement))).toBe(true)
   await page.keyboard.press('Escape')
   await expect(menu).toBeFocused()
+})
+
+test.describe('daily usage defaults', () => {
+  test.use({ timezoneId: 'Asia/Shanghai' })
+
+  test('opens daily views at local midnight and keeps historical ranges selectable', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-10-30T23:59:00+08:00') })
+    await page.addInitScript(() => localStorage.setItem('columba-webui.overview-kpi-range', 'all'))
+    const popular = page.waitForRequest('**/usage/by-model?*')
+    await page.goto('/#/overview')
+    const kpi = page.getByRole('group', { name: '核心用量时间窗', exact: true })
+    await expect(kpi.getByRole('button')).toHaveText(['今日', '累计'])
+    await expect(kpi.getByRole('button', { name: '今日', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(new URL((await popular).url()).searchParams.get('from')).toBe('2026-10-29T16:00:00.000Z')
+    await kpi.getByRole('button', { name: '累计', exact: true }).click()
+    await expect(page.getByText('累计请求总数', { exact: true })).toBeVisible()
+    for (const [tab, endpoint] of [['calls', 'logs'], ['tokens', 'stats']]) {
+      await page.goto(`/#/usage?tab=${tab}`)
+      const request = page.waitForRequest(`**/usage/${endpoint}?*`)
+      await page.reload()
+      await expect(page.getByRole('group', { name: '时间窗', exact: true }).getByRole('button', { name: '今日', exact: true })).toHaveAttribute('aria-pressed', 'true')
+      const query = new URL((await request).url()).searchParams
+      expect(query.get('from')).toBe('2026-10-29T16:00:00.000Z')
+      expect(query.get('to')).toBe('2026-10-30T16:00:00.000Z')
+    }
+    const tomorrow = page.waitForRequest(request => {
+      const url = new URL(request.url())
+      return url.pathname.endsWith('/usage/stats') && url.searchParams.get('from') === '2026-10-30T16:00:00.000Z'
+    })
+    await page.clock.fastForward(60_000)
+    await tomorrow
+    const allTime = page.waitForRequest(request => new URL(request.url()).pathname.endsWith('/usage/stats') && !new URL(request.url()).searchParams.has('from'))
+    await page.getByRole('group', { name: '时间窗', exact: true }).getByRole('button', { name: '全部', exact: true }).click()
+    await allTime
+  })
+
+  test('advances default billing dates at midnight and allows unbounded history', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-10-30T23:59:00+08:00') })
+    const first = page.waitForRequest('**/usage/costs?*')
+    await page.goto('/#/usage')
+    const query = new URL((await first).url()).searchParams
+    expect(Number(query.get('from'))).toBe(Date.parse('2026-10-29T16:00:00Z'))
+    expect(Number(query.get('to'))).toBe(Date.parse('2026-10-30T16:00:00Z'))
+    await page.getByLabel('费用模型 ID').fill('demo')
+    await page.clock.fastForward(60_000)
+    await expect(page.getByLabel('费用开始日期')).toHaveValue('2026-10-31')
+    await expect(page.getByLabel('费用结束日期')).toHaveValue('2026-10-31')
+    const history = page.waitForRequest(request => {
+      const url = new URL(request.url())
+      return url.pathname.endsWith('/usage/costs') && !url.searchParams.has('from') && !url.searchParams.has('to')
+    })
+    await page.getByLabel('费用开始日期').fill('')
+    await page.getByLabel('费用结束日期').fill('')
+    await history
+  })
+})
+
+test.describe('billing calendar days', () => {
+  test.use({ timezoneId: 'America/New_York' })
+
+  test('includes the whole local day across daylight saving changes', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-11-01T12:00:00-05:00') })
+    await page.goto('/#/usage')
+    for (const [date, from, to] of [
+      ['2026-11-01', '2026-11-01T04:00:00Z', '2026-11-02T05:00:00Z'],
+      ['2026-03-08', '2026-03-08T05:00:00Z', '2026-03-09T04:00:00Z'],
+    ]) {
+      const query = page.waitForRequest(request => {
+        const url = new URL(request.url())
+        return url.pathname.endsWith('/usage/costs') && url.searchParams.get('model') === date
+      })
+      await page.getByLabel('费用开始日期').fill(date)
+      await page.getByLabel('费用结束日期').fill(date)
+      await page.getByLabel('费用模型 ID').fill(date)
+      const params = new URL((await query).url()).searchParams
+      expect(Number(params.get('from'))).toBe(Date.parse(from))
+      expect(Number(params.get('to'))).toBe(Date.parse(to))
+    }
+  })
 })

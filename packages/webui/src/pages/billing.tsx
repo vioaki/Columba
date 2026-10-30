@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { request } from '@/lib/api'
+import { useMinuteTick } from '@/lib/hooks'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 interface Total { name: string; amount: string; attempts: number; unpriced: number }
@@ -10,12 +11,19 @@ interface Attempt { requestId: string; attempt: number; startedMs: number; model
 const statusLabels: Record<string, string> = { complete: '可计价', partial: '部分可计价', missing_price: '价格缺失', missing_usage: '用量缺失', historical_unpriced: '历史未计价', pending: '待结算 / 中断未结算' }
 function money(value: string) { return value.includes('.') ? value.replace(/0+$/, '').replace(/\.$/, '') : value }
 export function BillingPanel() {
-  const [filter, setFilter] = useState({ from: '', to: '', model: '', source: '', key: '', request: '' })
+  const minuteTick = useMinuteTick()
+  const now = new Date(minuteTick * 60_000)
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  // 未手动修改的日期随本地零点更新；空字符串表示清除日期限制。
+  const [customFilter, setFilter] = useState({ from: null as string | null, to: null as string | null, model: '', source: '', key: '', request: '' })
+  const filter = { ...customFilter, from: customFilter.from ?? today, to: customFilter.to ?? today }
   const [offset, setOffset] = useState(0)
-  const query = { ...filter, from: filter.from ? new Date(filter.from).getTime() : undefined, to: filter.to ? new Date(filter.to).getTime() + 86400000 : undefined }
+  const end = filter.to ? new Date(`${filter.to}T00:00:00`) : undefined
+  if (end) end.setDate(end.getDate() + 1)
+  const query = { ...filter, from: filter.from ? new Date(`${filter.from}T00:00:00`).getTime() : undefined, to: end?.getTime() }
   const summary = useSWR(['costs', query], () => request<Summary>('/usage/costs', { query }), { refreshInterval: 10000 })
   const attempts = useSWR(['cost-attempts', query, offset], () => request<{ items: Attempt[] }>('/usage/cost-attempts', { query: { ...query, offset } }), { refreshInterval: 10000 })
-  const update = (changes: Partial<typeof filter>) => { setFilter({ ...filter, ...changes }); setOffset(0) }
+  const update = (changes: Partial<typeof filter>) => { setFilter({ ...customFilter, ...changes }); setOffset(0) }
   const error = summary.error || attempts.error
   return <div className="space-y-6">
     <p className="text-sm text-muted-foreground">USD 参考估算，仅覆盖 Token 与缓存费用。工具、图片、音频及按秒收费未覆盖；缺价或未报告用量不会按免费处理。清理调用日志保留账目。</p>

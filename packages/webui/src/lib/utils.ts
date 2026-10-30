@@ -145,16 +145,19 @@ export function uniqueSorted(values: (string | undefined | null)[]): { value: st
 }
 
 
-/** 时间窗起点 ISO（24h/7d/30d；all 返回 undefined 表示无下界）。 */
-export function startOfRange(range: '24h' | '7d' | '30d' | 'all', nowIso?: string): string | undefined {
+/** 今日从本地零点起；all 表示无下界，其余为滚动时间窗。 */
+export function startOfRange(range: 'today' | '7d' | '30d' | 'all', nowIso?: string): string | undefined {
   if (range === 'all') return undefined
-  const reference = nowIso ? new Date(nowIso).getTime() : Date.now()
+  const reference = nowIso ? new Date(nowIso) : new Date()
+  if (range === 'today') {
+    reference.setHours(0, 0, 0, 0)
+    return reference.toISOString()
+  }
   const map: Record<string, number> = {
-    '24h': 24 * 60 * 60 * 1000,
     '7d': 7 * 24 * 60 * 60 * 1000,
     '30d': 30 * 24 * 60 * 60 * 1000,
   }
-  return new Date(reference - map[range]).toISOString()
+  return new Date(reference.getTime() - map[range]).toISOString()
 }
 
 /** 把参考时刻向上取整到下一个 bucketMs 边界再序列化。

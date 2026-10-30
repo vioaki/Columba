@@ -294,7 +294,7 @@ export function UsageStatsPage() {
               <div className="space-y-4">
                 <div className="border-b border-border/50 pb-3 flex items-center gap-2">
                   <Coins className="h-4 w-4 text-rose" />
-                  <h3 className="text-sm font-semibold text-foreground">累计 Token 结构分布</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Token 结构分布</h3>
                 </div>
                 <div className="pt-2">
                   {isLoading && !stats ? (
