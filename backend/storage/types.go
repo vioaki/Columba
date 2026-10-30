@@ -53,11 +53,8 @@ type ModelSource struct {
 	// 存储 JSON 数组整体加密；KeyStrategy 决定调度方式。
 	APIKeys     []SourceAPIKey    `json:"apiKeys,omitempty"`
 	KeyStrategy SourceKeyStrategy `json:"keyStrategy,omitempty"`
-	// CacheSynthesis 让网关为声明 cache.breakpoints 的上游补结构断点。
-	// 默认关闭：开启会改变发往上游的请求体，属显式的运维选择。
-	CacheSynthesis bool      `json:"cacheSynthesis,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	UpdatedAt   time.Time         `json:"updatedAt"`
 }
 
 // EffectiveKeys 过滤停用和空 Key；仅未配置 Key 池时回退 APIKey。
@@ -126,8 +123,7 @@ type Model struct {
 	StructuredOutput bool   `json:"structuredOutput"`
 	ThinkingMode     string `json:"thinkingMode"`
 	Available        bool   `json:"available"`
-	// Enabled 是用户手动启停开关（方向4），与 Available（健康检测自动翻转）分离：
-	// 模型可被调度 = Enabled && Available。
+	// Enabled 决定是否暴露模型；Available 只保留历史信息。
 	Enabled bool `json:"enabled"`
 	// Origin 标记行的来源：fetched（上游拉取，随刷新合并替换）/ manual
 	// （手动模型或用户显式创建，刷新永不触碰、上游消失也不删）。

@@ -43,7 +43,6 @@ func (s *Store) scanSource(row interface{ Scan(...any) error }) (ModelSource, er
 	item.AutoFetchModels = sqlIntToBool(autoFetch)
 	item.FetchBaseURL = fetchBase
 	item.KeyStrategy = SourceKeyStrategy(strategy)
-	item.CacheSynthesis = sqlIntToBool(cacheSynthesis)
 	item.CreatedAt = parseTime(created)
 	item.UpdatedAt = parseTime(updated)
 	item.APIKey = s.decryptOrClear("source api_key", item.ID, item.APIKey)
@@ -150,7 +149,7 @@ func (s *Store) saveSourceRecord(ctx context.Context, executor sqlExecutor, item
 	if !isCreate {
 		query += ` ON CONFLICT(id) DO UPDATE SET name=excluded.name, base_url=excluded.base_url, api_key=excluded.api_key, platform=excluded.platform, enabled=excluded.enabled, auto_fetch_models=excluded.auto_fetch_models, manual_models_json=excluded.manual_models_json, fetch_base_url=excluded.fetch_base_url, api_keys=excluded.api_keys, key_strategy=excluded.key_strategy, cache_synthesis=excluded.cache_synthesis, updated_at=excluded.updated_at`
 	}
-	_, err = executor.ExecContext(ctx, query, item.ID, item.Name, item.BaseURL, storedKey, item.Platform, sqlBoolToInt(item.Enabled), sqlBoolToInt(item.AutoFetchModels), string(manual), item.FetchBaseURL, storedKeys, strategy, sqlBoolToInt(item.CacheSynthesis), now, now)
+	_, err = executor.ExecContext(ctx, query, item.ID, item.Name, item.BaseURL, storedKey, item.Platform, sqlBoolToInt(item.Enabled), sqlBoolToInt(item.AutoFetchModels), string(manual), item.FetchBaseURL, storedKeys, strategy, 0, now, now)
 	return err
 }
 

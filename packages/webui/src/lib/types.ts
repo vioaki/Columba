@@ -212,8 +212,6 @@ export interface ModelSource {
   /** 多 key 配置（源级密钥集合）：空 = 单 key（apiKey）。 */
   apiKeys?: SourceAPIKey[]
   keyStrategy?: SourceKeyStrategy
-  /** 源级缓存断点合成：目标支持 cache.breakpoints 且调用方未打满时补结构断点。默认关闭。 */
-  cacheSynthesis?: boolean
   /** 后台拉取任务状态（轮询进度与最近结果）。 */
   refreshState?: SourceRefreshState
   createdAt?: string
@@ -441,7 +439,6 @@ export interface UsageLogDetail {
   usage: UsageTokenUsage
   usageDetail?: Record<string, unknown>
   builtinToolUsage?: Record<string, number>
-  /** 转换诊断：信息级规范化、兼容降级及失败，保留规则与阶段归属。 */
   retryCount: number
   retryEvents?: UsageRetryEvent[]
   incomingBody: UsageBody
@@ -490,7 +487,6 @@ export interface UsageQueryParams {
   sourceIds?: string[]
 }
 
-// ---- 协议设计器：字段级双向映射模型（backend/relay/custom_protocol_mapping.go）----
 
 /** 协议任务类型：llm 为默认；reranker/embedding 为声明式预留；x- 前缀自定义扩展。 */
 /** 新建模型组的默认值：建组表单与快捷建组对话框共用，防两处漂移。 */
