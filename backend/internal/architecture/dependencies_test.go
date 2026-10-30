@@ -21,7 +21,7 @@ func TestPackageBoundaries(t *testing.T) {
 		"protocol":               {"internal/eventstream", "internal/jsonutil"},
 		"protocol/builtin":       {"protocol"},
 		"relay":                  {"internal/outbound", "protocol", "protocol/builtin"},
-		"storage":                {"internal/billing", "internal/atomicfile", "internal/dbpath", "internal/storagequery", "logging", "protocol", "protocol/builtin"},
+		"storage":                {"internal/nativeusage", "internal/billing", "internal/atomicfile", "internal/dbpath", "internal/storagequery", "logging", "protocol", "protocol/builtin"},
 		"internal/routing":       {"config", "storage"},
 		"internal/admission":     {},
 		"internal/nativeusage":   {},

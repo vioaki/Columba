@@ -327,6 +327,24 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 		if timeout > 0 {
 			timer = time.AfterFunc(timeout, cancel)
 		}
+		_, snapshot, priceErr := s.modelPriceSnapshot(ctx, candidate.SourceID, modelID)
+		priceJSON, jsonErr := json.Marshal(snapshot)
+		if priceErr == nil {
+			priceErr = jsonErr
+		}
+		if priceErr == nil {
+			priceErr = s.store.StartBillingAttempt(ctx, storage.BillingAttempt{RequestID: record.RequestID, Attempt: index + 1, StartedMs: record.StartedAt.UnixMilli(), ModelID: modelID, SourceID: candidate.SourceID, SourceName: candidate.SourceName, KeyName: record.KeyName, KeyHash: record.KeyHash, Protocol: wire, Price: priceJSON})
+		}
+		if priceErr != nil {
+			if timer != nil {
+				timer.Stop()
+			}
+			cancel()
+			record.StatusCode = 503
+			record.Error = "billing storage unavailable; upstream request not sent"
+			nativeError(c, 503, record.Error)
+			return
+		}
 		response, sendErr := s.nativeHTTPClient().Do(request)
 		if timer != nil {
 			timer.Stop()
@@ -343,6 +361,7 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 				record.Error = "client canceled"
 			}
 			attempt.Anomalies = []string{record.Error}
+			s.finishNativeBilling(record, attempt, snapshot)
 			record.NativeAttempts = append(record.NativeAttempts, attempt)
 			nativeError(c, record.StatusCode, record.Error)
 			return
@@ -410,6 +429,7 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 		cancel()
 		observer.Finish()
 		attempt.Usage, attempt.Anomalies = observer.Usage, observer.Anomalies
+		s.finishNativeBilling(record, attempt, snapshot)
 		record.NativeAttempts = append(record.NativeAttempts, attempt)
 		record.StatusCode = response.StatusCode
 		record.UpstreamHTTPStatus = response.StatusCode

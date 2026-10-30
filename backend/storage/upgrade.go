@@ -198,6 +198,9 @@ func inspectDatabase(ctx context.Context, path string, logs bool) (int, error) {
 	checks := []string{`SELECT key,value,updated_at FROM settings LIMIT 0`, `SELECT id,name,base_url,api_key,api_keys,platform,manual_models_json FROM model_sources LIMIT 0`, `SELECT id,source_id,platform,enabled FROM models LIMIT 0`, `SELECT name,token,token_hash,enabled FROM api_tokens LIMIT 0`}
 	if logs {
 		checks = []string{`SELECT request_id,record_json,started_ms,source_id,usage_report_mask FROM usage_records LIMIT 0`, `SELECT id,fields_json FROM system_logs LIMIT 0`}
+		if version == current {
+			checks = append(checks, `SELECT request_id,attempt,amount,completeness FROM billing_attempts LIMIT 0`)
+		}
 	} else if version == 2 {
 		checks = append(checks, `SELECT id,strategy,max_retries,retry_interval FROM model_groups LIMIT 0`, `SELECT binding FROM protocol_bindings LIMIT 0`, `SELECT scopes FROM api_tokens LIMIT 0`)
 	}
@@ -224,6 +227,14 @@ func migrateDatabase(ctx context.Context, db *sql.DB, version int, logs bool) er
 		return err
 	}
 	defer tx.Rollback()
+	if logs && version < 3 {
+		if _, err := tx.ExecContext(ctx, billingSchema); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO billing_attempts(request_id,attempt,started_ms,model_id,source_id,key_name,key_hash,protocol,http_status,usage_json,completeness) SELECT request_id,0,started_ms,CASE WHEN model_id='' THEN model_name ELSE model_id END,source_id,key_name,key_hash,platform,status_code,json_object('input',CASE WHEN usage_report_mask & 1 THEN input_tokens END,'output',json_extract(record_json,'$.usage.outputTokens'),'total',json_extract(record_json,'$.usage.totalTokens'),'cacheRead',CASE WHEN usage_report_mask & 2 THEN cache_hit_tokens END,'cacheWrite',CASE WHEN usage_report_mask & 4 THEN cache_creation_tokens END),'historical_unpriced' FROM usage_records WHERE true ON CONFLICT(request_id,attempt) DO NOTHING`); err != nil {
+			return err
+		}
+	}
 	if !logs && version < 4 {
 		for _, statement := range []string{
 			`DELETE FROM api_tokens WHERE EXISTS (SELECT 1 FROM json_each(api_tokens.scopes) WHERE value='agent')`,

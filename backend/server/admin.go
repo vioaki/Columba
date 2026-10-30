@@ -67,6 +67,8 @@ func (s *Server) setupAdminRoutes(admin *route.RouterGroup) {
 	admin.POST("/api-tokens", s.adminUpsertToken)
 	admin.PUT("/api-tokens/:name", s.adminUpsertToken)
 	admin.DELETE("/api-tokens/:name", s.adminDeleteToken)
+	admin.GET("/usage/costs", s.adminBilling)
+	admin.GET("/usage/cost-attempts", s.adminBillingAttempts)
 	admin.GET("/usage/stats", s.usageCache.middleware(), s.adminUsageStats)
 	admin.GET("/usage/trend", s.usageCache.middleware(), s.adminUsageTrend)
 	admin.GET("/usage/pulse", s.usageCache.middleware(), s.adminUsagePulse)

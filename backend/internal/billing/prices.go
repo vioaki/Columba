@@ -4,19 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"regexp"
 	"sort"
-	"strings"
 )
 
 // Rate is USD per million tokens; decimal text avoids binary floating-point money.
 type Rate string
 
+var decimalRate = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)?$`)
+
 func (r Rate) Rat() (*big.Rat, error) {
-	if len(r) == 0 || len(r) > 40 {
+	if len(r) == 0 || len(r) > 40 || !decimalRate.MatchString(string(r)) {
 		return nil, fmt.Errorf("invalid price %q", r)
 	}
 	n, ok := new(big.Rat).SetString(string(r))
-	if !ok || n.Sign() < 0 || strings.ContainsAny(string(r), "/eE") {
+	if !ok || n.Sign() < 0 {
 		return nil, fmt.Errorf("price must be a nonnegative decimal: %q", r)
 	}
 	return n, nil

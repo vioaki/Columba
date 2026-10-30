@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"columba.local/backend/config"
+	"columba.local/backend/internal/billing"
 	"columba.local/backend/storage"
 )
 
@@ -114,6 +115,12 @@ func TestNativeRetryRecordsFailedUsageAndStopsAfterOutput(t *testing.T) {
 	s := newNativeTestServer(t)
 	seedNative(t, s, "a", "openai", provider.URL)
 	seedNative(t, s, "b", "openai", provider.URL)
+	for _, id := range []string{"a", "b"} {
+		price := billing.Rate("1")
+		if err := s.store.SaveModelPrice(t.Context(), storage.ModelPrice{SourceID: id, ModelID: "raw-model", Override: billing.Prices{Rates: billing.Rates{Input: &price, Output: &price}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	c, rec := adminTestContext(http.MethodPost, "/v1/chat/completions", `{"model":"raw-model"}`)
 	s.serveNative(contextForTest(c), c)
 	flushTestResponse(c)
@@ -126,6 +133,10 @@ func TestNativeRetryRecordsFailedUsageAndStopsAfterOutput(t *testing.T) {
 	}
 	if logs["inputTokens"] != 10 || logs["outputTokens"] != 2 {
 		t.Fatal("failed attempt usage lost", logs)
+	}
+	summary, err := s.store.BillingSummary(t.Context(), storage.BillingFilter{})
+	if err != nil || summary.Amount != "0.000012000000" || summary.Attempts != 2 || summary.Requests != 1 || summary.Unpriced != 1 {
+		t.Fatal(summary, err)
 	}
 	var second atomic.Int32
 	broken := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

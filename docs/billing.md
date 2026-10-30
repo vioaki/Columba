@@ -18,3 +18,23 @@ Prices use decimal strings and exact arithmetic. Tool calls, image/audio and
 per-second fees are outside the first version's scope. Anthropic one-hour cache
 writes require a separate manual price; the catalog's generic cache-write price
 is not silently reused for that duration. Historical usage is never repriced.
+
+The log database has a separate `billing_attempts` ledger without foreign keys
+into diagnostic records. Usage cleanup/reset never deletes it. Before contacting
+an upstream, Columba stores a pending row and freezes its price snapshot. A
+storage failure at this point prevents the upstream request. Settlement persists
+reported counters and the calculated amount synchronously, even for failed
+attempts; an interrupted process or failed settlement remains visibly pending.
+The request ID and attempt number are unique, and a settled row cannot be
+settled again. USD amounts are rounded once per attempt to 12 decimal places;
+summary amounts are added with exact decimal arithmetic, never SQLite REAL.
+
+`GET /api/admin/usage/costs` returns request/attempt totals, incomplete attempt
+counts, UTC daily trends, and model/channel/calling-Key breakdowns.
+`GET /api/admin/usage/cost-attempts` returns 100 records per page with snapshots.
+Both accept exact `model`, `source`, `key`, `request`, and millisecond `from` /
+exclusive `to` filters; the detail endpoint also accepts `offset`.
+
+Latest legacy usage migrates as `historical_unpriced` (attempt zero), retaining
+its reported counters but no amount. Missing usage, missing prices, partial
+pricing, pending settlement and known zero costs remain separate states.
