@@ -58,3 +58,23 @@ func TestPriceAPIDecimalValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestEmbeddedCatalogIncludesPricesAndContextTiers(t *testing.T) {
+	catalog := &modelCatalog{}
+	catalog.loadFromSnapshot()
+	priced, tiered, reasoning := 0, 0, 0
+	for _, entry := range catalog.exact {
+		if entry.prices.Input != nil && entry.prices.Output != nil {
+			priced++
+		}
+		if len(entry.prices.Tiers) > 0 {
+			tiered++
+		}
+		if entry.reasoning {
+			reasoning++
+		}
+	}
+	if priced == 0 || tiered == 0 || reasoning == 0 || catalog.lastSync.IsZero() {
+		t.Fatalf("embedded catalog lost offline prices/capabilities: priced=%d tiered=%d reasoning=%d", priced, tiered, reasoning)
+	}
+}

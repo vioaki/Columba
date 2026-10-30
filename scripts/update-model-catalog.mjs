@@ -1,9 +1,8 @@
-// Update the embedded model capability catalog snapshot (backend/server/model_catalog_snapshot.json).
+// Update the embedded model capabilities and pricing catalog snapshot (backend/server/model_catalog_snapshot.json).
 //
 // Data source: models.dev api.json (193+ providers, 7000+ models). The raw file is
 // ~4MB; this script trims it to the fields the catalog actually consumes
-// (id/name/type/tool_call/structured_output/modalities/reasoning/limit), cutting
-// the embedded size by ~4x.
+// (name/type/tool_call/structured_output/modalities/reasoning/limit/cost).
 //
 // Usage:
 //   node scripts/update-model-catalog.mjs [--proxy http://127.0.0.1:7890] [--url <api.json url>]
@@ -59,8 +58,10 @@ for (const [slug, provider] of Object.entries(providers)) {
     if (model.tool_call !== undefined) slim.tool_call = model.tool_call
     if (model.structured_output !== undefined) slim.structured_output = model.structured_output
     if (model.modalities?.input?.length) slim.modalities = { input: model.modalities.input }
-    if (model.reasoning?.supported !== undefined) slim.reasoning = { supported: model.reasoning.supported }
+    if (typeof model.reasoning === 'boolean') slim.reasoning = model.reasoning
+    else if (model.reasoning?.supported !== undefined) slim.reasoning = { supported: model.reasoning.supported }
     if (model.limit?.context) slim.limit = { context: model.limit.context }
+    if (model.cost) slim.cost = model.cost
     trimmedModels[id] = slim
     modelCount++
   }
