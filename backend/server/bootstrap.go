@@ -25,7 +25,7 @@ func New(cfg *config.Config) *Server {
 		}),
 	}
 	server.initLifecycle()
-	if err := cfg.ValidateLocalHost(); err != nil {
+	if err := cfg.ValidatePanelAccess(); err != nil {
 		server.startupErr = err
 		return server
 	}

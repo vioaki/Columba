@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +23,7 @@ import (
 
 type Config struct {
 	Host            string             `json:"host,omitempty"`
+	PanelOrigins    []string           `json:"panelOrigins,omitempty"`
 	Port            int                `json:"port,omitempty"`
 	DatabasePath    string             `json:"databasePath,omitempty"`
 	LogDatabasePath string             `json:"logDatabasePath,omitempty"`
@@ -172,7 +175,7 @@ func Load(path string) (*Config, error) {
 	if err := ValidateRequestBodyLimit(cfg.MaxBodyBytes); err != nil {
 		return nil, err
 	}
-	if err := cfg.ValidateLocalHost(); err != nil {
+	if err := cfg.ValidatePanelAccess(); err != nil {
 		return nil, err
 	}
 	if err := cfg.validateLogSettings(); err != nil {
@@ -439,6 +442,9 @@ func (c *Config) Reload() error {
 	// 与 Load 同序：环境变量覆盖最后应用。否则热重载会让 COLUMBA_HOST
 	// 部署静默失效，且随后的 Save 会把文件值固化覆盖部署配置。
 	newCfg.applyEnvironmentOverrides()
+	if err := newCfg.ValidatePanelAccess(); err != nil {
+		return err
+	}
 	if err := newCfg.validateProxySettings(); err != nil {
 		return err
 	}
@@ -489,6 +495,12 @@ func (c *Config) GetServer() ServerConfig {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return ServerConfig{Host: c.Host, Port: c.Port}
+}
+
+func (c *Config) AllowsPanelOrigin(origin string) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return slices.Contains(c.PanelOrigins, origin)
 }
 
 func (c *Config) GetLogLevel() string {
@@ -692,6 +704,7 @@ func (c *Config) SetUsageLogConfig(patch UsageLogConfig) {
 // publishSettingsLocked replaces persisted settings under the configuration lock.
 func (c *Config) publishSettingsLocked(newCfg *Config) {
 	c.Host = newCfg.Host
+	c.PanelOrigins = slices.Clone(newCfg.PanelOrigins)
 	c.Port = newCfg.Port
 	c.DatabasePath = newCfg.DatabasePath
 	c.LogDatabasePath = newCfg.LogDatabasePath
@@ -713,15 +726,21 @@ func (c *Config) publishSettingsLocked(newCfg *Config) {
 	c.OpenBrowserOnStart = newCfg.OpenBrowserOnStart
 }
 
-// ValidateLocalHost keeps an unauthenticated panel on the local machine.
-func (c *Config) ValidateLocalHost() error {
+// Remote listeners require explicit panel origins; desktop defaults remain local.
+func (c *Config) ValidatePanelAccess() error {
+	for _, origin := range c.PanelOrigins {
+		u, err := url.Parse(origin)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || origin != u.Scheme+"://"+u.Host {
+			return fmt.Errorf("panelOrigins must contain exact HTTP(S) origins without paths: %q", origin)
+		}
+	}
 	host := c.Host
 	if host == "" || host == "localhost" {
 		return nil
 	}
 	ip := net.ParseIP(host)
-	if ip == nil || !ip.IsLoopback() {
-		return fmt.Errorf("host must be localhost or a loopback IP address")
+	if ip == nil || !ip.IsLoopback() && len(c.PanelOrigins) == 0 {
+		return fmt.Errorf("host must be an IP address; non-loopback listeners require panelOrigins")
 	}
 	return nil
 }

@@ -11,7 +11,7 @@ Go · React · SQLite
 - **渠道调度**：轮询、优先级、加权，支持多 Key 与失败重试。
 - **用量计费**：[models.dev](https://models.dev) 价格目录与手动定价，按模型、渠道、调用 Key 统计。
 
-支持 macOS App，以及 Windows / Linux / macOS 单文件运行。面板使用管理密码登录，API 调用使用独立 Key，服务仅监听本机。
+支持 macOS App，以及 Windows / Linux / macOS 单文件运行。面板使用管理密码登录，API 调用使用独立 Key，默认仅监听本机。
 
 ## 使用
 
@@ -24,6 +24,21 @@ Go · React · SQLite
 管理密码可在「设置 → 登录安全」修改。会话有效期为 24 小时，重启服务后需重新登录。忘记密码时，在本机用相同配置加上 `-reset-panel-password` 参数运行可执行文件即可重置。
 
 费用以 USD 估算，覆盖 Token 与缓存；缺失价格或用量会单独标记。
+
+### 服务器
+
+由 systemd 等服务管理器运行，关闭 `openBrowserOnStart`。局域网访问需明确配置监听地址和面板来源：
+
+```json
+{
+  "host": "192.168.5.48",
+  "port": 8765,
+  "panelOrigins": ["http://192.168.5.48:8765"],
+  "openBrowserOnStart": false
+}
+```
+
+首次设置管理密码需通过服务器本机或 SSH 隧道完成，再开放网络监听。公网访问应通过 HTTPS 反向代理，并将实际面板来源加入 `panelOrigins`。
 
 ## 构建
 

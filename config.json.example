@@ -1,5 +1,6 @@
 {
   "host": "127.0.0.1",
+  "panelOrigins": [],
   "port": 8765,
   "databasePath": "columba.sqlite3",
   "logDatabasePath": "columba-logs.sqlite3",

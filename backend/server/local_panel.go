@@ -22,16 +22,23 @@ func localAuthority(authority string) bool {
 func (s *Server) localPanelMiddleware() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		host := string(c.Host())
-		allowed := localAuthority(host) && string(c.GetHeader("Sec-Fetch-Site")) != "cross-site"
+		local := localAuthority(host)
+		configured := s.config != nil && (s.config.AllowsPanelOrigin("http://"+host) || s.config.AllowsPanelOrigin("https://"+host))
+		allowed := (local || configured) && string(c.GetHeader("Sec-Fetch-Site")) != "cross-site"
 		if method := string(c.Method()); method != http.MethodGet && method != http.MethodHead {
 			allowed = allowed && string(c.GetHeader("X-Columba-Panel")) == "1"
 		}
 		if origin := string(c.GetHeader("Origin")); origin != "" {
 			u, err := url.Parse(origin)
-			allowed = allowed && err == nil && u.Scheme == "http" && u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == "" && localAuthority(u.Host) && (u.Host == host || u.Port() == "5273" || u.Port() == "5274")
+			originAllowed := false
+			if err == nil && u.User == nil && u.Path == "" && u.RawQuery == "" && !u.ForceQuery && u.Fragment == "" && origin == u.Scheme+"://"+u.Host {
+				originAllowed = local && u.Scheme == "http" && localAuthority(u.Host) && (u.Host == host || u.Port() == "5273" || u.Port() == "5274")
+				originAllowed = originAllowed || configured && u.Host == host && s.config.AllowsPanelOrigin(origin)
+			}
+			allowed = allowed && originAllowed
 		}
 		if !allowed {
-			c.AbortWithStatusJSON(http.StatusForbidden, map[string]string{"error": "management is only available from the local Columba panel"})
+			c.AbortWithStatusJSON(http.StatusForbidden, map[string]string{"error": "management request host or origin is not allowed"})
 			return
 		}
 		c.Next(ctx)
