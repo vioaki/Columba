@@ -16,7 +16,7 @@ import (
 // symbol names. A new dependency must be reviewed together with this contract.
 func TestPackageBoundaries(t *testing.T) {
 	allowed := map[string][]string{
-		"server":                 {"config", "internal/admission", "internal/atomicfile", "internal/eventstream", "internal/jsonutil", "internal/outbound", "internal/routing", "logging", "protocol", "protocol/builtin", "relay", "storage", "webui"},
+		"server":                 {"internal/nativeusage", "config", "internal/admission", "internal/atomicfile", "internal/eventstream", "internal/jsonutil", "internal/outbound", "internal/routing", "logging", "protocol", "protocol/builtin", "relay", "storage", "webui"},
 		"config":                 {"internal/atomicfile", "internal/dbpath", "internal/outbound", "logging", "protocol"},
 		"protocol":               {"internal/eventstream", "internal/jsonutil"},
 		"protocol/builtin":       {"protocol"},
@@ -24,6 +24,7 @@ func TestPackageBoundaries(t *testing.T) {
 		"storage":                {"internal/atomicfile", "internal/dbpath", "internal/storagequery", "logging", "protocol", "protocol/builtin"},
 		"internal/routing":       {"config", "storage"},
 		"internal/admission":     {},
+		"internal/nativeusage":   {},
 		"internal/semanticmeter": {"protocol"},
 		"internal/outbound":      {"logging"},
 		"internal/dbpath":        {}, "internal/atomicfile": {},

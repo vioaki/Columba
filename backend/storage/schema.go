@@ -21,6 +21,7 @@ func (s *Store) createSchema(ctx context.Context) error {
 // Business and log databases have independent schemas and version checks.
 func createDataSchema(ctx context.Context, db *sql.DB, logs bool) error {
 	businessStatements := []string{
+		nativeContinuationSchema,
 		generatedQuerySchema,
 		`CREATE TABLE IF NOT EXISTS api_tokens (name TEXT PRIMARY KEY, token TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, allowed_groups_json TEXT NOT NULL DEFAULT '[]', token_hash TEXT NOT NULL DEFAULT '', scopes TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_api_tokens_hash ON api_tokens(token_hash) WHERE token_hash != ''`,

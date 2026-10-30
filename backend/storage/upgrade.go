@@ -221,6 +221,11 @@ func migrateDatabase(ctx context.Context, db *sql.DB, version int, logs bool) er
 			}
 		}
 	}
+	if !logs && version < 5 {
+		if _, err := tx.ExecContext(ctx, nativeContinuationSchema); err != nil {
+			return err
+		}
+	}
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version=%d", target)); err != nil {
 		return err
 	}

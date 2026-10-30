@@ -72,6 +72,7 @@ type retryEvent struct {
 }
 
 type usageRecord struct {
+	NativeAttempts       []nativeAttemptRecord `json:"attempts,omitempty"`
 	hostedTools          *builtin.ToolAccounting
 	IngressRevision      string                     `json:"ingressRevision,omitempty"`
 	UpstreamRevision     string                     `json:"upstreamRevision,omitempty"`

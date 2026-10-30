@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,12 +21,15 @@ import (
 // Server composes application services and their HTTP adapters. Construction is
 // in bootstrap.go; lifecycle.go owns request draining and resource shutdown.
 type Server struct {
-	config            *config.Config
-	engine            *route.Engine
-	store             *storage.Store
-	logger            *logging.Logger
-	protocolTransport *relay.ProtocolTransport
-	startupErr        error
+	nativeScheduler     routing.NativeScheduler
+	nativeTransportOnce sync.Once
+	nativeTransport     http.RoundTripper
+	config              *config.Config
+	engine              *route.Engine
+	store               *storage.Store
+	logger              *logging.Logger
+	protocolTransport   *relay.ProtocolTransport
+	startupErr          error
 
 	// Routing components own their synchronization and mutable state.
 	routes          routing.Cache
