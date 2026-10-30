@@ -80,7 +80,7 @@ function BreakdownTooltipContent({
  */
 export function TemporalTrendSection({ minuteTick }: { minuteTick: number }) {
   const [perspective, setPerspective] = useState<TrendPerspective>('overview')
-  const [range, setRange] = useState<'7d' | '30d'>('30d')
+  const [range, setRange] = useState<'7d' | '30d'>('7d')
 
   // Overview 模式下的图例开关
   const [showReqLine, setShowReqLine] = useState(true)
