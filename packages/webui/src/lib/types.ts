@@ -1,4 +1,4 @@
-// 类型合同：与 backend storage 类型 + docs/webui-data-model.md 严格对齐。
+// 与 backend/storage 的接口类型保持一致。
 
 
 

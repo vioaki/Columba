@@ -63,17 +63,6 @@ extension AppDelegate {
         }
     }
 
-    #if NATIVE_TESTS
-    var panelDownloadCountForTests: Int { panelDownloads.count + cancellingPanelDownloads.count }
-    var panelTemporaryDestinationForTests: URL? { panelDownloads.values.first?.temporaryURL }
-    var pendingSavePanelForTests: NSSavePanel? { panelDownloads.values.first(where: { $0.reply != nil })?.panel }
-    var panelDestinationRepliesForTests: Int { panelDestinationReplies }
-    var panelDownloadMessageForTests: String { panelDownloadMessage }
-    func resolvePanelDestinationForTests(_ url: URL?) {
-        guard let pending = panelDownloads.values.first(where: { $0.reply != nil }) else { return }
-        completePanelDestination(pending, url: url)
-    }
-    #endif
 
     private func trackPanelDownload(_ download: WKDownload, from source: WKWebView) {
         guard source === webView, window != nil, !terminating,
@@ -105,17 +94,11 @@ extension AppDelegate {
 
     private func completePanelDestination(_ pending: PanelDownload, url: URL?) {
         var selected = url
-        let resolved: Bool
-        do { resolved = try pending.resolveDestination(url) }
+        do { _ = try pending.resolveDestination(url) }
         catch {
             selected = nil
-            resolved = (try? pending.resolveDestination(nil)) ?? false
+            _ = try? pending.resolveDestination(nil)
             reportPanelDownload("导出失败", detail: "无法检查保存目标：\(error.localizedDescription)")
-        }
-        if resolved {
-            #if NATIVE_TESTS
-            panelDestinationReplies += 1
-            #endif
         }
         pending.dismissPanel()
         if selected == nil {

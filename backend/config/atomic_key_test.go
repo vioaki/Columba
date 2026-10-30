@@ -8,6 +8,19 @@ import (
 	"testing"
 )
 
+func TestBootstrapPreservesInvalidConfiguration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte("{broken"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, created, err := EnsureConfig(path); err == nil || created {
+		t.Fatal("invalid configuration replaced", err)
+	}
+	if data, err := os.ReadFile(path); err != nil || string(data) != "{broken" {
+		t.Fatal("original configuration lost", err)
+	}
+}
+
 func TestDBEncryptionKeyAtomicPersistence(t *testing.T) {
 	t.Setenv("COLUMBA_MASTER_KEY", "")
 	path := filepath.Join(t.TempDir(), "key")

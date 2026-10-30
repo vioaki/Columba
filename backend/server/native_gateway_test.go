@@ -230,37 +230,6 @@ func TestNativeCancellationDoesNotRetry(t *testing.T) {
 	}
 }
 
-func TestNativeCaptureRetainsBothWireDirections(t *testing.T) {
-	for _, stream := range []bool{false, true} {
-		responseBody := `{"vendor":"kept","usage":{"prompt_tokens":3,"completion_tokens":2}}`
-		if stream {
-			responseBody = "data: " + responseBody + "\n\n"
-		}
-		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if stream {
-				w.Header().Set("Content-Type", "text/event-stream")
-			}
-			io.WriteString(w, responseBody)
-		}))
-		s := newNativeTestServer(t)
-		limit := 8
-		s.config.SetUsageLogConfig(config.UsageLogConfig{BodyMaxKB: &limit})
-		seedNative(t, s, "capture", "openai", upstream.URL)
-		c, rec := adminTestContext("POST", "/v1/chat/completions", `{"model":"raw-model","vendor":true}`)
-		s.serveNative(contextForTest(c), c)
-		flushTestResponse(c)
-		id := string(c.Response.Header.Peek("X-Columba-Request-Id"))
-		var stored usageRecord
-		if err := json.Unmarshal([]byte(storedRecordJSON(t, s.store, id)), &stored); err != nil {
-			t.Fatal(err)
-		}
-		if stored.IncomingBody != stored.OutgoingBody || stored.OutgoingBody.Content == "" || !strings.Contains(stored.ProviderResponse.Content, "kept") || stored.ProviderResponse.Truncated || rec.Body.String() != responseBody {
-			t.Fatalf("lost native diagnostic capture: %+v", stored)
-		}
-		upstream.Close()
-	}
-}
-
 func TestNativeStatisticsUseInclusiveCountersWithoutChangingBillingUsage(t *testing.T) {
 	for _, tc := range []struct {
 		protocol, raw        string

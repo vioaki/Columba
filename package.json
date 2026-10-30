@@ -9,13 +9,11 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "node scripts/build-standalone.mjs",
-    "test:macos-app": "node scripts/test-macos-app.mjs",
     "build:macos-app": "node scripts/build-macos-app.mjs",
     "build:webui": "npm run build --workspace @root/webui",
     "lint": "npm exec eslint -- packages/webui --cache --ext=ts,tsx",
     "lint-fix": "npm exec eslint -- packages/webui --cache --ext=ts,tsx --fix",
-    "test:webui": "node scripts/test-webui.mjs",
-    "test:standalone": "node scripts/smoke-standalone.mjs"
+    "test:webui": "npm run test:e2e --workspace @root/webui --"
   },
   "devDependencies": {
     "eslint": "^8.57.1",

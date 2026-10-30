@@ -16,7 +16,6 @@ import (
 	hserver "github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/network"
 	"github.com/cloudwego/hertz/pkg/route"
-	"github.com/cloudwego/hertz/pkg/route/param"
 )
 
 // Fixtures exercise native Hertz contexts and real Hertz listeners. net/http
@@ -29,10 +28,6 @@ func newTestEngine(t testing.TB) *route.Engine {
 	t.Cleanup(func() { _ = listener.Close() })
 	e := newHTTPEngine(nil, hserver.WithListener(listener))
 	return e
-}
-
-func addTestParam(c *app.RequestContext, key, value string) {
-	c.Params = append(c.Params, param.Param{Key: key, Value: value})
 }
 
 type hertzTestServer struct {
@@ -124,14 +119,6 @@ func setTestRemoteAddr(c *app.RequestContext, address string) {
 		addr = &net.TCPAddr{IP: net.ParseIP(address)}
 	}
 	c.GetConn().(*testConnection).remote = addr
-}
-
-// Only cancellation-at-flush tests need a snapshot before handler completion.
-// Ordinary fixtures decode once, avoiding quadratic copying for long streams.
-func observeTestFlush(c *app.RequestContext) {
-	conn := c.GetConn().(*testConnection)
-	value, _ := c.Get("testRecorder")
-	conn.flush = func() { copyTestStream(conn, value.(*httptest.ResponseRecorder)) }
 }
 
 func copyTestStream(conn *testConnection, rec *httptest.ResponseRecorder) {

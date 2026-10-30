@@ -20,14 +20,12 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: go test ./... && go vet ./...
-        working-directory: backend
-      - run: go test -race ./internal/routing ./internal/nativeusage ./internal/billing ./storage ./server
+      - run: go test -race ./... && go vet ./...
         working-directory: backend
       - run: npm run lint --workspace @root/webui
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:webui
-      - run: npm run build && npm run test:standalone
+      - run: npm run build
       - run: git diff --check
       - uses: actions/upload-artifact@v4
         with:

@@ -65,7 +65,7 @@ function checkToolchain() {
           result.error?.message ?? result.stderr?.trim() ?? 'Compiler did not finish.',
           'Use a compatible Universal Command Line Tools package, or select an installed Xcode with DEVELOPER_DIR.',
           'Missing x86_64 Swift compatibility libraries cannot be fixed by changing the SDK alone.',
-          'See docs/macos-testing.md. Existing app and DMG outputs have not been changed.',
+          'See README.md. Existing app and DMG outputs have not been changed.',
         ].join('\n'))
       }
     }

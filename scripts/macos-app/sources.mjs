@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 
-/** Production Swift sources shared by app builds and the native test executable. */
+/** Swift sources included in the native app. */
 export function nativeAppSources(directory) {
   return [
     'MacSupport.swift', 'PanelBridge.swift',

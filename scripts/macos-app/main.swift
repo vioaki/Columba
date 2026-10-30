@@ -16,11 +16,7 @@ import os
 
 // MARK: - 常量与路径
 
-#if NATIVE_TESTS
-let dataDirPath = ProcessInfo.processInfo.environment["COLUMBA_NATIVE_TEST_DATA"]!
-#else
 let dataDirPath = NSHomeDirectory() + "/Library/Application Support/Columba"
-#endif
 let configPath = dataDirPath + "/config.json"
 let logPath = dataDirPath + "/columba.log"
 let backendPath = Bundle.main.bundlePath + "/Contents/MacOS/columba-server"
@@ -339,18 +335,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var panelDownloads: [ObjectIdentifier: PanelDownload] = [:]
     var cancellingPanelDownloads: [ObjectIdentifier: PanelDownload] = [:]
     var panelDownloadMessage = ""
-    #if NATIVE_TESTS
-    var panelDestinationReplies = 0
-    #endif
 
     // The tray supervisor never constructs WebKit. Closing the panel exits its process.
     let isPanelProcess = CommandLine.arguments.contains("--webui-process")
     var usesPanelProcess: Bool {
-        #if NATIVE_TESTS
-        return !isPanelProcess && NSApp.delegate === self
-        #else
         return !isPanelProcess
-        #endif
     }
     var panelProcess: Process?
     var panelBridge: PanelBridge?
@@ -388,9 +377,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var terminating = false
     private var terminationReplyPending = false
     private var terminationCleanupDeadline: DispatchWorkItem?
-    #if NATIVE_TESTS
-    var terminationRepliesForTests = 0
-    #endif
     var restartWork: DispatchWorkItem?
     var healthInFlight = false
     var startupTime = Date()
@@ -447,9 +433,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         launchedAtLogin = launchedAtLogin || event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         if isPanelProcess { launchPanelProcess(); return }
         guard ensureSingleInstance() else { requestTermination(); return }
-        #if NATIVE_TESTS
-        notifications.enabled = false
-        #endif
         config = loadOrCreateConfig() ?? PanelConfig()
         appLogger.info("Launching Columba \(self.currentVersion, privacy: .public), background: \(self.launchedAtLogin)")
         notifications.onOpen = { [weak self] in self?.showMainWindow() }
@@ -457,10 +440,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         buildMainMenu()
         buildStatusItem()
         if !launchedAtLogin { showMainWindow() }
-        #if !NATIVE_TESTS
         do { try launchAtLogin.reconcile() }
         catch { appLogger.error("Login item reconciliation: \(error.localizedDescription, privacy: .public)") }
-        #endif
         refreshPreferencesUI()
         startBackend()
         scheduleTimers()
@@ -526,11 +507,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         terminationReplyPending = false
         terminationCleanupDeadline?.cancel()
         terminationCleanupDeadline = nil
-        #if NATIVE_TESTS
-        terminationRepliesForTests += 1
-        // The integration suite invokes the real delegate without installing it on NSApp.
-        if NSApp.delegate !== self { return }
-        #endif
         NSApp.reply(toApplicationShouldTerminate: true)
     }
 
@@ -1120,22 +1096,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     private func scheduleTimers() {
         rescheduleHealthTimer()
-        #if NATIVE_TESTS
-        if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_TRAY_TEST"] == "1" {
-            let control = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
-                guard let self, let command = try? String(contentsOfFile: dataDirPath + "/tray-test-command", encoding: .utf8) else { return }
-                try? FileManager.default.removeItem(atPath: dataDirPath + "/tray-test-command")
-                switch command {
-                case "show": self.showMainWindow()
-                case "close": self.stopPanelProcess()
-                case "quit": self.requestTermination()
-                default: break
-                }
-            }
-            timers.append(control)
-            RunLoop.main.add(control, forMode: .common)
-        }
-        #endif
     }
 
     func rescheduleHealthTimer(for state: BackendState? = nil) {
@@ -1351,33 +1311,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 signal(SIGPIPE, SIG_IGN)
 
 
-#if NATIVE_TESTS
-// Test hooks are compiled out of the shipped app. All fixture data/preferences have a unique domain.
-extension AppDelegate {
-    func prepareForTests() {
-        config = loadOrCreateConfig() ?? PanelConfig()
-        notifications.enabled = false
-        buildMainMenu()
-        buildStatusItem()
-    }
-    func pollForTests() { pollHealth() }
-    func retryForTests() { retryStartup() }
-    func ageHealthFailureForTests() { healthFailedSince = Date().addingTimeInterval(-16) }
-}
-if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_APP_TEST"] == "1" {
-    let app = NSApplication.shared
-    let delegate = AppDelegate()
-    app.delegate = delegate
-    app.setActivationPolicy(.accessory)
-    app.run()
-} else {
-    MainActor.assumeIsolated { NativeTests.run() }
-}
-#else
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.accessory)
 app.run()
-
-#endif

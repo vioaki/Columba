@@ -10,9 +10,23 @@ import (
 	"net/url"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
+
+func TestDialRejectsPrivateAndRebindingTargets(t *testing.T) {
+	SetAllowPrivateDial(false)
+	SetDeniedIPRanges(DefaultDeniedIPRanges)
+	for _, address := range []string{"127.0.0.1:80", "10.0.0.1:80", "169.254.169.254:80", "[::1]:80", "[64:ff9b::7f00:1]:80", "[2002:a9fe:a9fe::]:80", "not-an-ip"} {
+		if err := secureControl("tcp", address, syscall.RawConn(nil)); err == nil {
+			t.Fatalf("unsafe dial accepted: %s", address)
+		}
+	}
+	if err := secureControl("tcp", "8.8.8.8:80", syscall.RawConn(nil)); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestProxyURLValidation(t *testing.T) {
 	for _, raw := range []string{"", "  ", "http://localhost:7890", "http://user:p%40ss@[::1]:7890/", "http://proxy.example"} {

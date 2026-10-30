@@ -45,14 +45,3 @@ func adminTestContext(method, target, body string) (*app.RequestContext, *httpte
 	setTestRequest(c, req)
 	return c, rec
 }
-func decodeAdminData(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
-	t.Helper()
-	var e struct {
-		OK   bool           `json:"ok"`
-		Data map[string]any `json:"data"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &e); err != nil || !e.OK {
-		t.Fatalf("admin response: %d %s %v", rec.Code, rec.Body.String(), err)
-	}
-	return e.Data
-}

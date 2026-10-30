@@ -95,9 +95,6 @@ extension AppDelegate {
             // Only the child keeps the read end; parent death closes the writer and triggers graceful shutdown.
             try? input.fileHandleForReading.close()
             backend = process
-            #if NATIVE_TESTS
-            try String(process.processIdentifier).write(toFile: dataDirPath + "/owned-backend.pid", atomically: true, encoding: .utf8)
-            #endif
             configureWebScripts()
             appLogger.info("Backend started, pid \(process.processIdentifier), port \(self.backendPort)")
             refreshStatusUI()

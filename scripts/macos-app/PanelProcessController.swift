@@ -69,9 +69,6 @@ extension AppDelegate {
             sendPanelState()
             rescheduleHealthTimer()
             pollHealth()
-            #if NATIVE_TESTS
-            try? String(process.processIdentifier).write(toFile: dataDirPath + "/tray-ui.pid", atomically: true, encoding: .utf8)
-            #endif
         } catch { alert("无法打开面板：\n\(error.localizedDescription)") }
     }
 
@@ -127,11 +124,6 @@ extension AppDelegate {
         case "ready":
             guard message.port == backendPort, message.host == backendHost, message.generation == backendGeneration.uuidString, backendState == .running, !panelClosing else { return }
             panelReady = true
-            #if NATIVE_TESTS
-            if let process = panelProcess {
-                try? String(process.processIdentifier).write(toFile: dataDirPath + "/tray-ui-ready.pid", atomically: true, encoding: .utf8)
-            }
-            #endif
         case "action":
             switch message.action {
             case "restart": restartBackend()

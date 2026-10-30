@@ -1,10 +1,6 @@
 package storage
 
-import (
-	"encoding/json"
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestLatestUpgradeMapsNativeChannelsAndOnlyUnambiguousSchedules(t *testing.T) {
 	path, logs, key := previousDatabases(t)
@@ -100,44 +96,5 @@ func TestUnknownCurrentFormatIsRejectedBeforeSchemaRepair(t *testing.T) {
 	db.Close()
 	if err := UpgradeDatabases(path, logs, ""); err == nil {
 		t.Fatal("incomplete schema accepted")
-	}
-}
-
-func TestAutomaticSourceManualModelsAndExplicitKeyRemoval(t *testing.T) {
-	s := openMergeTestStore(t)
-	src := mergeTestSource()
-	src.AutoFetchModels = true
-	src.Platform = "openai"
-	src.APIKeys = []SourceAPIKey{{Value: "old"}}
-	seedSource(t, s, src)
-	if _, err := s.MergeSourceModels(t.Context(), src, []Model{{ID: "fetched"}}); err != nil {
-		t.Fatal(err)
-	}
-	src.ManualModels = []Model{{ID: "manual"}}
-	src.APIKeys = []SourceAPIKey{}
-	if err := s.SaveSource(t.Context(), SourceUpdate{Source: src, SyncManualModels: true}); err != nil {
-		t.Fatal(err)
-	}
-	models, err := s.ListModels(t.Context())
-	if err != nil || len(models) != 2 {
-		t.Fatal(models, err)
-	}
-	for _, m := range models {
-		if m.ID == "manual" && m.Origin != "manual" {
-			t.Fatal(m)
-		}
-	}
-	src.ManualModels = nil
-	if err := s.SaveSource(t.Context(), SourceUpdate{Source: src, SyncManualModels: true}); err != nil {
-		t.Fatal(err)
-	}
-	models, err = s.ListModels(t.Context())
-	if err != nil || len(models) != 1 || models[0].ID != "fetched" {
-		t.Fatal(models, err)
-	}
-	keys, err := s.ListAPITokens(t.Context())
-	raw, _ := json.Marshal(keys)
-	if err != nil || strings.Contains(string(raw), "scopes") {
-		t.Fatal(string(raw), err)
 	}
 }

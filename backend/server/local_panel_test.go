@@ -1,11 +1,22 @@
 package server
 
 import (
+	"columba.local/backend/config"
 	"context"
 	"github.com/cloudwego/hertz/pkg/app"
 	"net/http"
 	"testing"
 )
+
+func TestListenerOnlyAllowsLoopback(t *testing.T) {
+	for _, host := range []string{"localhost", "127.0.0.1", "::1", "0.0.0.0", "::", "192.168.1.2", "evil.example"} {
+		cfg := &config.Config{Host: host}
+		want := host == "localhost" || host == "127.0.0.1" || host == "::1"
+		if (cfg.ValidateLocalHost() == nil) != want {
+			t.Fatalf("unexpected listener validation for %q", host)
+		}
+	}
+}
 
 func TestLocalPanelAuthorityRejectsRebindingHosts(t *testing.T) {
 	for _, host := range []string{"127.0.0.1:8765", "localhost:8765", "[::1]:8765"} {
