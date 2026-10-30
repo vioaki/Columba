@@ -331,7 +331,7 @@ final class PulseMenuView: NSView {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKDownloadDelegate, WKScriptMessageHandler, NSWindowDelegate, WKUIDelegate, NSMenuDelegate, NSMenuItemValidation {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKDownloadDelegate, WKScriptMessageHandler, WKHTTPCookieStoreObserver, NSWindowDelegate, WKUIDelegate, NSMenuDelegate, NSMenuItemValidation {
     var panelDownloads: [ObjectIdentifier: PanelDownload] = [:]
     var cancellingPanelDownloads: [ObjectIdentifier: PanelDownload] = [:]
     var panelDownloadMessage = ""
@@ -362,7 +362,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var pulseView: PulseMenuView!
     var pulseFetchGeneration = 0
     var pulseSlots: [Int] = []
-    var pulseSummaryText = "最近 24 小时"
+    var pulseSummaryText = "登录后查看用量"
+    var panelSessionCookie = ""
     var reloadPanelItem: NSMenuItem!
 
     var config: PanelConfig!
@@ -694,6 +695,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         userContent.add(self, name: "theme")
         webConfig.userContentController = userContent
         webView = WKWebView(frame: .zero, configuration: webConfig)
+        webConfig.websiteDataStore.httpCookieStore.add(self)
         webView.navigationDelegate = self
         webView.uiDelegate = self
         configureWebScripts()
@@ -784,6 +786,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.setActivationPolicy(.accessory)
         overlaySpinner?.stopAnimation(nil)
         webView?.stopLoading()
+        webView?.configuration.websiteDataStore.httpCookieStore.remove(self)
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "theme")
@@ -985,17 +988,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
     }
 
-    /// 菜单每次弹出时按需拉取最近 24 小时用量脉冲；失败静默保留上一次的图。
+    func updatePanelSession(_ value: String) {
+        guard panelSessionCookie != value else { return }
+        panelSessionCookie = value
+        pulseFetchGeneration += 1
+        pulseSlots = []
+        pulseSummaryText = value.isEmpty ? "登录后查看用量" : "最近 24 小时"
+        refreshStatusUI()
+    }
+
+    /// 托盘与面板使用同一个已登录会话；过期或退出后清除用量显示。
     private func refreshUsagePulse() {
         guard pulseView != nil else { return }
-        guard backendState == .running else { renderHeader(); return }
+        guard backendState == .running, !panelSessionCookie.isEmpty else { renderHeader(); return }
         pulseFetchGeneration += 1
         let generation = pulseFetchGeneration
         let backendID = backendGeneration
         let now = Date()
         guard let url = usagePulseURL(base: apiBaseURL, now: now) else { return }
-        let request = URLRequest(url: url)
+        let session = panelSessionCookie
+        var request = URLRequest(url: url)
+        request.setValue("columba_session=\(session)", forHTTPHeaderField: "Cookie")
         healthSession.dataTask(with: request) { [weak self] data, response, _ in
+            if (response as? HTTPURLResponse)?.statusCode == 401 {
+                DispatchQueue.main.async {
+                    guard let self, self.panelSessionCookie == session else { return }
+                    self.updatePanelSession("")
+                }
+                return
+            }
             guard (response as? HTTPURLResponse)?.statusCode == 200, let data,
                   let summary = parseUsagePulse(data) else { return }
             DispatchQueue.main.async {
@@ -1216,6 +1237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard webView === self.webView else { return }
+        cookiesDidChange(in: webView.configuration.websiteDataStore.httpCookieStore)
         if backendState == .running {
             hideOverlay()
             reportPanelReadiness()

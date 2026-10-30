@@ -25,6 +25,7 @@ func main() {
 // command-line flags, creates configuration files, or terminates the process.
 func run() error {
 	configPath := flag.String("config", "config.json", "Path to config file")
+	resetPassword := flag.Bool("reset-panel-password", false, "Reset the local management password and exit")
 	flag.Parse()
 	if *configPath == "" {
 		*configPath = "config.json"
@@ -45,6 +46,18 @@ func run() error {
 		logging.Info().Str("path", *configPath).Msg("created local configuration")
 	}
 	logging.Info().Str("component", "config").Msg("config loaded successfully")
+	if *resetPassword {
+		store, err := storage.OpenWithLogPath(cfg.GetDatabasePath(), cfg.GetLogDatabasePath(), cfg.GetDBEncryptionKey())
+		if err != nil {
+			return err
+		}
+		defer store.Close()
+		if err := store.ResetPanelPassword(context.Background()); err != nil {
+			return err
+		}
+		logging.Info().Msg("management password reset; open the local panel to set a new password")
+		return nil
+	}
 
 	// Capture termination even while startup is opening stores and preparing
 	// model catalogs. All shutdown sources use the server's RequestShutdown entry point.

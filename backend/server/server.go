@@ -19,6 +19,7 @@ import (
 // Server composes application services and their HTTP adapters. Construction is
 // in bootstrap.go; lifecycle.go owns request draining and resource shutdown.
 type Server struct {
+	panel               panelAuth
 	nativeScheduler     routing.NativeScheduler
 	nativeTransportOnce sync.Once
 	nativeTransport     http.RoundTripper

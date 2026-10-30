@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { ok: true, data: { authenticated: true, setupRequired: false, setupAllowed: true } } }))
   await page.route('**/api/admin/**', route => {
     const path = new URL(route.request().url()).pathname
     const data = /\/usage\/(trend|by-model|by-model-daily)$/.test(path) ? []
@@ -11,12 +12,48 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('opens without login and exposes five sections', async ({ page }) => {
+test('opens the authenticated panel with five sections', async ({ page }) => {
   await page.goto('/#/tokens')
   await expect(page.getByRole('heading', { name: '调用 Key', exact: true })).toBeVisible()
   await expect(page.getByRole('navigation', { name: '主导航' }).getByRole('link')).toHaveText(['总览', '模型', '调用 Key', '用量费用', '设置'])
   await expect(page.getByRole('button', { name: '新增 Key' }).first()).toBeVisible()
-  await expect(page.getByRole('button', { name: '退出登录' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '退出登录' })).toBeVisible()
+})
+
+test('sets a password, logs out, rejects a wrong password and returns to login on expiry', async ({ page }) => {
+  let authenticated = false
+  let setupRequired = true
+  await page.route('**/api/auth/**', route => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/login')) {
+      expect(route.request().headers()['x-columba-panel']).toBe('1')
+      if (route.request().postDataJSON().password !== 'test-password-123') {
+        return route.fulfill({ status: 400, json: { ok: false, error: { code: 'invalid_credentials', message: '密码不正确' } } })
+      }
+      authenticated = true
+      setupRequired = false
+    }
+    if (path.endsWith('/logout')) authenticated = false
+    return route.fulfill({ json: { ok: true, data: { authenticated, setupRequired, setupAllowed: true } } })
+  })
+  await page.goto('/#/tokens')
+  await expect(page.getByRole('heading', { name: '设置管理密码' })).toBeVisible()
+  await page.getByLabel('新密码', { exact: true }).fill('test-password-123')
+  await page.getByLabel('确认新密码', { exact: true }).fill('test-password-123')
+  await page.getByRole('button', { name: '设置密码并进入' }).click()
+  await expect(page.getByRole('heading', { name: '调用 Key', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '退出登录' }).click()
+  await expect(page.getByRole('heading', { name: '登录', exact: true })).toBeVisible()
+  await page.getByLabel('管理密码').fill('wrong-password')
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveText('密码不正确')
+  await page.getByLabel('管理密码').fill('test-password-123')
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '调用 Key', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => Object.keys(localStorage).some(key => /token|password|session/.test(key)))).toBe(false)
+  authenticated = false
+  await page.route('**/api/admin/usage/seq', route => route.fulfill({ status: 401, json: { ok: false } }))
+  await expect(page.getByRole('heading', { name: '登录', exact: true })).toBeVisible()
 })
 
 test('distinguishes unknown costs and applies model filters', async ({ page }) => {

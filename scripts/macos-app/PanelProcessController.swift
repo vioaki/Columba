@@ -124,6 +124,12 @@ extension AppDelegate {
         case "ready":
             guard message.port == backendPort, message.host == backendHost, message.generation == backendGeneration.uuidString, backendState == .running, !panelClosing else { return }
             panelReady = true
+        case "session":
+            guard message.port == backendPort, message.host == backendHost,
+                  message.generation == backendGeneration.uuidString, backendState == .running,
+                  let value = message.sessionCookie,
+                  value.isEmpty || (value.count == 64 && value.allSatisfy({ "0123456789abcdef".contains($0) })) else { return }
+            updatePanelSession(value)
         case "action":
             switch message.action {
             case "restart": restartBackend()
@@ -172,6 +178,27 @@ extension AppDelegate {
             message.port = port
             message.host = host
             message.generation = generation
+            self.panelBridge?.send(message)
+        }
+    }
+
+    func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
+        guard isPanelProcess, let webView, let url = webView.url, isPanelOrigin(url) else { return }
+        let port = backendPort, host = backendHost, generation = panelBackendGeneration
+        cookieStore.getAllCookies { [weak self, weak webView] cookies in
+            guard let self, let webView, webView === self.webView,
+                  generation == self.panelBackendGeneration, port == self.backendPort,
+                  host == self.backendHost, !self.terminating else { return }
+            // HttpOnly credentials travel only over the owned process pipe, never JavaScript or preferences.
+            let cookie = cookies.first {
+                $0.name == "columba_session" && $0.domain == url.host && $0.path == "/" && $0.isHTTPOnly &&
+                ($0.expiresDate ?? .distantFuture) > Date()
+            }
+            var message = PanelMessage(type: "session")
+            message.generation = generation
+            message.port = port
+            message.host = host
+            message.sessionCookie = cookie?.value ?? ""
             self.panelBridge?.send(message)
         }
     }

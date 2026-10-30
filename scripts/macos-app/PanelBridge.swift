@@ -11,6 +11,7 @@ struct PanelMessage: Codable {
     var config: PanelConfig? = nil
     var restartCount: Int? = nil
     var error: String? = nil
+    var sessionCookie: String? = nil
 }
 
 /// One JSON message per line. Each endpoint owns its pipe handles.

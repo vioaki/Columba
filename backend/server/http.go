@@ -37,20 +37,29 @@ func (s *Server) setupRoutes() {
 	s.mountWebUI()
 	if s.config.EnablePprof {
 		debug := s.engine.Group("/debug/pprof")
-		debug.Use(s.localPanelMiddleware())
+		debug.Use(s.localPanelMiddleware(), s.panelAuthMiddleware())
 		debug.GET("/", serveProfileIndex)
 		debug.GET("/:profile", serveProfile)
 	}
 
 	admin := s.engine.Group("/api/admin")
-	admin.Use(s.localPanelMiddleware())
+	admin.Use(s.localPanelMiddleware(), s.panelAuthMiddleware())
 	{
 		s.setupAdminRoutes(admin)
 	}
 
+	auth := s.engine.Group("/api/auth", s.localPanelMiddleware(), func(ctx context.Context, c *app.RequestContext) {
+		c.Header("Cache-Control", "no-store")
+		c.Next(ctx)
+	})
+	auth.GET("/session", s.panelSessionStatus)
+	auth.POST("/login", s.panelLogin)
+	auth.POST("/logout", s.panelLogout)
+	auth.PUT("/password", s.panelAuthMiddleware(), s.panelChangePassword)
+
 	s.engine.GET("/health", s.healthCheck)
-	s.engine.POST("/__reload", s.loopbackOnly(), s.localPanelMiddleware(), s.reloadConfig)
-	s.engine.POST("/__shutdown", s.loopbackOnly(), s.localPanelMiddleware(), s.shutdown)
+	s.engine.POST("/__reload", s.loopbackOnly(), s.localPanelMiddleware(), s.panelAuthMiddleware(), s.reloadConfig)
+	s.engine.POST("/__shutdown", s.loopbackOnly(), s.localPanelMiddleware(), s.panelAuthMiddleware(), s.shutdown)
 }
 
 // mountWebUI 在 /ui 提供控制台静态资源，优先级：

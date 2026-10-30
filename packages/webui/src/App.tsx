@@ -1,6 +1,10 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/app-layout'
+import useSWR from 'swr'
+import { api, SESSION_EXPIRED } from './lib/api'
+import { LoginPage } from './pages/login'
+import { Button } from './components/ui/button'
 
 // 页面按路由拆包：recharts 等重组件只随用到它的页面下载，
 // 登录页与首屏外壳保持轻量。
@@ -52,7 +56,24 @@ function usePreloadRoutes(enabled: boolean) {
 }
 
 export function App() {
-  usePreloadRoutes(true)
+  const { data: session, error, mutate } = useSWR('panel-session', api.panelSession, { shouldRetryOnError: false })
+  usePreloadRoutes(session?.authenticated === true)
+  useEffect(() => {
+    // Reload clears all private SWR data and in-flight requests after logout/expiry.
+    let reloading = false
+    const expired = () => {
+      if (!reloading) { reloading = true; window.location.reload() }
+    }
+    window.addEventListener(SESSION_EXPIRED, expired)
+    return () => window.removeEventListener(SESSION_EXPIRED, expired)
+  }, [])
+
+  if (error) return <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-5">
+    <p role="alert">无法连接管理面板，请确认服务正在运行。</p>
+    <Button onClick={() => void mutate()}>重试</Button>
+  </main>
+  if (!session) return <BootFallback />
+  if (!session.authenticated) return <LoginPage session={session} />
 
   return (
     <HashRouter>

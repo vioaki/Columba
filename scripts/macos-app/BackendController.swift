@@ -13,7 +13,7 @@ extension AppDelegate {
 
     func setBackendState(_ state: BackendState, error: String? = nil) {
         guard state != backendState || (error != nil && error != lastBackendError) else { return }
-        if state != .running { panelReady = false }
+        if state != .running { panelReady = false; updatePanelSession("") }
         rescheduleHealthTimer(for: state)
         appLogger.info("Backend state: \(state.rawValue, privacy: .public); \(error ?? "", privacy: .public)")
         backendState = state

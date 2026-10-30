@@ -13,15 +13,17 @@ Go · React · SQLite
 - **渠道调度**：轮询、优先级、加权，支持多 Key 与失败重试。
 - **用量计费**：[models.dev](https://models.dev) 价格目录与手动定价，按模型、渠道、调用 Key 统计。
 
-支持 macOS App，以及 Windows / Linux / macOS 单文件运行。面板免登录，API 调用使用 Key，服务仅监听本机。
+支持 macOS App，以及 Windows / Linux / macOS 单文件运行。面板使用管理密码登录，API 调用使用独立 Key，服务仅监听本机。
 
 ## 使用
 
 1. 启动 `Columba.app` 或对应平台的 `columba-*` 可执行文件，打开 [本地面板](http://127.0.0.1:8765/ui/)。
-2. 在「模型」添加渠道和上游凭据，拉取或手动添加模型并启用。
-3. 在「调用 Key」创建密钥，客户端使用原始模型 ID 发起调用。
+2. 首次在本机设置管理密码，登录后在「模型」添加渠道和模型。
+3. 启用模型，在「调用 Key」创建密钥，客户端使用原始模型 ID 发起调用。
 
 配置参考 [config.json.example](config.json.example)，通过 `-config /path/config.json` 指定。连接本地模型服务时，需在设置中放行对应的私网地址。
+
+管理密码可在「设置 → 登录安全」修改。会话有效期为 24 小时，重启服务后需重新登录。忘记密码时，在本机用相同配置加上 `-reset-panel-password` 参数运行可执行文件即可重置。
 
 费用以 USD 估算，覆盖 Token 与缓存；缺失价格或用量会单独标记。
 

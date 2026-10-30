@@ -36,10 +36,17 @@ export class ApiError extends Error {
 
 
 const ADMIN_BASE = '/api/admin'
+export const SESSION_EXPIRED = 'columba:session-expired'
+export interface PanelSession {
+  authenticated: boolean
+  setupRequired: boolean
+  setupAllowed: boolean
+}
 
 type QueryValue = string | number | boolean | undefined | null | string[]
 
 interface RequestOptions {
+  base?: '/api/auth'
   method?: string
   body?: unknown
   query?: Record<string, QueryValue>
@@ -49,8 +56,8 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
-function buildUrl(path: string, query?: RequestOptions['query']): string {
-  const url = `${ADMIN_BASE}${path}`
+function buildUrl(path: string, query?: RequestOptions['query'], base = ADMIN_BASE): string {
+  const url = `${base}${path}`
   if (!query) return url
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query)) {
@@ -71,12 +78,12 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
 
-  const headers: Record<string, string> = { ...options.headers }
+  const headers: Record<string, string> = { 'X-Columba-Panel': '1', ...options.headers }
   if (options.body !== undefined || options.rawBody !== undefined) headers['Content-Type'] = 'application/json'
 
   let response: Response
   try {
-    response = await fetch(buildUrl(path, options.query), {
+    response = await fetch(buildUrl(path, options.query, options.base), {
       method: options.method ?? 'GET',
       headers,
       body: options.rawBody ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
@@ -89,7 +96,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (response.status === 401) {
-    throw new ApiError('forbidden', '本地接口拒绝访问', response.status)
+    window.dispatchEvent(new Event(SESSION_EXPIRED))
+    throw new ApiError('unauthorized', '登录已失效，请重新登录', response.status)
   }
 
   let payload: ApiResult<T> | { error?: string } | null = null
@@ -124,6 +132,10 @@ interface ListEnvelope<T> {
 }
 
 export const api = {
+  panelSession: () => request<PanelSession>('/session', { base: '/api/auth' }),
+  panelLogin: (password: string) => request<PanelSession>('/login', { base: '/api/auth', method: 'POST', body: { password } }),
+  panelLogout: () => request('/logout', { base: '/api/auth', method: 'POST' }),
+  panelChangePassword: (currentPassword: string, password: string) => request('/password', { base: '/api/auth', method: 'PUT', body: { currentPassword, password } }),
   health: () => request<Health>('/health'),
 
   runtimeConfig: () => request<RuntimeConfig>('/runtime-config'),
@@ -248,7 +260,8 @@ export const api = {
     )
     // 与 request() 保持一致：会话失效时踢回登录页，而非仅报媒体获取失败。
     if (response.status === 401) {
-      throw new ApiError('forbidden', '本地接口拒绝访问', response.status)
+      window.dispatchEvent(new Event(SESSION_EXPIRED))
+      throw new ApiError('unauthorized', '登录已失效，请重新登录', response.status)
     }
     if (!response.ok) {
       throw new ApiError('asset_fetch_failed', `媒体文件获取失败（${response.status}）`, response.status)

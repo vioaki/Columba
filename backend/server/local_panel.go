@@ -18,12 +18,14 @@ func localAuthority(authority string) bool {
 	return host == "localhost" || net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback()
 }
 
-// Local HTTP clients need no panel credential. Browser requests must originate
-// from this panel or the two fixed Vite development ports.
+// Origin validation and a custom header on writes protect cookie sessions from CSRF.
 func (s *Server) localPanelMiddleware() app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		host := string(c.Host())
 		allowed := localAuthority(host) && string(c.GetHeader("Sec-Fetch-Site")) != "cross-site"
+		if method := string(c.Method()); method != http.MethodGet && method != http.MethodHead {
+			allowed = allowed && string(c.GetHeader("X-Columba-Panel")) == "1"
+		}
 		if origin := string(c.GetHeader("Origin")); origin != "" {
 			u, err := url.Parse(origin)
 			allowed = allowed && err == nil && u.Scheme == "http" && u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == "" && localAuthority(u.Host) && (u.Host == host || u.Port() == "5273" || u.Port() == "5274")
