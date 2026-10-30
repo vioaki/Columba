@@ -254,6 +254,7 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 	record.RelayMode = "passthrough"
 	record.SourceFormat = wire
 	record.TargetFormat = wire
+	record.OutgoingBody = record.IncomingBody
 	installDownstreamCapture(c, record, downstreamCaptureLimit(s.usageLogConfig()))
 	defer func() {
 		record.EndedAt = time.Now()
@@ -367,6 +368,7 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 			return
 		}
 		observer := nativeusage.Observer{Protocol: wire, SSE: strings.Contains(strings.ToLower(response.Header.Get("Content-Type")), "text/event-stream")}
+		providerCapture := downstreamCapture{limit: downstreamCaptureLimit(s.usageLogConfig())}
 		attempt.Status = response.StatusCode
 		retry := index+1 < maxAttempts && nativeRetryStatus(response.StatusCode) && len(stateIDs) == 0
 		if !retry {
@@ -397,6 +399,7 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 			}
 			if count > 0 {
 				observer.Write(buffer[:count])
+				providerCapture.capture(buffer[:count])
 				if writer != nil {
 					if record.FirstByteMs == 0 {
 						record.FirstByteMs = time.Since(record.StartedAt).Milliseconds()
@@ -429,6 +432,10 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 		cancel()
 		observer.Finish()
 		attempt.Usage, attempt.Anomalies = observer.Usage, observer.Anomalies
+		if copyErr != nil {
+			attempt.Anomalies = append(attempt.Anomalies, "response interrupted; reported usage may be incomplete")
+		}
+		record.ProviderResponse = record.finalizeDownstreamBody(providerCapture.downstreamBody())
 		s.finishNativeBilling(record, attempt, snapshot)
 		record.NativeAttempts = append(record.NativeAttempts, attempt)
 		record.StatusCode = response.StatusCode

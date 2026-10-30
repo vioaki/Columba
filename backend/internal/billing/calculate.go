@@ -30,6 +30,9 @@ func Calculate(protocol string, u nativeusage.Usage, p Prices, anomalies []strin
 	if !anyUsage {
 		return Result{Status: "missing_usage", Reasons: append(result.Reasons, "provider did not report usage")}
 	}
+	if u.NonText {
+		return Result{Status: "partial", Reasons: append(result.Reasons, "multimodal token usage requires prices outside text/cache pricing; amount unavailable")}
+	}
 	n := func(v *int64) int64 {
 		if v == nil {
 			return 0

@@ -38,3 +38,8 @@ exclusive `to` filters; the detail endpoint also accepts `offset`.
 Latest legacy usage migrates as `historical_unpriced` (attempt zero), retaining
 its reported counters but no amount. Missing usage, missing prices, partial
 pricing, pending settlement and known zero costs remain separate states.
+
+Observed built-in tool usage marks token costs partial. Reported audio/video or
+image-output token usage is not priced at text rates: counters remain available,
+but the amount is unavailable until those modality-specific prices are supported.
+Interrupted responses retain reported counters and flag possible incomplete usage.

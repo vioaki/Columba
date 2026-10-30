@@ -63,3 +63,26 @@ func TestUsageMissingInvalidAndOversizedStayDistinctFromZero(t *testing.T) {
 		t.Fatal(o)
 	}
 }
+
+func TestUncoveredFeesAndMultimodalUsage(t *testing.T) {
+	for _, tc := range []struct {
+		protocol, body     string
+		uncovered, nonText bool
+	}{
+		{"responses", `{"response":{"output":[{"type":"web_search_call"}],"usage":{"input_tokens":20,"output_tokens":2}}}`, true, false},
+		{"responses", `{"type":"response.output_item.added","item":{"type":"image_generation_call"}}`, true, false},
+		{"responses", `{"type":"response.web_search_call.completed"}`, true, false},
+		{"responses", `{"output":[{"type":"function_call"}],"usage":{"input_tokens":20,"output_tokens":2}}`, false, false},
+		{"openai", `{"usage":{"prompt_tokens":20,"completion_tokens":2,"prompt_tokens_details":{"audio_tokens":10}}}`, false, true},
+		{"gemini", `{"usageMetadata":{"promptTokenCount":20,"candidatesTokenCount":2,"promptTokensDetails":[{"modality":"AUDIO","tokenCount":10}]}}`, false, true},
+		{"claude", `{"usage":{"input_tokens":20,"output_tokens":2,"server_tool_use":{"web_search_requests":0}}}`, false, false},
+		{"claude", `{"usage":{"input_tokens":20,"output_tokens":2,"server_tool_use":{"web_search_requests":1}}}`, true, false},
+	} {
+		o := Observer{Protocol: tc.protocol}
+		o.Write([]byte(tc.body))
+		o.Finish()
+		if o.Usage.Uncovered != tc.uncovered || o.Usage.NonText != tc.nonText {
+			t.Fatalf("%s: %+v", tc.body, o.Usage)
+		}
+	}
+}

@@ -14,6 +14,8 @@ func TestCalculateProtocolAccounting(t *testing.T) {
 		{"claude exclusive cache", "claude", `{"input":100,"output":20,"cacheRead":40,"cacheWrite":30,"cacheWrite5m":20,"cacheWrite1h":10}`, `{"input":2,"output":8,"cache_read":1,"cache_write":3,"cache_write_1h":4}`, "0.000500000000", "complete"},
 		{"one hour not guessed", "claude", `{"input":100,"output":20,"cacheWrite":10,"cacheWrite1h":10}`, `{"input":2,"output":8,"cache_write":3}`, "0.000360000000", "partial"},
 		{"zero known", "openai", `{"input":100,"output":20}`, `{"input":0,"output":0}`, "0.000000000000", "complete"},
+		{"uncovered tool", "responses", `{"input":100,"output":20,"uncovered":true}`, `{"input":2,"output":8}`, "0.000360000000", "partial"},
+		{"audio is not priced as text", "openai", `{"input":100,"output":20,"nonText":true}`, `{"input":2,"output":8}`, "", "partial"},
 		{"missing prices", "openai", `{"input":100,"output":20}`, `{}`, "", "missing_price"},
 		{"missing usage", "openai", `{}`, `{"input":0,"output":0}`, "", "missing_usage"},
 		{"partial usage", "openai", `{"input":100}`, `{"input":2,"output":8}`, "0.000200000000", "partial"},

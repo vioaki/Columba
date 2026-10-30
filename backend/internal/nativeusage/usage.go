@@ -19,6 +19,7 @@ type Usage struct {
 	CacheWrite1h *int64 `json:"cacheWrite1h,omitempty"`
 	Reasoning    *int64 `json:"reasoning,omitempty"`
 	Uncovered    bool   `json:"uncovered,omitempty"`
+	NonText      bool   `json:"nonText,omitempty"`
 }
 
 type Observer struct {
@@ -132,6 +133,13 @@ func (o *Observer) addID(id string) {
 }
 
 type envelope struct {
+	Type   string `json:"type"`
+	Output []struct {
+		Type string `json:"type"`
+	} `json:"output"`
+	Item *struct {
+		Type string `json:"type"`
+	} `json:"item"`
 	ID            string          `json:"id"`
 	ResponseID    string          `json:"responseId"`
 	Usage         json.RawMessage `json:"usage"`
@@ -157,6 +165,16 @@ func (o *Observer) observe(raw []byte) {
 func (o *Observer) envelope(e *envelope, depth int) {
 	if depth > 2 {
 		return
+	}
+	for _, kind := range []string{"web_search_call", "file_search_call", "code_interpreter_call", "image_generation_call", "mcp_call"} {
+		if strings.HasPrefix(e.Type, "response."+kind+".") || e.Item != nil && e.Item.Type == kind {
+			o.Usage.Uncovered = true
+		}
+		for _, item := range e.Output {
+			if item.Type == kind {
+				o.Usage.Uncovered = true
+			}
+		}
 	}
 	o.addID(e.ID)
 	o.addID(e.ResponseID)
@@ -212,6 +230,13 @@ func (o *Observer) envelope(e *envelope, depth int) {
 		}
 		*target = &n
 	}
+	for _, path := range []string{"prompt_tokens_details.audio_tokens", "completion_tokens_details.audio_tokens", "input_tokens_details.audio_tokens", "output_tokens_details.audio_tokens"} {
+		var n *int64
+		read(&n, path)
+		if n != nil && *n > 0 {
+			o.Usage.NonText = true
+		}
+	}
 	switch o.Protocol {
 	case "openai":
 		read(&o.Usage.Input, "prompt_tokens")
@@ -232,8 +257,13 @@ func (o *Observer) envelope(e *envelope, depth int) {
 		read(&o.Usage.CacheWrite, "cache_creation_input_tokens")
 		read(&o.Usage.CacheWrite5m, "cache_creation.ephemeral_5m_input_tokens")
 		read(&o.Usage.CacheWrite1h, "cache_creation.ephemeral_1h_input_tokens")
-		if _, ok := fields["server_tool_use"]; ok {
-			o.Usage.Uncovered = true
+		var tools map[string]int64
+		if json.Unmarshal(fields["server_tool_use"], &tools) == nil {
+			for _, n := range tools {
+				if n > 0 {
+					o.Usage.Uncovered = true
+				}
+			}
 		}
 	case "gemini":
 		read(&o.Usage.Input, "promptTokenCount")
@@ -243,6 +273,19 @@ func (o *Observer) envelope(e *envelope, depth int) {
 		read(&o.Usage.Reasoning, "thoughtsTokenCount")
 		if v, ok := fields["toolUsePromptTokenCount"]; ok && string(v) != "0" {
 			o.Usage.Uncovered = true
+		}
+		for _, name := range []string{"promptTokensDetails", "candidatesTokensDetails"} {
+			var details []struct {
+				Modality   string `json:"modality"`
+				TokenCount int64  `json:"tokenCount"`
+			}
+			if json.Unmarshal(fields[name], &details) == nil {
+				for _, d := range details {
+					if d.TokenCount > 0 && (d.Modality == "AUDIO" || d.Modality == "VIDEO" || name == "candidatesTokensDetails" && d.Modality == "IMAGE") {
+						o.Usage.NonText = true
+					}
+				}
+			}
 		}
 	}
 }
