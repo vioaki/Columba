@@ -51,7 +51,6 @@ func (s *Server) setupAdminRoutes(admin *route.RouterGroup) {
 	admin.PATCH("/model-sources/:id/enabled", s.adminSetSourceEnabled)
 	admin.GET("/model-catalog/status", s.adminModelCatalogStatus)
 	admin.POST("/model-catalog/refresh", s.adminModelCatalogRefresh)
-	// 协议设计器：协议 CRUD（SQLite）+ 字段目录 + 渲染预览 + 真实测试（AI 助手见 agent 路由）。
 	admin.GET("/models", s.adminListModels)
 	admin.GET("/model-prices", s.adminModelPrice)
 	admin.PUT("/model-prices", s.adminSaveModelPrice)
@@ -573,7 +572,7 @@ func (s *Server) adminUpdateModel(ctx context.Context, c *app.RequestContext) {
 	respondOK(ctx, c, utils.H{"updated": true})
 }
 
-// adminDeleteModel 删除单个模型（事务内同步清理组内引用，方向4）。
+// adminDeleteModel 删除指定渠道的模型。
 func (s *Server) adminDeleteModel(ctx context.Context, c *app.RequestContext) {
 	store, okStore := s.requireStore(ctx, c)
 	if !okStore {
@@ -613,7 +612,7 @@ func (s *Server) adminListTokens(ctx context.Context, c *app.RequestContext) {
 	respondOK(ctx, c, utils.H{"items": items})
 }
 
-// adminRevealToken 在 dashboard 鉴权下返回指定 API Key 的完整明文，
+// adminRevealToken 在本地面板访问校验后返回指定 API Key 的完整明文，
 // 供前端"复制"按钮按需取用（列表默认仍脱敏，不在页面常驻明文）。
 func (s *Server) adminRevealToken(ctx context.Context, c *app.RequestContext) {
 	store, okStore := s.requireStore(ctx, c)

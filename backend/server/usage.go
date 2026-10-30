@@ -159,8 +159,8 @@ func (s *Server) initUsageRecord(ctx context.Context, c *app.RequestContext, sta
 	record := &usageRecord{
 		RequestID:   requestID,
 		StartedAt:   start,
-		KeyName:     c.GetString("elysiaKeyName"),
-		KeyHash:     c.GetString("elysiaKeyHash"),
+		KeyName:     c.GetString("columbaKeyName"),
+		KeyHash:     c.GetString("columbaKeyHash"),
 		InputFormat: string(inputFormat),
 		StatusCode:  http.StatusOK,
 		bodyOpts:    usageBodyOptions{maxBytes: cfg.BodyMaxBytes, externalize: cfg.ExternalizeMedia},

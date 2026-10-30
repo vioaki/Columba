@@ -80,9 +80,9 @@ func TestRequestLoggerCorrelatesAndRecovers(t *testing.T) {
 	})
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/panic", nil)
-	r.Header.Set("X-Elysia-Request-Id", "untrusted")
+	r.Header.Set("X-Columba-Request-Id", "untrusted")
 	serveTestHTTP(engine, w, r)
-	if w.Code != 500 || id == "" || id == "untrusted" || w.Header().Get("X-Elysia-Request-Id") != id {
+	if w.Code != 500 || id == "" || id == "untrusted" || w.Header().Get("X-Columba-Request-Id") != id {
 		t.Fatalf("status/id: %d %q", w.Code, id)
 	}
 	for _, line := range bytes.Split(bytes.TrimSpace(output.Bytes()), []byte("\n")) {

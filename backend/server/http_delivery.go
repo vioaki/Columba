@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	httpDeliveryKey      = "elysia.httpDelivery"
+	httpDeliveryKey      = "columba.httpDelivery"
 	deliveryCompleted    = "completed"
 	deliveryFailed       = "failed"
 	deliveryWrite        = "response_write"

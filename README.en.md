@@ -1,6 +1,6 @@
 # Columba
 
-<img src="packages/webui/public/Columba.svg" width="72" alt="Columba">
+<img src="packages/webui/brand/Columba.svg" width="72" alt="Columba">
 
 A local model gateway for aggregation, native protocol passthrough, channel scheduling, and usage/cost accounting. Go + React + SQLite, with a native macOS App and standalone Windows/Linux/macOS builds.
 

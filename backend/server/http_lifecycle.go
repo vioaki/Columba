@@ -81,7 +81,7 @@ func (s *Server) requestLifecycle() app.HandlerFunc {
 
 type httpSocketKey struct{}
 
-const httpCompletionKey = "elysia.httpCompletion"
+const httpCompletionKey = "columba.httpCompletion"
 
 // Hertz invokes Finish after response serialization (including SetBodyStream
 // and hijacked handlers), before returning RequestContext to its pool. Do not

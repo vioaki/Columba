@@ -14,6 +14,7 @@ export default defineConfig(({ command }) => {
   const proxy = { target: proxyTarget, changeOrigin: true }
   return {
     base: command === 'build' ? '/ui/' : '/',
+    publicDir: 'brand',
     plugins: [react()],
     resolve: {
       alias: {

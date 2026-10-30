@@ -13,4 +13,4 @@ npm run test:macos-app -- --panel
 
 构建要求能链接 macOS 12 上 arm64 与 x86_64 的 Swift 工具链。先运行 `npm run build:macos-app -- --check-toolchain` 检查。若当前 Command Line Tools 缺少某架构运行库，用 `DEVELOPER_DIR` 指向已安装的兼容 Xcode。构建不会自行下载工具链。
 
-图标统一从 `packages/webui/public/Columba.svg` 生成。产物为 Universal `Columba.app` 和 `columba-macos.dmg`，本地 ad-hoc 签名，未公证。构建校验架构、plist、签名和挂载后的 DMG；不自动替换已安装应用，也不发布。
+图标统一从 `packages/webui/brand/Columba.svg` 生成。产物为 Universal `Columba.app` 和 `columba-macos.dmg`，本地 ad-hoc 签名，未公证。构建校验架构、plist、签名和挂载后的 DMG；不自动替换已安装应用，也不发布。

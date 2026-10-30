@@ -63,3 +63,5 @@ packages/webui/playwright-report/
 **/*.upgrade.json
 **/*.upgrade.lock
 **/columba-upgrade-*/
+# Retired local artwork and traces are not part of the build.
+packages/webui/public/

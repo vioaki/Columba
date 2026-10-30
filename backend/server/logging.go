@@ -41,7 +41,7 @@ func (s *Server) requestLogging() app.HandlerFunc {
 		started := time.Now()
 		id := usageRequestID(started)
 		c.Set("requestID", id)
-		c.Header("X-Elysia-Request-Id", id)
+		c.Header("X-Columba-Request-Id", id)
 		logger := s.Logger().Component("http").With().Str("request_id", id).Logger()
 		ctx = logger.WithContext(ctx)
 		trackHTTPDelivery(ctx, c)

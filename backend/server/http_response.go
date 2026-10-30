@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/sse"
 )
 
-const responseStreamKey = "elysia.responseStream"
+const responseStreamKey = "columba.responseStream"
 
 const httpPanicResponse = "internal server error"
 

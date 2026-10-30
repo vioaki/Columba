@@ -11,7 +11,7 @@ import (
 	"columba.local/backend/internal/admission"
 )
 
-const preparationLeaseKey = "elysiaPreparationLease"
+const preparationLeaseKey = "columbaPreparationLease"
 
 func (s *Server) preparationLimiter() *admission.Limiter {
 	s.preparationOnce.Do(func() {

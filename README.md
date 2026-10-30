@@ -1,6 +1,6 @@
 # Columba
 
-<img src="packages/webui/public/Columba.svg" width="72" alt="Columba">
+<img src="packages/webui/brand/Columba.svg" width="72" alt="Columba">
 
 Columba 是本地模型网关：聚合模型、透传原生协议、调度渠道，并记录用量与参考费用。Go 后端、React 面板和双 SQLite 数据库；提供 macOS 原生 App，以及 Windows/Linux/macOS 单文件构建。
 

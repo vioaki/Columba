@@ -24,8 +24,8 @@ func (s *Server) authMiddleware() app.HandlerFunc {
 			nativeError(c, http.StatusUnauthorized, message)
 			return
 		}
-		c.Set("elysiaKeyName", accessToken.Name)
-		c.Set("elysiaKeyHash", shortTokenHash(token))
+		c.Set("columbaKeyName", accessToken.Name)
+		c.Set("columbaKeyHash", shortTokenHash(token))
 		c.Next(ctx)
 	}
 }
