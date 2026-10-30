@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elysia-api/backend/internal/dbpath"
+	"columba.local/backend/internal/dbpath"
 )
 
 func previousDatabases(t *testing.T) (string, string, []byte) {

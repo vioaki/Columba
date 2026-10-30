@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
+	"columba.local/backend/storage"
 )
 
 // Synthetic visible reasoning plus opaque provider state, matching the shape

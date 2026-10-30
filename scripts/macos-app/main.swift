@@ -1,9 +1,9 @@
-// ElysiaApi macOS 原生壳:托盘服务管理 + 独立进程承载 WebUI + 应用内更新。
+// Columba macOS 原生壳:托盘服务管理 + 独立进程承载 WebUI + 应用内更新。
 // 仅依赖系统框架(Cocoa/WebKit),零第三方依赖,用 swiftc -O 编译。
 //
 // 行为概要:
 // - 托盘拥有内嵌后端；独立窗口进程加载面板，关窗即退出并释放 WebKit
-// - 数据全部放在 ~/Library/Application Support/ElysiaApi(配置/数据库/日志)
+// - 数据全部放在 ~/Library/Application Support/Columba(配置/数据库/日志)
 // - 首次运行自动生成配置:随机面板令牌 + 空闲端口探测(8765→8799→8800…)
 // - 状态栏:模板图标 + 端口号/状态,菜单提供快捷操作
 // - 有新版本时窗口左下角浮出更新胶囊,一键完成 下载→sha256 校验→整包替换→自动重启
@@ -19,13 +19,13 @@ import os
 // MARK: - 常量与路径
 
 #if NATIVE_TESTS
-let dataDirPath = ProcessInfo.processInfo.environment["ELYSIA_NATIVE_TEST_DATA"]!
+let dataDirPath = ProcessInfo.processInfo.environment["COLUMBA_NATIVE_TEST_DATA"]!
 #else
-let dataDirPath = NSHomeDirectory() + "/Library/Application Support/ElysiaApi"
+let dataDirPath = NSHomeDirectory() + "/Library/Application Support/Columba"
 #endif
 let configPath = dataDirPath + "/config.json"
-let logPath = dataDirPath + "/elysia-api.log"
-let backendPath = Bundle.main.bundlePath + "/Contents/MacOS/elysia-api"
+let logPath = dataDirPath + "/columba.log"
+let backendPath = Bundle.main.bundlePath + "/Contents/MacOS/columba-server"
 let versionPath = Bundle.main.bundlePath + "/Contents/Resources/version.txt"
 let releasesAPI = "https://api.github.com/repos/PinkElysiaDev/Elysia-Api/releases/latest"
 let initialVersion = "v0.0.0"
@@ -38,7 +38,7 @@ struct PanelConfig: Codable {
     var host: String = "127.0.0.1"
     var port: Int = 8765
     var panelAccessToken: String = ""
-    var databasePath: String = "elysia-api.sqlite3"
+    var databasePath: String = "columba.sqlite3"
     var logLevel: String = "info"
     var httpTimeout: Int = 120
     var secretKeyPath: String = ".master-key"
@@ -220,7 +220,7 @@ func webStateBootstrapScript(store: WindowStateStore, origin: String) -> WKUserS
       try {
         var theme = \(javascriptString(store.webTheme ?? ""));
         if (theme === 'dark' || theme === 'light') {
-          localStorage.setItem('elysia-webui.theme', theme);
+          localStorage.setItem('columba-webui.theme', theme);
           document.documentElement.classList.toggle('dark', theme === 'dark');
         }
       } catch (e) {}
@@ -300,7 +300,7 @@ final class PulseMenuView: NSView {
         self.summary = summary
         self.slots = slots
         setAccessibilityElement(true)
-        setAccessibilityLabel("Elysia API，\(stateText)，\(subtitle)。\(summary)")
+        setAccessibilityLabel("Columba，\(stateText)，\(subtitle)。\(summary)")
         needsDisplay = true
     }
 
@@ -312,7 +312,7 @@ final class PulseMenuView: NSView {
         // 第一行：标题与运行状态（品牌由正上方的菜单栏图标承担，部件内不再重复）
         let titleFont = NSFont.systemFont(ofSize: 13, weight: .semibold)
         let line1Y = bounds.height - 20
-        ("Elysia API" as NSString).draw(at: NSPoint(x: inset, y: line1Y),
+        ("Columba" as NSString).draw(at: NSPoint(x: inset, y: line1Y),
             withAttributes: [.font: titleFont, .foregroundColor: NSColor.labelColor])
         let stateAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .medium),
                                                          .foregroundColor: NSColor.secondaryLabelColor]
@@ -514,7 +514,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard ensureSingleInstance() else { requestTermination(); return }
         #if NATIVE_TESTS
         notifications.enabled = false
-        if ProcessInfo.processInfo.environment["ELYSIA_NATIVE_APP_TEST"] == "1" {
+        if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_APP_TEST"] == "1" {
             if CommandLine.arguments.contains("--update-ack") {
                 try? String(ProcessInfo.processInfo.processIdentifier).write(toFile: dataDirPath + "/new-native.pid", atomically: true, encoding: .utf8)
             } else if !CommandLine.arguments.contains("--native-update-parent") {
@@ -523,7 +523,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         #endif
         config = loadOrCreateConfig() ?? PanelConfig()
-        appLogger.info("Launching ElysiaApi \(self.currentVersion, privacy: .public), background: \(self.launchedAtLogin)")
+        appLogger.info("Launching Columba \(self.currentVersion, privacy: .public), background: \(self.launchedAtLogin)")
         notifications.onOpen = { [weak self] in self?.showMainWindow() }
         NSApp.setActivationPolicy(.accessory)
         buildMainMenu()
@@ -665,7 +665,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // MARK: 单实例
 
     private var reopenNotification: Notification.Name {
-        Notification.Name((Bundle.main.bundleIdentifier ?? "ElysiaApi") + ".showPanel")
+        Notification.Name((Bundle.main.bundleIdentifier ?? "Columba") + ".showPanel")
     }
 
     private func ensureSingleInstance() -> Bool {
@@ -696,15 +696,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "关于 ElysiaApi", action: #selector(showAbout), keyEquivalent: "")
+        appMenu.addItem(withTitle: "关于 Columba", action: #selector(showAbout), keyEquivalent: "")
         addAction(appMenu, "偏好设置…", #selector(showPreferences), ",")
         addAction(appMenu, "检查更新…", #selector(checkForUpdatesFromMenu), "u", [.command, .shift])
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "隐藏 ElysiaApi", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "隐藏 Columba", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(withTitle: "隐藏其他", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "")
         appMenu.addItem(withTitle: "显示全部", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "退出 ElysiaApi", action: #selector(quit), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "退出 Columba", action: #selector(quit), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
         mainMenu.addItem(appMenuItem)
 
@@ -775,7 +775,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     func saveWindowState() {
         guard let window else { return }
-        if !window.styleMask.contains(.fullScreen) { window.saveFrame(usingName: "ElysiaApiPanel") }
+        if !window.styleMask.contains(.fullScreen) { window.saveFrame(usingName: "ColumbaPanel") }
     }
 
     func buildWindow() {
@@ -783,7 +783,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         window = NSWindow(contentRect: rect,
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
-        window.title = "Elysia API"
+        window.title = "Columba"
         window.minSize = NSSize(width: 940, height: 600)
         window.collectionBehavior = [.fullScreenPrimary]
         // 关闭窗口时不要释放 NSWindow:Swift 强引用无法感知 AppKit 的额外 release,
@@ -794,11 +794,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         window.backgroundColor = .windowBackgroundColor
         window.delegate = self
         // 记住窗口位置;首次(重建)若无历史位置则居中
-        if UserDefaults.standard.string(forKey: "NSWindow Frame ElysiaApiPanel") == nil {
+        if UserDefaults.standard.string(forKey: "NSWindow Frame ColumbaPanel") == nil {
             window.center()
         }
-        window.setFrameAutosaveName("ElysiaApiPanel")
-        window.setFrameUsingName("ElysiaApiPanel", force: true)
+        window.setFrameAutosaveName("ColumbaPanel")
+        window.setFrameUsingName("ColumbaPanel", force: true)
         ensureWindowVisible()
 
         let content = NSView(frame: NSRect(origin: .zero, size: window.contentView!.bounds.size))
@@ -813,7 +813,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         webView.navigationDelegate = self
         webView.uiDelegate = self
         configureWebScripts()
-        webView.setAccessibilityLabel("Elysia API 管理面板")
+        webView.setAccessibilityLabel("Columba 管理面板")
         content.addSubview(webView)
 
         let dragStrip = DragTitlebarView()
@@ -1031,9 +1031,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     private func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        let logo = Bundle.main.bundlePath + "/Contents/Resources/logo.png"
+        let logo = Bundle.main.bundlePath + "/Contents/Resources/Columba.svg"
         let base = templateIcon(from: logo, size: 18)
-            ?? NSImage(systemSymbolName: "shippingbox", accessibilityDescription: "Elysia API")?.withSymbolConfiguration(.init(pointSize: 15, weight: .medium))
+            ?? NSImage(systemSymbolName: "shippingbox", accessibilityDescription: "Columba")?.withSymbolConfiguration(.init(pointSize: 15, weight: .medium))
         statusItem.button?.image = base
         let menu = NSMenu()
         menu.delegate = self
@@ -1075,10 +1075,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             .image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
         addAction(menu, "查看运行日志", #selector(openLog))
             .image = NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
-        addAction(menu, "关于 ElysiaApi", #selector(showAbout))
+        addAction(menu, "关于 Columba", #selector(showAbout))
             .image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: nil)
         menu.addItem(.separator())
-        addAction(menu, "退出 ElysiaApi", #selector(quit), "q")
+        addAction(menu, "退出 Columba", #selector(quit), "q")
         statusItem.menu = menu
         refreshStatusUI()
         refreshPreferencesUI()
@@ -1108,7 +1108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         sendPanelState()
         guard statusItem != nil else { return }
         // 图标旁永不显示文字：状态经 tooltip 与菜单头部传达。
-        let description = "Elysia API · \(backendStateText) · \(apiBaseURL)"
+        let description = "Columba · \(backendStateText) · \(apiBaseURL)"
         statusItem.button?.title = ""
         statusItem.button?.toolTip = description
         statusItem.button?.setAccessibilityLabel(description)
@@ -1265,7 +1265,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             if !granted {
                 let alert = NSAlert()
                 alert.messageText = "通知已被系统关闭"
-                alert.informativeText = "请在系统设置中允许 ElysiaApi 发送通知。菜单栏和窗口内仍会显示服务状态。"
+                alert.informativeText = "请在系统设置中允许 Columba 发送通知。菜单栏和窗口内仍会显示服务状态。"
                 alert.addButton(withTitle: "打开系统设置")
                 alert.addButton(withTitle: "稍后")
                 NSApp.activate(ignoringOtherApps: true)
@@ -1277,7 +1277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     @objc func showPreferences() {
         if isPanelProcess { panelBridge?.send(PanelMessage(type: "action", action: "preferences")); return }
         let alert = NSAlert()
-        alert.messageText = "Elysia API 偏好设置"
+        alert.messageText = "Columba 偏好设置"
         alert.informativeText = "开机启动时仅驻留菜单栏。关闭主窗口后服务继续运行。" +
             (notificationDenied ? "\n通知已被系统禁用，可在下方打开系统设置。" : "") +
             (launchAtLogin.requiresApproval ? "\n开机启动等待系统批准。" : "")
@@ -1333,7 +1333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         timers.append(update)
         RunLoop.main.add(update, forMode: .common)
         #if NATIVE_TESTS
-        if ProcessInfo.processInfo.environment["ELYSIA_NATIVE_TRAY_TEST"] == "1" {
+        if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_TRAY_TEST"] == "1" {
             let control = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
                 guard let self, let command = try? String(contentsOfFile: dataDirPath + "/tray-test-command", encoding: .utf8) else { return }
                 try? FileManager.default.removeItem(atPath: dataDirPath + "/tray-test-command")
@@ -1408,7 +1408,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                     #endif
                     self.acknowledgeUpdateLaunch()
                     if recovering {
-                        self.notifications.requestAndSend(title: "Elysia API 已恢复", body: "服务已恢复，可以继续使用。", identifier: "backend-recovered")
+                        self.notifications.requestAndSend(title: "Columba 已恢复", body: "服务已恢复，可以继续使用。", identifier: "backend-recovered")
                     }
                     self.loadPanelWhenHealthy()
                 } else {
@@ -1475,7 +1475,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard webView === self.webView else { return }
         #if NATIVE_TESTS
-        if ProcessInfo.processInfo.environment["ELYSIA_NATIVE_APP_TEST"] == "1", CommandLine.arguments.contains("--update-ack") {
+        if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_APP_TEST"] == "1", CommandLine.arguments.contains("--update-ack") {
             try? String(ProcessInfo.processInfo.processIdentifier).write(toFile: dataDirPath + "/new-html-loaded.pid", atomically: true, encoding: .utf8)
         }
         #endif
@@ -1564,7 +1564,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
 
     @objc private func showAbout() {
-        alert("ElysiaApi for macOS\n当前版本 \(currentVersion)\n后端与面板来自 Elysia-Api 项目。")
+        alert("Columba for macOS\n当前版本 \(currentVersion)\n后端与面板来自 Elysia-Api 项目。")
     }
 
     func alert(_ text: String) {
@@ -1584,7 +1584,7 @@ signal(SIGPIPE, SIG_IGN)
 if CommandLine.arguments.contains("--update-helper") {
     do {
         #if NATIVE_TESTS
-        let launchTimeout = Double(ProcessInfo.processInfo.environment["ELYSIA_NATIVE_UPDATE_LAUNCH_TIMEOUT"] ?? "") ?? UpdateInstaller.launchTimeout
+        let launchTimeout = Double(ProcessInfo.processInfo.environment["COLUMBA_NATIVE_UPDATE_LAUNCH_TIMEOUT"] ?? "") ?? UpdateInstaller.launchTimeout
         try UpdateInstaller.runHelper(arguments: CommandLine.arguments, launchTimeout: launchTimeout)
         #else
         try UpdateInstaller.runHelper(arguments: CommandLine.arguments)
@@ -1618,14 +1618,14 @@ extension AppDelegate {
     func handoffForTests(_ staged: URL) { handoffStagedUpdate(staged) }
     private func handoffForNativeAppTest() -> Bool {
         guard !testUpdateHandoffStarted, CommandLine.arguments.contains("--native-update-parent"),
-              let path = ProcessInfo.processInfo.environment["ELYSIA_NATIVE_STAGED_APP"] else { return false }
+              let path = ProcessInfo.processInfo.environment["COLUMBA_NATIVE_STAGED_APP"] else { return false }
         testUpdateHandoffStarted = true
         try? String(backend!.processIdentifier).write(toFile: dataDirPath + "/old-backend.pid", atomically: true, encoding: .utf8)
         handoffStagedUpdate(URL(fileURLWithPath: path))
         return true
     }
 }
-if ProcessInfo.processInfo.environment["ELYSIA_NATIVE_APP_TEST"] == "1" {
+if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_APP_TEST"] == "1" {
     let app = NSApplication.shared
     let delegate = AppDelegate()
     app.delegate = delegate

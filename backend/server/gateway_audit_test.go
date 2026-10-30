@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // Real HTTP gateway, actual embedded definitions and full model bindings. The

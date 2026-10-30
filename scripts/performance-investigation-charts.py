@@ -59,7 +59,7 @@ FLAT_CATEGORIES = (
     ("String scan / regexp", r"regexp\.|jsonStringEnd|jsonValueEnd|needsSemanticCompaction|utf8\.|strings\.(?:Count|Index|Contains)|stringslite\.(?:Index|Count)|index(?:byte)?body|countbody|bytealg\.(?:Index|Count)"),
     ("JSON codec / reflection", r"sonic|encoding/json|jsontext|^decode_|^encode_|reflect\.|encodeValueContainer|compactValueString|\.Value\.(?:Decode|read|Bytes)|\.StringValue|\.ParseValue|builtin\.(?:object|array|readArray|stringValue)"),
     ("Usage / metadata logic", r"MergeUsage|mergeCounter|updateRecordProtocolUsage|[Mm]etadata|[Ll]ogprob|decodeUsage"),
-    ("Protocol / conversion", r"github\.com/elysia-api/backend/protocol"),
+    ("Protocol / conversion", r"github\.com/columba/backend/protocol"),
     ("Storage / persistence", r"sqlite|database/sql|backend/storage|persistUsage|saveUsage"),
     ("HTTP / framing / syscall", r"hertz|go-sse|eventstream|net\.|syscall\.|internal/poll|bufiox|bufio|responseStream"),
     ("Scheduling / other runtime", r"^runtime\.|^internal/runtime|^sync\.|^time\.|^context\."),

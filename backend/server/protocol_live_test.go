@@ -11,8 +11,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func liveRequest(t *testing.T, model string, isStream bool) *protocol.Request {

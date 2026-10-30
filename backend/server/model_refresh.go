@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/storage"
 )
 
 // modelFetchTimeout 是模型列表拉取的单请求超时。

@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/agent"
+	"columba.local/backend/config"
 )
 
 func TestGatewayUsageBodyPolicy(t *testing.T) {

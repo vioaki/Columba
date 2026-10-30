@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func persistPreviousRevision(t *testing.T, server *Server, definition protocol.Value) *protocol.Compiled {

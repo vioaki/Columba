@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 type QuotaUsage struct {

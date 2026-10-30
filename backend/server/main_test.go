@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/elysia-api/backend/internal/outbound"
+	"columba.local/backend/internal/outbound"
 )
 
 // TestMain 为整个 server 测试包放行私网/环回出站连接：测试用 httptest 起的

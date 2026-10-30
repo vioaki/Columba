@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('a failed login trace chunk can be loaded on the next demand', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('elysia-webui.panel-token', 'test-only'))
+  await page.addInitScript(() => localStorage.setItem('columba-webui.panel-token', 'test-only'))
   await page.route('**/api/admin/**', (route) => route.fulfill({ json: { ok: true, data: { items: [], total: 0 } } }))
   let attempts = 0
   await page.route('**/assets/login-trace/001.json?*', async (route) => {

@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/logging"
+	"columba.local/backend/protocol"
 )
 
 func captureProtocolStartupLogs(server *Server) *bytes.Buffer {

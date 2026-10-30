@@ -46,7 +46,7 @@ persisted numeric literals. It uses a local fixture, not an external provider.
 Run the real-service browser test with an isolated backend and:
 
 ```powershell
-$env:ELYSIA_DEV_PROXY='http://127.0.0.1:18765'
+$env:COLUMBA_DEV_PROXY='http://127.0.0.1:18765'
 $env:PROTOCOL_E2E_URL='http://127.0.0.1:18765'
 $env:PROTOCOL_E2E_TOKEN='<isolated-panel-token>'
 # From packages/webui

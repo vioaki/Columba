@@ -10,9 +10,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/network"
 
-	"github.com/elysia-api/backend/internal/eventstream"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/internal/eventstream"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 const gatewayStreamErrorTrailer = "X-Elysia-Stream-Error"

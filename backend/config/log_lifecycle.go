@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elysia-api/backend/internal/dbpath"
-	"github.com/elysia-api/backend/logging"
+	"columba.local/backend/internal/dbpath"
+	"columba.local/backend/logging"
 )
 
 // ErrDatabasePath identifies invalid database paths independently of HTTP errors.

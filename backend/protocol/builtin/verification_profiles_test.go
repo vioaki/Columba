@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func assertVisibleThinkingProfiles(t *testing.T, upstream *p.Compiled, reports []p.CombinationReport) {

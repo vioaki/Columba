@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // Source identity checks happen before projection can substitute client IDs.

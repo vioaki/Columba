@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
-	p "github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/config"
+	p "columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 func TestCollectorAppliesStartupConversion(t *testing.T) {

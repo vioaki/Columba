@@ -1,4 +1,4 @@
-// ElysiaApi 更新提示胶囊：左下角悬浮卡片，覆盖在 WebUI 之上而不挤压布局。
+// Columba 更新提示胶囊：左下角悬浮卡片，覆盖在 WebUI 之上而不挤压布局。
 // 与旧版 56pt 底栏不同，胶囊只改变透明度与位移，WebUI 排版保持静止。
 //
 // 状态机由 AppDelegate 驱动（.checking/.available/.downloading/.installing/.failed/.readyToRelaunch），

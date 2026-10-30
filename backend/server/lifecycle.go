@@ -10,7 +10,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
 
-	"github.com/elysia-api/backend/logging"
+	"columba.local/backend/logging"
 )
 
 func (s *Server) ListenAndServe() (result error) {

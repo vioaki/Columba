@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )

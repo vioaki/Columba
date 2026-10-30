@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 func TestGatewayFourPublicEntrypointsUseActiveRuntime(t *testing.T) {

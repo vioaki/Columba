@@ -11,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
-	p "github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/relay"
+	"columba.local/backend/config"
+	p "columba.local/backend/protocol"
+	"columba.local/backend/relay"
 )
 
 func TestTransportFailureAttribution(t *testing.T) {

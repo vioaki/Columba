@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/elysia-api/backend/logging"
+	log "columba.local/backend/logging"
 )
 
 // DefaultDeniedIPRanges 是出站禁止 IP 段的预置默认（CIDR）：

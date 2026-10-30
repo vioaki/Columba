@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 func osWriteFile(path string, data []byte, perm os.FileMode) error {

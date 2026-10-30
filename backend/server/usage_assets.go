@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/atomicfile"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/internal/atomicfile"
+	"columba.local/backend/storage"
 )
 
 // 本文件实现「base64 媒体外置」：请求体（四段链路）中的图片/音频/视频/文件

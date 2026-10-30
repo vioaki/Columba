@@ -7,7 +7,7 @@ test('designer renders the published listing contract without migration metadata
   const errors: string[] = []
   const activeHash = 'a'.repeat(64)
   page.on('pageerror', (error) => errors.push(error.message))
-  await page.addInitScript(() => localStorage.setItem('elysia-webui.panel-token', 'test-only'))
+  await page.addInitScript(() => localStorage.setItem('columba-webui.panel-token', 'test-only'))
   await page.route('**/api/admin/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     let data: unknown = { items: [], seq: 1 }
@@ -55,7 +55,7 @@ test('Agent edit session opens exact v2 draft in the editor', async ({ page, req
   const source = new ProtocolDocument(JSON.stringify(fixture)).set('/extensions', '{"long":900719925474099312345}')
   const saved = await request.put(`${process.env.PROTOCOL_E2E_URL}/api/admin/protocols/${fixture.id}/draft`, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, data: source })
   expect(saved.ok()).toBeTruthy()
-  await page.addInitScript((value) => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript((value) => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto(`/#/agent?mode=edit&protocol=${fixture.id}`)
   await page.getByRole('button', { name: '协议草稿', exact: true }).click()
   await page.getByRole('button', { name: '在协议设计器中打开' }).click()
@@ -74,7 +74,7 @@ test('raw protocol edits preserve presence, numeric spelling and ordered extensi
 })
 
 test('browser creates, verifies, previews, activates and rolls back through the real protocol service', async ({ page, request }) => {
-  test.skip(!process.env.PROTOCOL_E2E_URL, 'Requires an isolated local backend and ELYSIA_DEV_PROXY')
+  test.skip(!process.env.PROTOCOL_E2E_URL, 'Requires an isolated local backend and COLUMBA_DEV_PROXY')
   const token = process.env.PROTOCOL_E2E_TOKEN ?? 'local-protocol-e2e'
   const id = `browser-${Date.now()}`
   const fixture = JSON.parse(readFileSync(resolve('../../backend/protocol/testdata/text-alpha.json'), 'utf8'))
@@ -83,7 +83,7 @@ test('browser creates, verifies, previews, activates and rolls back through the 
   fixture.family = id
   let source = JSON.stringify(fixture, null, 2)
   source = new ProtocolDocument(source).set('/extensions', '{"long":900719925474099312345,"values":[null,false,0,{},[]],"custom":{"nested":"preserve"}}')
-  await page.addInitScript((value) => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript((value) => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto('/#/protocols')
   await page.getByRole('button', { name: '新建协议', exact: true }).click()
   await page.getByRole('tab', { name: '完整 JSON', exact: true }).click()

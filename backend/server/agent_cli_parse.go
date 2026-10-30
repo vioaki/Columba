@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/elysia-api/backend/internal/clishell"
+	"columba.local/backend/internal/clishell"
 	"mvdan.cc/sh/v3/syntax"
 )
 

@@ -12,7 +12,7 @@ App 运行目标为 macOS 12+。构建机需要与其 macOS 版本兼容的 Comm
 
 ## 进程与关闭生命周期
 
-菜单栏主壳是后端和更新的 supervisor；面板复用包内 `ElysiaApi` 可执行文件，通过 `--webui-process` 在独立子进程中运行 AppKit 窗口和 WebKit。关窗先完成窗口与导出清理，再退出面板进程及其 WebKit 服务，主壳和原后端保持运行。这样关闭后的资源回收不再依赖 WebKit 是否保留已经释放的 `WKWebView` 所使用的服务。再次显示面板创建新的子进程；反复显示已打开的面板复用当前进程。
+菜单栏主壳是后端和更新的 supervisor；面板复用包内 `Columba` 可执行文件，通过 `--webui-process` 在独立子进程中运行 AppKit 窗口和 WebKit。关窗先完成窗口与导出清理，再退出面板进程及其 WebKit 服务，主壳和原后端保持运行。这样关闭后的资源回收不再依赖 WebKit 是否保留已经释放的 `WKWebView` 所使用的服务。再次显示面板创建新的子进程；反复显示已打开的面板复用当前进程。
 
 面板使用默认持久化 WebKit 数据存储保留手动登录状态和 Cookie，主题、窗口尺寸及位置保存在同一应用的偏好中。关闭面板只结束运行中的资源，不清除持久数据。主壳异常退出时，面板通信管道和后端 stdin 收到 EOF，两者进入各自的退出流程。
 
@@ -79,12 +79,12 @@ PLAYWRIGHT_CHANNEL=chrome npm run test:e2e --workspace @root/webui
 
 `build:macos-app` 会分别编译 macOS 12 目标的 arm64 / x86_64 原生壳，然后执行：
 
-- 对 `ElysiaApi` 与 `elysia-api` 执行 `lipo -verify_arch arm64 x86_64`。
+- 对 `Columba` 与 `columba` 执行 `lipo -verify_arch arm64 x86_64`。
 - 对 Info.plist 执行 `plutil -lint`。
 - 对应用执行 `codesign --verify --deep --strict --verbose=2`。
 - 执行 `hdiutil verify`，只读挂载 DMG，检查 App、双架构、签名和 `/Applications` 快捷方式，最后卸载。
 
-产物：`dist/standalone/ElysiaApi.app`、`dist/standalone/elysia-api-macos.dmg`。构建签名是 ad-hoc 签名，签名验证不等同于 Developer ID 公证。
+产物：`dist/standalone/Columba.app`、`dist/standalone/columba-macos.dmg`。构建签名是 ad-hoc 签名，签名验证不等同于 Developer ID 公证。
 
 ## 真机验收矩阵
 
@@ -117,10 +117,10 @@ PLAYWRIGHT_CHANNEL=chrome npm run test:e2e --workspace @root/webui
 | 启动或重启服务 | ⌥⌘S |
 | 检查更新 / 退出 | ⇧⌘U / ⌘Q |
 
-菜单栏「查看运行日志」打开 `~/Library/Application Support/ElysiaApi/elysia-api.log`。更新交接、启动确认和回滚日志保存在同目录的 `update.log`。原生启动、端口、健康检查和更新事件记录到 OSLog：
+菜单栏「查看运行日志」打开 `~/Library/Application Support/Columba/columba.log`。更新交接、启动确认和回滚日志保存在同目录的 `update.log`。原生启动、端口、健康检查和更新事件记录到 OSLog：
 
 ```sh
-log stream --predicate 'subsystem == "dev.pinkelysiadev.ElysiaApi"' --level info
+log stream --predicate 'subsystem == "local.columba.app"' --level info
 ```
 
 ## 故障处理

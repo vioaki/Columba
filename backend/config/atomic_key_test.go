@@ -9,7 +9,7 @@ import (
 )
 
 func TestDBEncryptionKeyAtomicPersistence(t *testing.T) {
-	t.Setenv("ELYSIA_API_MASTER_KEY", "")
+	t.Setenv("COLUMBA_MASTER_KEY", "")
 	path := filepath.Join(t.TempDir(), "key")
 	// An empty pre-existing key file is regenerated, with private permissions.
 	if err := os.WriteFile(path, nil, 0644); err != nil {

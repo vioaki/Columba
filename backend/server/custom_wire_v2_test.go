@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
 )
 
 // standaloneWireDefinition uses no built-in shape. Optional settings remain

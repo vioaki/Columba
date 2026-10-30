@@ -2,7 +2,7 @@
 
 [Documentation](README.en.md) · [简体中文](development.md) · **English**
 
-Develop, validate, and build Elysia API locally. Run commands from the repository root unless stated otherwise.
+Develop, validate, and build Columba locally. Run commands from the repository root unless stated otherwise.
 
 ## Environment
 
@@ -65,7 +65,7 @@ In another terminal, start the frontend from the repository root:
 npm run dev --workspace @root/webui
 ```
 
-Open `http://127.0.0.1:5273/`. Vite proxies to `http://127.0.0.1:8765` by default; override it with `ELYSIA_DEV_PROXY`. `ELYSIA_DEV_HOST` controls the dev-server binding. See [WebUI development](../packages/webui/README.en.md) for proxy details.
+Open `http://127.0.0.1:5273/`. Vite proxies to `http://127.0.0.1:8765` by default; override it with `COLUMBA_DEV_PROXY`. `COLUMBA_DEV_HOST` controls the dev-server binding. See [WebUI development](../packages/webui/README.en.md) for proxy details.
 
 Use development configuration and test data. Default outbound policies block loopback, private, and reserved ranges; adjust only relevant CIDRs for a local mock upstream.
 
@@ -104,9 +104,9 @@ The build script compiles the frontend, copies assets into the backend embed dir
 
 | Platform | Outputs |
 | --- | --- |
-| Windows | `elysia-api-windows-amd64.exe`, `elysia-api-windows-arm64.exe` |
-| Linux | `elysia-api-linux-amd64`, `elysia-api-linux-arm64` |
-| macOS CLI | `elysia-api-darwin-amd64`, `elysia-api-darwin-arm64` |
+| Windows | `columba-windows-amd64.exe`, `columba-windows-arm64.exe` |
+| Linux | `columba-linux-amd64`, `columba-linux-arm64` |
+| macOS CLI | `columba-darwin-amd64`, `columba-darwin-arm64` |
 
 macOS CLI artifacts support local use and app assembly. Releases distribute the macOS DMG. A frontend-only build writes `packages/webui/dist/`; the full build also updates the backend embed directory.
 
@@ -118,7 +118,7 @@ npm run build
 npm run build:macos-app
 ```
 
-Outputs are the universal `ElysiaApi.app` and `elysia-api-macos.dmg`. Packaging validates architectures, signature, DMG integrity, and mounted contents. Resolve toolchain failures with a compatible toolchain rather than raising the deployment target or removing Intel support.
+Outputs are the universal `Columba.app` and `columba-macos.dmg`. Packaging validates architectures, signature, DMG integrity, and mounted contents. Resolve toolchain failures with a compatible toolchain rather than raising the deployment target or removing Intel support.
 
 ### Versions and publishing
 

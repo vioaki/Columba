@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // Retain the concurrency regression from the retired optimization differential

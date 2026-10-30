@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	mcpServerName            = "elysia-api-agent"
+	mcpServerName            = "columba-agent"
 	mcpServerVersion         = "1.0.0"
 	mcpModernProtocolVersion = "2026-07-28"
-	mcpInstructions          = "MCP 只提供 elysia_cli，用于执行 Elysia API 网关运维命令。首次使用先查 elysia help。每次调用无状态；需要复用协议草稿或测试目标时，请把相关命令放在同一次 command 批处理中。"
+	mcpInstructions          = "MCP 只提供 elysia_cli，用于执行 Columba 网关运维命令。首次使用先查 elysia help。每次调用无状态；需要复用协议草稿或测试目标时，请把相关命令放在同一次 command 批处理中。"
 )
 
 // Hertz owns HTTP validation and SSE delivery; the SDK owns message dispatch,
@@ -38,7 +38,7 @@ func (s *Server) handleMCP(ctx context.Context, c *app.RequestContext) {
 
 func (s *Server) newMCPHandler() *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{
-		Name: mcpServerName, Title: "Elysia API Gateway Agent", Version: mcpServerVersion,
+		Name: mcpServerName, Title: "Columba Gateway Agent", Version: mcpServerVersion,
 	}, &mcp.ServerOptions{
 		Instructions:              mcpInstructions,
 		SupportedProtocolVersions: []string{mcpModernProtocolVersion},

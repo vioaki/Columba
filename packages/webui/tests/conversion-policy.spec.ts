@@ -5,7 +5,7 @@ test('real backend include and usage projections share preview and strict bounda
   const base = process.env.PROTOCOL_E2E_URL!
   const token = process.env.PROTOCOL_E2E_TOKEN ?? 'local-conversion-e2e'
   const headers = { Authorization: `Bearer ${token}` }
-  await page.addInitScript((value) => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript((value) => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto(`${process.env.PROTOCOL_UI_PATH ?? '/'}#/protocols/conversions`)
   await expect(page.getByRole('heading', { name: '转换行为', exact: true })).toBeVisible()
   await page.getByLabel('行为预览上下文').fill(JSON.stringify({ source: { definitionId: 'openai-responses' }, target: { definitionId: 'google-generate-content' } }))
@@ -122,7 +122,7 @@ test('real backend policy draft, read-only preview, verification, activation and
   const headers = { Authorization: `Bearer ${token}` }
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await page.addInitScript((value) => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript((value) => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto(`${process.env.PROTOCOL_UI_PATH ?? '/'}#/protocols/conversions`)
   await expect(page.getByRole('heading', { name: '转换行为', exact: true })).toBeVisible()
   const id = `browser-policy-${Date.now()}`
@@ -158,7 +158,7 @@ test('dev25 metadata and conversation projections are configurable in the existi
  const base=process.env.PROTOCOL_E2E_URL!
  const token=process.env.PROTOCOL_E2E_TOKEN!
  const headers={Authorization:`Bearer ${token}`}
- await page.addInitScript(value=>localStorage.setItem('elysia-webui.panel-token',value),token)
+ await page.addInitScript(value=>localStorage.setItem('columba-webui.panel-token',value),token)
  await page.goto(`${process.env.PROTOCOL_UI_PATH ?? '/'}#/protocols/conversions`)
  await expect(page.getByRole('heading',{name:'转换行为',exact:true})).toBeVisible()
  await page.getByRole('button',{name:'添加规则',exact:true}).click()
@@ -182,7 +182,7 @@ test('request hint projection exposes info losses and strict rejection in the sh
   const base = process.env.PROTOCOL_E2E_URL!
   const token = process.env.PROTOCOL_E2E_TOKEN!
   const headers = { Authorization: `Bearer ${token}` }
-  await page.addInitScript(value => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript(value => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto(`${process.env.PROTOCOL_UI_PATH ?? '/'}#/protocols/conversions`)
   await page.getByRole('button', { name: '添加规则', exact: true }).click()
   await page.getByRole('combobox', { name: /^动作/ }).selectOption('request_projection')

@@ -6,7 +6,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // This reference reads the wire counters independently of the gateway codec.

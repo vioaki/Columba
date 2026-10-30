@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func newRevisionService(t *testing.T, store *Store) *protocol.Service {

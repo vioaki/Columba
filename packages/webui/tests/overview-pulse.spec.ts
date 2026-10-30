@@ -35,8 +35,8 @@ async function mockOverview(page: Page, options: { now?: string } = {}) {
   // Keep pointer throttling and the minute clock on the same timeline.
   await page.clock.install({ time: now })
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.panel-token', 'synthetic-only-token')
-    localStorage.setItem('elysia-webui.theme', 'light')
+    localStorage.setItem('columba-webui.panel-token', 'synthetic-only-token')
+    localStorage.setItem('columba-webui.theme', 'light')
   })
   const fixture = {
     minuteTokens: 1200,
@@ -276,7 +276,7 @@ test('real backend minute totals and pulse buckets agree with isolated stored re
   expect(history.ok()).toBe(true)
   expect((await history.json()).data.window).toMatchObject({ totalTokens: 91200, requests: 3 })
   await page.clock.install({ time: new Date(NOW) })
-  await page.addInitScript(value => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript(value => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto('/#/overview')
   await expect(throughput(page)).toContainText('1.2k tpm')
   await selectRange(page, 1440)

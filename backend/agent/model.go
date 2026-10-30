@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // StreamCaller 是引擎对「一次流式模型调用」的抽象。实现负责线格式渲染、

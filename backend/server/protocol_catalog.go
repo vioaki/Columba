@@ -5,7 +5,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // enabledProtocol describes the pinned executable revision, never an editable

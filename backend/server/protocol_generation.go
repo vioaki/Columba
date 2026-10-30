@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 var generationRetryDelays = [...]time.Duration{time.Second, 3 * time.Second}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/logging"
+	"columba.local/backend/logging"
 
 	"github.com/rs/zerolog"
 )

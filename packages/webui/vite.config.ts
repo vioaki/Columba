@@ -5,15 +5,15 @@ import path from 'node:path'
 // Backend serves the built assets from gin.Static("/ui", webuiDir),
 // so the production base must be "/ui/". During dev we proxy admin/relay
 // calls to a locally running backend (default 127.0.0.1:8765).
-// Override the proxy target with ELYSIA_DEV_PROXY.
+// Override the proxy target with COLUMBA_DEV_PROXY.
 function devProxyTarget(): string {
-  const raw = process.env.ELYSIA_DEV_PROXY?.trim()
+  const raw = process.env.COLUMBA_DEV_PROXY?.trim()
   if (raw) return raw
   return 'http://127.0.0.1:8765'
 }
 
 function devServerHost(): string | boolean {
-  const raw = process.env.ELYSIA_DEV_HOST?.trim()
+  const raw = process.env.COLUMBA_DEV_HOST?.trim()
   if (!raw) return '127.0.0.1'
   if (raw === '1' || raw === 'true') return true
   return raw

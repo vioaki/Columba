@@ -9,7 +9,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // Waiting only reads a task and optionally records cancellation. Embedded nil

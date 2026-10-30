@@ -1,7 +1,7 @@
 package relay
 
 import (
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 	"testing"
 )
 

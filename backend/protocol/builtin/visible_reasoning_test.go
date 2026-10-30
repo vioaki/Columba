@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func TestVisibleReasoningBindingEvidence(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func (stream *streamModule) encodeEvent(event p.Event, options p.EvaluationContext) ([]p.Value, error) {

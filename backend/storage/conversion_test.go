@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestConversionRevisionCASAndSnapshot(t *testing.T) {

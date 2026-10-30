@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // PreparationConfig is a startup policy. Changing it requires a server restart;

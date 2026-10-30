@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // The construction engine is general; initial adapter rollout deliberately

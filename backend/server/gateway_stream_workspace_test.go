@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestGatewayStreamWorkspaceReleasesFailedFrame(t *testing.T) {

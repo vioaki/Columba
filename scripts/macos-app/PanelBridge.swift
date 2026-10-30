@@ -26,7 +26,7 @@ final class PanelBridge {
     private let output: FileHandle
     private let onMessage: (PanelMessage) -> Void
     private let onClose: () -> Void
-    private let queue = DispatchQueue(label: "ElysiaApi.PanelBridge", qos: .utility)
+    private let queue = DispatchQueue(label: "Columba.PanelBridge", qos: .utility)
     private var buffer = Data()
     private var outputBuffer = Data()
     private var writeSource: DispatchSourceWrite?

@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/routing"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/routing"
+	"columba.local/backend/storage"
 	"github.com/rs/zerolog"
 )
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/storage"
 )
 
 // Use an independent instance so later missing/cancelled cases still read a live store.

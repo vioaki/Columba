@@ -123,9 +123,9 @@ enum NativeTests {
         let fm = FileManager.default
         let root = URL(fileURLWithPath: dataDirPath)
         let defaults = UserDefaults.standard
-        defaults.set("#/logs", forKey: "ElysiaApi.lastRoute")
+        defaults.set("#/logs", forKey: "Columba.lastRoute")
         let store = WindowStateStore(defaults: defaults)
-        try expect(store.webTheme == nil && defaults.object(forKey: "ElysiaApi.lastRoute") == nil, "legacy route is removed and theme defaults are empty")
+        try expect(store.webTheme == nil && defaults.object(forKey: "Columba.lastRoute") == nil, "legacy route is removed and theme defaults are empty")
         store.save(theme: "dark"); store.save(theme: "invalid")
         try expect(store.webTheme == "dark", "invalid themes do not overwrite the saved theme")
         let screen = NSRect(x: 0, y: 25, width: 1280, height: 775)
@@ -234,11 +234,11 @@ enum NativeTests {
 
     static func lifecycle(_ delegate: AppDelegate) async throws {
         let root = URL(fileURLWithPath: dataDirPath)
-        let previousBrowserPolicy = ProcessInfo.processInfo.environment["ELYSIA_API_OPEN_BROWSER"]
-        setenv("ELYSIA_API_OPEN_BROWSER", "true", 1)
+        let previousBrowserPolicy = ProcessInfo.processInfo.environment["COLUMBA_OPEN_BROWSER"]
+        setenv("COLUMBA_OPEN_BROWSER", "true", 1)
         defer {
-            if let previousBrowserPolicy { setenv("ELYSIA_API_OPEN_BROWSER", previousBrowserPolicy, 1) }
-            else { unsetenv("ELYSIA_API_OPEN_BROWSER") }
+            if let previousBrowserPolicy { setenv("COLUMBA_OPEN_BROWSER", previousBrowserPolicy, 1) }
+            else { unsetenv("COLUMBA_OPEN_BROWSER") }
         }
         // Occupy a free local port to exercise fallback without disturbing any existing service.
         let port = (31000...32000).first { portIsFree($0) }!
@@ -271,7 +271,7 @@ enum NativeTests {
         try expect(copyToken?.action == NSSelectorFromString("copyPanelToken") && copyToken?.target === delegate && delegate.validateMenuItem(copyToken!), "menu bar exposes the enabled panel token copy action")
         try await downloadTests(port: delegate.backendPort)
         try await proxyTests(delegate)
-        UserDefaults.standard.set("#/logs", forKey: "ElysiaApi.lastRoute")
+        UserDefaults.standard.set("#/logs", forKey: "Columba.lastRoute")
         delegate.windowState.save(theme: "dark")
         weak var releasedWebView: WKWebView?
         var frame = NSRect.zero
@@ -279,7 +279,7 @@ enum NativeTests {
         delegate.showMainWindow()
         try expect(await wait { delegate.pollForTests(); return delegate.webView != nil && delegate.panelLoaded && !delegate.webView.isLoading && delegate.overlay.isHidden }, "native window loads panel after health succeeds")
         try expect(delegate.webView.url?.fragment == "/overview", "native window opens overview even with a legacy saved route")
-        let jsState = try await delegate.webView.evaluateJavaScript("localStorage.getItem('elysia-webui.theme') === 'dark' && localStorage.getItem('elysia-webui.panel-token') === null && !document.cookie.includes('panel_access_token=')") as? Bool
+        let jsState = try await delegate.webView.evaluateJavaScript("localStorage.getItem('columba-webui.theme') === 'dark' && localStorage.getItem('columba-webui.panel-token') === null && !document.cookie.includes('panel_access_token=')") as? Bool
         try expect(jsState == true, "theme is restored without injecting a token or authentication cookie")
         try expect(delegate.webView.configuration.websiteDataStore.isPersistent, "WebKit persists the user's manual login")
         try await updateCapsuleTests(delegate)
@@ -308,7 +308,7 @@ enum NativeTests {
         try FileManager.default.removeItem(at: mode)
         try expect(await wait(12) { delegate.pollForTests(); return delegate.backendState == .running && delegate.backend?.processIdentifier != initialPID }, "health recovery replaces only the owned child process")
         let savedConfig = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: configPath))) as! [String: Any]
-        try expect(savedConfig["openBrowserOnStart"] as? Bool == true && ProcessInfo.processInfo.environment["ELYSIA_API_OPEN_BROWSER"] == "true", "native launches preserve the configured browser preference and parent environment")
+        try expect(savedConfig["openBrowserOnStart"] as? Bool == true && ProcessInfo.processInfo.environment["COLUMBA_OPEN_BROWSER"] == "true", "native launches preserve the configured browser preference and parent environment")
         let beforeRestart = delegate.backend!
         let restartPort = delegate.backendPort
         try expect(NSApp.sendAction(delegate.restartItem.action!, to: delegate.restartItem.target, from: delegate.restartItem),
@@ -423,12 +423,12 @@ enum NativeTests {
     /// Use the actual universal Go binary + embedded React UI against a temporary data directory.
     static func realPanel(_ delegate: AppDelegate) async throws {
         delegate.windowState.save(theme: "dark")
-        UserDefaults.standard.set("#/runtime", forKey: "ElysiaApi.lastRoute")
+        UserDefaults.standard.set("#/runtime", forKey: "Columba.lastRoute")
         delegate.startBackend()
         delegate.showMainWindow()
         try expect(await wait(30) { delegate.pollForTests(); return delegate.backendState == .running && delegate.panelLoaded && !delegate.webView.isLoading }, "bundled universal backend serves the real WebUI")
         try await pulseEndpointTest(port: delegate.backendPort, token: delegate.config.panelAccessToken)
-        let loginReady = "location.hash === '#/login' && document.querySelector('#token')?.value === '' && localStorage.getItem('elysia-webui.panel-token') === null && !document.cookie.includes('panel_access_token=')"
+        let loginReady = "location.hash === '#/login' && document.querySelector('#token')?.value === '' && localStorage.getItem('columba-webui.panel-token') === null && !document.cookie.includes('panel_access_token=')"
         try expect(await webMatches(delegate, loginReady), "first launch shows the real login page with no prefilled token or cookie")
         try expect(await webMatches(delegate, "document.documentElement.classList.contains('dark')"), "login page retains the native theme")
         // Exercise the real login form; credentials are never written directly to browser storage.
@@ -442,7 +442,7 @@ enum NativeTests {
         _ = try await delegate.webView.evaluateJavaScript("document.querySelector('#token').form.requestSubmit()")
         let overviewReady = "!!document.querySelector('main h1') && document.documentElement.classList.contains('dark') && location.hash === '#/overview'"
         try expect(await webMatches(delegate, overviewReady), "manual login reaches overview")
-        try expect(await webMatches(delegate, "localStorage.getItem('elysia-webui.panel-token') === \(javascriptString(delegate.config.panelAccessToken)) && document.cookie.includes('panel_access_token=')"), "manual login saves the token and authentication cookie")
+        try expect(await webMatches(delegate, "localStorage.getItem('columba-webui.panel-token') === \(javascriptString(delegate.config.panelAccessToken)) && document.cookie.includes('panel_access_token=')"), "manual login saves the token and authentication cookie")
         delegate.window.close()
         delegate.showMainWindow()
         try expect(await wait { delegate.pollForTests(); return delegate.panelLoaded && !delegate.webView.isLoading }, "reopened window loads the real panel")
@@ -462,7 +462,7 @@ enum NativeTests {
         delegate.webView.takeSnapshot(with: nil) { result, _ in snapshot = result; finished = true }
         try expect(await wait { finished } && snapshot != nil, "real WebKit panel snapshot renders")
         if let content = delegate.window.contentView, let bitmap = content.bitmapImageRepForCachingDisplay(in: content.bounds),
-           let path = ProcessInfo.processInfo.environment["ELYSIA_NATIVE_SCREENSHOT"] {
+           let path = ProcessInfo.processInfo.environment["COLUMBA_NATIVE_SCREENSHOT"] {
             content.cacheDisplay(in: content.bounds, to: bitmap)
             let output = NSImage(size: content.bounds.size)
             output.lockFocus()
@@ -489,7 +489,7 @@ enum NativeTests {
         try expect(delegate.backendPort == oldPort, "recently closed sockets do not cause spurious port changes")
         try expect(configBefore == configAfter, "real backend restart preserves configuration")
         try expect(keyBefore == keyAfter, "real backend restart preserves master key")
-        try expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("elysia-api.sqlite3").path), "real backend retains SQLite database")
+        try expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("columba.sqlite3").path), "real backend retains SQLite database")
         _ = try await delegate.webView.evaluateJavaScript("document.querySelector('button[aria-label=\"退出登录\"]').click()")
         try expect(await webMatches(delegate, "!!document.querySelector('[role=dialog]')"), "logout opens its confirmation dialog")
         _ = try await delegate.webView.evaluateJavaScript("Array.from(document.querySelectorAll('[role=dialog] button')).find(button => button.textContent.trim() === '退出').click()")

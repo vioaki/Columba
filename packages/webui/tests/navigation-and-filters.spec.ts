@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function mockAdmin(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.panel-token', 'test-only-token')
-    localStorage.setItem('elysia-webui.theme', 'light')
+    localStorage.setItem('columba-webui.panel-token', 'test-only-token')
+    localStorage.setItem('columba-webui.theme', 'light')
   })
   await page.route('**/api/admin/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -146,7 +146,7 @@ test('login supports keyboard secret visibility and announces validation errors'
   await page.route('**/api/admin/health', (route) => route.fulfill({ status: 401, json: { error: 'unauthorized' } }))
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
   await page.getByRole('button', { name: '退出', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Elysia API' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Columba' })).toBeVisible()
   const token = page.getByLabel(/Panel Access Token/)
   await token.fill('test-invalid-token')
   // macOS WebKit 默认用 Option+Tab 遍历按钮等非文本控件。
@@ -177,11 +177,11 @@ test('login reports connection failures and can retry the same token', async ({ 
   await expect(page.locator('li[data-variant="destructive"]')).not.toContainText('Token 无效')
   await expect(token).toHaveValue('test-valid-token')
   await expect(submit).toBeEnabled()
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('elysia-webui.panel-token'))).toBeNull()
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('columba-webui.panel-token'))).toBeNull()
   offline = false
   await submit.click()
   await expect(page.getByRole('button', { name: '退出登录', exact: true })).toBeVisible()
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('elysia-webui.panel-token'))).toBe('test-valid-token')
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('columba-webui.panel-token'))).toBe('test-valid-token')
 })
 
 test('login distinguishes backend failures from invalid tokens', async ({ page }) => {
@@ -214,7 +214,7 @@ test('logout clears cached list data before next session', async ({ page }) => {
   await expect(page.getByText('Session 1 log')).toBeVisible()
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
   await page.getByRole('button', { name: '退出', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Elysia API' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Columba' })).toBeVisible()
   await page.getByLabel(/Panel Access Token/).fill('test-valid-token')
   await page.getByRole('button', { name: '立即登录', exact: true }).click()
   await expect(page.getByRole('button', { name: '退出登录', exact: true })).toBeVisible()

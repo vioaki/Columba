@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 // 落盘需要真实 config.json：给集成服务器换上带路径的配置。

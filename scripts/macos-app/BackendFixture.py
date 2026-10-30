@@ -11,8 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-root = Path(os.environ['ELYSIA_NATIVE_TEST_DATA'])
-assert os.environ.get('ELYSIA_API_OPEN_BROWSER') == 'false', 'native host must suppress automatic browser launch on every start'
+root = Path(os.environ['COLUMBA_NATIVE_TEST_DATA'])
+assert os.environ.get('COLUMBA_OPEN_BROWSER') == 'false', 'native host must suppress automatic browser launch on every start'
 config = json.loads((root / 'config.json').read_text())
 count = root / 'starts.txt'
 count.write_text(str(int(count.read_text() if count.exists() else '0') + 1))
@@ -105,7 +105,7 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path.startswith('/ui/'):
             data = b'''<!doctype html><html><head><title>Native test panel</title>
             <style>body{font:16px -apple-system;background:#f5f5f7;padding:24px}.dark body{background:#10121a;color:white}</style>
-            </head><body><main><h1>Elysia API</h1><p>Native window integration fixture</p></main></body></html>'''
+            </head><body><main><h1>Columba</h1><p>Native window integration fixture</p></main></body></html>'''
             if mode.exists() and mode.read_text() == 'broken-ui':
                 data = b'<!doctype html><html><head><title>Broken WebUI</title></head><body><div id="root"></div></body></html>'
             elif mode.exists() and mode.read_text() == 'tray-fixture':
@@ -151,7 +151,7 @@ class Handler(BaseHTTPRequestHandler):
 server = ThreadingHTTPServer(('127.0.0.1', config['port']), Handler)
 server.daemon_threads = True
 signal.signal(signal.SIGTERM, lambda *_: request_shutdown('SIGTERM'))
-if os.environ.get('ELYSIA_PARENT_STDIN') == '1':
+if os.environ.get('COLUMBA_PARENT_STDIN') == '1':
     def watch_parent():
         while os.read(0, 1024):
             pass

@@ -1,8 +1,8 @@
 package relay
 
 import (
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 // NewProtocolCompiler installs wire adapters that operate on the ordered model

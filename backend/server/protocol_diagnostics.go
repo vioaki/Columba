@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 // This diagnostic contains structure only: never prompt text, attribute values,

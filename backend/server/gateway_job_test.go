@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func jobGatewayRequest(t *testing.T, s *Server, method, path, body, key string) *httptest.ResponseRecorder {

@@ -1,5 +1,5 @@
 <div align="center">
-  <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Elysia API"></p>
+  <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Columba"></p>
   <p><strong>轻量、自部署的 AI 网关。</strong><br>
     统一模型接入、协议转换与 AI 运维。</p>
   <p>
@@ -41,9 +41,9 @@
 
 | 平台                  | 文件名                             |
 | ------------------- | ------------------------------- |
-| Windows amd64/arm64 | `elysia-api-windows-{arch}.exe` |
-| Linux amd64/arm64   | `elysia-api-linux-{arch}`       |
-| macOS 通用            | `elysia-api-macos.dmg`          |
+| Windows amd64/arm64 | `columba-windows-{arch}.exe` |
+| Linux amd64/arm64   | `columba-linux-{arch}`       |
+| macOS 通用            | `columba-macos.dmg`          |
 
 ### 2. 启动
 
@@ -55,10 +55,10 @@
 直接双击对应架构 exe 启动，或命令行执行：
 
 ```powershell
-.\elysia-api-windows-amd64.exe
+.\columba-windows-amd64.exe
 ```
 
-ARM64 使用 `elysia-api-windows-arm64.exe`。配置默认生成于当前工作目录。
+ARM64 使用 `columba-windows-arm64.exe`。配置默认生成于当前工作目录。
 
 </details>
 
@@ -66,23 +66,23 @@ ARM64 使用 `elysia-api-windows-arm64.exe`。配置默认生成于当前工作�
 <summary><strong>Linux</strong></summary>
 
 ```bash
-chmod +x ./elysia-api-linux-amd64
-./elysia-api-linux-amd64
+chmod +x ./columba-linux-amd64
+./columba-linux-amd64
 ```
 
-ARM64 将两处文件名替换为 `elysia-api-linux-arm64`。
+ARM64 将两处文件名替换为 `columba-linux-arm64`。
 
 </details>
 
 <details>
 <summary><strong>macOS</strong></summary>
 
-1. 挂载 DMG，将 ElysiaApi 拖入应用目录（支持 macOS 12+，双架构通用）
-2. 面板令牌可从菜单栏复制，数据存储于 `~/Library/Application Support/ElysiaApi/`
+1. 挂载 DMG，将 Columba 拖入应用目录（支持 macOS 12+，双架构通用）
+2. 面板令牌可从菜单栏复制，数据存储于 `~/Library/Application Support/Columba/`
 3. 如遇 Gatekeeper 拦截，执行后重试：
 
    ```bash
-   xattr -d com.apple.quarantine /Applications/ElysiaApi.app
+   xattr -d com.apple.quarantine /Applications/Columba.app
    ```
 
 </details>
@@ -92,16 +92,16 @@ ARM64 将两处文件名替换为 `elysia-api-linux-arm64`。
 
 ```bash
 # 在仓库根目录构建本地镜像
-docker build -t elysia-api:local .
+docker build -t columba:local .
 # 启动服务
-docker run -d --name elysia-api \
+docker run -d --name columba \
   -p 127.0.0.1:8765:8765 \
   -v elysia-data:/data \
-  -e ELYSIA_API_HOST=0.0.0.0 \
-  elysia-api:local
+  -e COLUMBA_HOST=0.0.0.0 \
+  columba:local
 ```
 
-执行 `docker logs elysia-api` 获取初始面板令牌；生产环境安全加固、Compose 模板见[部署文档](docs/deployment.md)。
+执行 `docker logs columba` 获取初始面板令牌；生产环境安全加固、Compose 模板见[部署文档](docs/deployment.md)。
 
 </details>
 
@@ -136,7 +136,7 @@ docker run -d --name elysia-api \
   "host": "127.0.0.1",
   "port": 8765,
   "panelAccessToken": "change-me",
-  "databasePath": "elysia-api.sqlite3"
+  "databasePath": "columba.sqlite3"
 }
 ```
 

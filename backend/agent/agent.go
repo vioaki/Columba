@@ -14,8 +14,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/bytedance/sonic"
-	log "github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/protocol"
+	log "columba.local/backend/logging"
+	"columba.local/backend/protocol"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1232,7 +1232,7 @@ func panicStackExcerpt(stack []byte) string {
 	var picked []string
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, "github.com/elysia-api/") {
+		if !strings.HasPrefix(trimmed, "github.com/columba/") {
 			continue
 		}
 		if len(trimmed) > 160 {

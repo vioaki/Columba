@@ -2,7 +2,7 @@
 
 [Project](../README.en.md) · [简体中文](README.md) · **English**
 
-Deployment, protocols, APIs, and development for Elysia API. Start with [quick start](../README.en.md#quick-start) for the first request.
+Deployment, protocols, APIs, and development for Columba. Start with [quick start](../README.en.md#quick-start) for the first request.
 
 ## Deployment and operations
 

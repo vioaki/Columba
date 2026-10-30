@@ -15,11 +15,11 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/outbound"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/relay"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/outbound"
+	"columba.local/backend/protocol"
+	"columba.local/backend/relay"
+	"columba.local/backend/storage"
 )
 
 func parseTestIP(t *testing.T, raw string) net.IP {

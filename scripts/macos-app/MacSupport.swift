@@ -10,9 +10,9 @@ struct UpdateError: LocalizedError {
 }
 
 enum DefaultsKey {
-    static let launchAtLogin = "ElysiaApi.launchAtLogin"
-    static let notificationsEnabled = "ElysiaApi.notificationsEnabled"
-    static let webTheme = "ElysiaApi.webTheme"
+    static let launchAtLogin = "Columba.launchAtLogin"
+    static let notificationsEnabled = "Columba.notificationsEnabled"
+    static let webTheme = "Columba.webTheme"
 }
 
 enum BackendState: String {
@@ -34,7 +34,7 @@ final class WindowStateStore {
     init(defaults: UserDefaults = .standard, overrides: UserDefaults? = nil) {
         self.defaults = defaults
         self.defaultsOverride = overrides
-        defaults.removeObject(forKey: "ElysiaApi.lastRoute")
+        defaults.removeObject(forKey: "Columba.lastRoute")
     }
     /// 读写顺序：测试覆盖 > 标准库。
     private var effective: UserDefaults { defaultsOverride ?? defaults }
@@ -65,7 +65,7 @@ final class WindowStateStore {
 
 /// macOS 13+ 的注册状态以系统为准；12 的固定文件名避免路径变化后留下多个登录项。
 final class LaunchAtLoginManager {
-    private let bundleID = Bundle.main.bundleIdentifier ?? "dev.pinkelysiadev.ElysiaApi"
+    private let bundleID = Bundle.main.bundleIdentifier ?? "local.columba.app"
     private var label: String { "\(bundleID).login" }
     private var launchAgentURL: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/LaunchAgents/\(label).plist")
@@ -84,7 +84,7 @@ final class LaunchAtLoginManager {
     static func legacyPayload(bundlePath: String, plistPath: String, label: String) -> [String: Any] {
         // 路径作为参数传递，不拼入 shell 源码。若应用已移走/卸载，下次登录自清理。
         let script = """
-        if [ -x "$1/Contents/MacOS/ElysiaApi" ]; then
+        if [ -x "$1/Contents/MacOS/Columba" ]; then
           exec /usr/bin/open -gj "$1" --args --login
         else
           /bin/rm -f "$2"
@@ -251,7 +251,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 
-let appLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.pinkelysiadev.ElysiaApi", category: "app")
+let appLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "local.columba.app", category: "app")
 
 // An explicit HTTP proxy is shared by release checks and downloads; local API sessions stay direct.
 struct UpdateProxy {
@@ -477,7 +477,7 @@ struct UpdateInstaller {
     private static let ackFlag = "--update-ack"
 
     static func acknowledgementURL(for staged: URL) -> URL {
-        staged.deletingLastPathComponent().appendingPathComponent(".ElysiaApi-update-ack")
+        staged.deletingLastPathComponent().appendingPathComponent(".Columba-update-ack")
     }
 
     static func helperArguments(staged: URL, current: URL, parentPID: Int32, background: Bool) -> [String] {
@@ -491,8 +491,8 @@ struct UpdateInstaller {
     @discardableResult
     static func startHelper(staged: URL, current: URL, parentPID: Int32, background: Bool) throws -> Process {
         let manager = FileManager.default
-        let helper = staged.deletingLastPathComponent().appendingPathComponent(".ElysiaApi-update-helper-\(UUID().uuidString)")
-        let source = current.appendingPathComponent("Contents/MacOS/ElysiaApi")
+        let helper = staged.deletingLastPathComponent().appendingPathComponent(".Columba-update-helper-\(UUID().uuidString)")
+        let source = current.appendingPathComponent("Contents/MacOS/Columba")
         guard manager.isExecutableFile(atPath: source.path) else {
             throw UpdateError(message: "当前应用缺少可执行的更新辅助程序")
         }
@@ -537,8 +537,8 @@ struct UpdateInstaller {
         let currentURL = URL(fileURLWithPath: current).standardizedFileURL
         let staging = stagedURL.deletingLastPathComponent()
         guard staging.deletingLastPathComponent() == currentURL.deletingLastPathComponent(),
-              staging.lastPathComponent.hasPrefix(".ElysiaApi-update-"),
-              stagedURL.lastPathComponent == "ElysiaApi.app",
+              staging.lastPathComponent.hasPrefix(".Columba-update-"),
+              stagedURL.lastPathComponent == "Columba.app",
               ack.standardizedFileURL == acknowledgementURL(for: stagedURL) else {
             throw UpdateError(message: "更新暂存路径不合法")
         }
@@ -548,7 +548,7 @@ struct UpdateInstaller {
         let helperURL = URL(fileURLWithPath: CommandLine.arguments.first ?? "").standardizedFileURL
         defer {
             try? manager.removeItem(at: ack)
-            if helperURL.deletingLastPathComponent() == staging && helperURL.lastPathComponent.hasPrefix(".ElysiaApi-update-helper-") {
+            if helperURL.deletingLastPathComponent() == staging && helperURL.lastPathComponent.hasPrefix(".Columba-update-helper-") {
                 try? manager.removeItem(at: helperURL)
             }
         }
@@ -618,7 +618,7 @@ struct UpdateInstaller {
 
     private static func launchApp(_ app: URL, arguments: [String], output: FileHandle) throws -> Process {
         let process = Process()
-        process.executableURL = app.appendingPathComponent("Contents/MacOS/ElysiaApi")
+        process.executableURL = app.appendingPathComponent("Contents/MacOS/Columba")
         process.arguments = arguments
         process.standardOutput = output
         process.standardError = output
@@ -691,7 +691,7 @@ struct UpdateInstaller {
     @discardableResult
     static func replace(staged: URL, current: URL, move: (URL, URL) throws -> Void = { try FileManager.default.moveItem(at: $0, to: $1) }) throws -> URL {
         let manager = FileManager.default
-        let backup = current.deletingLastPathComponent().appendingPathComponent(".ElysiaApi-backup-\(UUID().uuidString)")
+        let backup = current.deletingLastPathComponent().appendingPathComponent(".Columba-backup-\(UUID().uuidString)")
         try move(current, backup)
         do { try move(staged, current) }
         catch {
@@ -723,20 +723,20 @@ struct UpdateInstaller {
         attachAttempted = true
         try runSystemTool("/usr/bin/hdiutil", ["attach", "-nobrowse", "-readonly", "-mountpoint", mount.path, dmg.path], timeout: 120)
         mounted = true
-        let app = mount.appendingPathComponent("ElysiaApi.app")
+        let app = mount.appendingPathComponent("Columba.app")
         guard let bundle = Bundle(url: app), bundle.bundleIdentifier == Bundle.main.bundleIdentifier else {
             throw UpdateError(message: "DMG 中的应用标识不匹配")
         }
-        for executable in ["ElysiaApi", "elysia-api"] {
+        for executable in ["Columba", "columba"] {
             let path = app.appendingPathComponent("Contents/MacOS/\(executable)").path
             guard manager.isExecutableFile(atPath: path) else { throw UpdateError(message: "更新包缺少 \(executable)") }
             try validateArchitectures(at: URL(fileURLWithPath: path))
         }
         try runSystemTool("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
-        let staging = current.deletingLastPathComponent().appendingPathComponent(".ElysiaApi-update-\(UUID().uuidString)")
+        let staging = current.deletingLastPathComponent().appendingPathComponent(".Columba-update-\(UUID().uuidString)")
         try manager.createDirectory(at: staging, withIntermediateDirectories: false)
         do {
-            let target = staging.appendingPathComponent("ElysiaApi.app")
+            let target = staging.appendingPathComponent("Columba.app")
             try manager.copyItem(at: app, to: target)
             try runSystemTool("/usr/bin/codesign", ["--verify", "--deep", "--strict", target.path])
             try detach(mount)

@@ -1,6 +1,6 @@
 package server
 
-import "github.com/elysia-api/backend/protocol"
+import "columba.local/backend/protocol"
 
 // Client aliases replace valid model identities only. Replacing an invalid
 // provider field would hide it from the final wire contract check.

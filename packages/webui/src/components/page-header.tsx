@@ -14,7 +14,7 @@ export function PageHeader({
   className?: string
 }) {
   useEffect(() => {
-    document.title = `${title} · Elysia API`
+    document.title = `${title} · Columba`
   }, [title])
 
   return (

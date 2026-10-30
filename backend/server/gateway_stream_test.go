@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func gatewayStreamDefinition(t *testing.T, name string, transport protocol.Transport, field string) protocol.Definition {

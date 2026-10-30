@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // RefreshProtocolRuntime atomically refreshes active definitions and bindings

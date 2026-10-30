@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/storage"
 )
 
 // 回归：模型 ID 常含 "/"（如 org/model），旧实现把 modelId 放在路径段，

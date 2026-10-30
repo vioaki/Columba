@@ -42,7 +42,7 @@ func TestLoadHostEnvironmentOverride(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	t.Setenv("ELYSIA_API_HOST", "0.0.0.0")
+	t.Setenv("COLUMBA_HOST", "0.0.0.0")
 	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load with host override: %v", err)
@@ -51,7 +51,7 @@ func TestLoadHostEnvironmentOverride(t *testing.T) {
 		t.Fatalf("host override not applied: cfg.Host=%q", cfg.Host)
 	}
 
-	t.Setenv("ELYSIA_API_HOST", "")
+	t.Setenv("COLUMBA_HOST", "")
 	cfg, err = Load(path)
 	if err != nil {
 		t.Fatalf("Load with empty host override: %v", err)
@@ -190,7 +190,7 @@ func TestIsValidPanelAccessToken(t *testing.T) {
 // Save 后落盘不丢失；nil 时 Save 不写键。
 func TestOpenBrowserOnStartTriState(t *testing.T) {
 	// 宿主的进程级覆盖不能改变配置文件中的偏好。
-	t.Setenv("ELYSIA_API_OPEN_BROWSER", "false")
+	t.Setenv("COLUMBA_OPEN_BROWSER", "false")
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 

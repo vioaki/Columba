@@ -10,7 +10,7 @@ async function mockTokenAPI(page: Page, initial: ApiToken[]) {
   const tokens = initial.map((token) => ({ ...token }))
   const created: ApiToken[] = []
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.panel-token', 'test-only-panel-token')
+    localStorage.setItem('columba-webui.panel-token', 'test-only-panel-token')
   })
   await page.route('**/api/admin/**', async (route) => {
     const request = route.request()

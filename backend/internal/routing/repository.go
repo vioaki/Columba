@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 // Repository is the read boundary required to build a route snapshot. The

@@ -10,7 +10,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func (s *Server) submitGatewayJob(ctx context.Context, c *app.RequestContext, record *usageRecord, plan *gatewayPlan, candidate gatewayCandidate) bool {

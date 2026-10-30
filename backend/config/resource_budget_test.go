@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 	"os"
 	"path/filepath"
 	"testing"

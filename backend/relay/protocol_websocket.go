@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/coder/websocket"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // WebSocketSession adapts the maintained pure Go transport to the shared bounded

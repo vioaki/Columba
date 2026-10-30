@@ -16,8 +16,8 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/storage"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

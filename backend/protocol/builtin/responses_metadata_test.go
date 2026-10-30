@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 const syntheticResponsesMetadata = `{"openai_chatgpt_moderation_metadata":{"generation":{},"prompt":{"omnimod":{"outputs":[{"protection_type":"fixture","number":9007199254740993}]}}},"escaped":"\u0061"}`

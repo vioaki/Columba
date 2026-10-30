@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/elysia-api/backend/logging"
+	log "columba.local/backend/logging"
 )
 
 // hashToken 返回明文 token 的 SHA256 十六进制摘要，用于 token 去重的唯一索引。
@@ -103,7 +103,7 @@ func (c *secretCodec) decrypt(stored string) (string, error) {
 // SecretIntegrityProbe 启动期密钥完整性探测：检查库内是否存在密文行，
 // 并用当前密钥试解一行。hasEncrypted=false 表示没有密文（全新库或明文
 // 模式），无需关心；decryptOK=false 表示 .master-key 丢失或
-// ELYSIA_API_MASTER_KEY 被更换——此时全部 enc:v1: 行解不开，路由装配与
+// COLUMBA_MASTER_KEY 被更换——此时全部 enc:v1: 行解不开，路由装配与
 // 管理面板会整体失败，调用方必须醒目告警而不是静默砖死。
 func (s *Store) SecretIntegrityProbe(ctx context.Context) (hasEncrypted, decryptOK bool, err error) {
 	probeTables := []struct{ query string }{

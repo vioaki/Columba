@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // Three messages deliberately carry different phases; one has two parts and

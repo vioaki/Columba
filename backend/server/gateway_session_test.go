@@ -12,9 +12,9 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/coder/websocket"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func setupSessionModel(t *testing.T, server *Server, compiled *protocol.Compiled, url string) {

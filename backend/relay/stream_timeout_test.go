@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // Delay the first byte past the ordinary client timeout. The streaming client

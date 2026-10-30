@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestBindingUpdateTransaction(t *testing.T) {

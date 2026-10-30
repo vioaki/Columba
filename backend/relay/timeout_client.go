@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elysia-api/backend/internal/outbound"
+	"columba.local/backend/internal/outbound"
 )
 
 // dynamicTimeoutClient 封装可运行时替换的 *http.Client。

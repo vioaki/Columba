@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func chatStartupFrames(t *testing.T, sample protocol.Sample, firstTime int) []protocol.Value {

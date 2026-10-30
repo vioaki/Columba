@@ -48,9 +48,9 @@ backend/**/*.sqlite3-wal
 backend/**/.db-key
 backend/**/master.key
 **/.master-key
-**/elysia-api.sqlite3
-**/elysia-api.sqlite3-shm
-**/elysia-api.sqlite3-wal
+**/columba.sqlite3
+**/columba.sqlite3-shm
+**/columba.sqlite3-wal
 config.json
 yarn.lock
 

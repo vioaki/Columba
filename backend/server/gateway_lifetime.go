@@ -1,6 +1,6 @@
 package server
 
-import "github.com/elysia-api/backend/protocol"
+import "columba.local/backend/protocol"
 
 // gatewayResponsePlan is the explicit handoff from preparation to delivery.
 // It cannot retain request history, candidate probes or alternative candidates.

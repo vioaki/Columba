@@ -23,8 +23,8 @@ async function openAgent(page: Page, messages: AgentMessage[] = [], pendingActio
     settings: { modelSourceId: 'test', modelName: 'test-model', thinkingEnabled: false },
   }
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.panel-token', 'test-only-token')
-    localStorage.setItem('elysia-webui.theme', 'light')
+    localStorage.setItem('columba-webui.panel-token', 'test-only-token')
+    localStorage.setItem('columba-webui.theme', 'light')
     const originalFetch = window.fetch
     window.fetch = (input, init) => {
       if (String(input).endsWith('/agent/sessions/regression/messages') && init?.method === 'POST') {

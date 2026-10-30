@@ -1,4 +1,4 @@
-# Elysia API WebUI
+# Columba WebUI
 
 [文档首页](../../docs/README.md) · **简体中文** · [English](README.en.md)
 
@@ -31,10 +31,10 @@ React 18 + TypeScript 管理界面，使用 Vite、Tailwind、Radix、SWR、Rech
 
 3. 打开 `http://127.0.0.1:5273/`，用后端配置中的 `panelAccessToken` 登录。
 
-Vite 默认监听回环地址。后端地址可通过 `ELYSIA_DEV_PROXY` 覆盖；`ELYSIA_DEV_HOST` 设置前端监听地址。非默认后端示例：
+Vite 默认监听回环地址。后端地址可通过 `COLUMBA_DEV_PROXY` 覆盖；`COLUMBA_DEV_HOST` 设置前端监听地址。非默认后端示例：
 
 ```sh
-ELYSIA_DEV_PROXY=http://127.0.0.1:8799 npm run dev --workspace @root/webui
+COLUMBA_DEV_PROXY=http://127.0.0.1:8799 npm run dev --workspace @root/webui
 ```
 
 代理包括 `/api`、`/v1`（也匹配 `/v1beta`）、`/health`、`/mcp`、`/a2a`、`/.well-known/agent-card.json` 和 `/debug`。

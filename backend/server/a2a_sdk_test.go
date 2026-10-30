@@ -16,8 +16,8 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2aclient"
 	"github.com/a2aproject/a2a-go/v2/a2acompat/a2av0"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/storage"
 )
 
 // A repeated message must use the existing task, not execute the model again.

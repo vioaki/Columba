@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/storage"
 )
 
 // elysia CLI 层测试：解析器、参数映射、门控探针、脱敏、help 与等价执行。

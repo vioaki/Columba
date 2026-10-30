@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/internal/jsonutil"
+	"columba.local/backend/internal/jsonutil"
 )
 
 // newExternalizeRecord 构造一个显式启用正文与外置的记录（1MiB 上限）。

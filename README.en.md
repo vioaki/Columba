@@ -1,5 +1,5 @@
 <div align="center">
-  <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Elysia API"></p>
+  <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Columba"></p>
   <p><strong>A lightweight, self-hosted AI gateway.</strong><br>
     Model access, protocol conversion, and AI-assisted operations.</p>
   <p>
@@ -44,9 +44,9 @@ Download a binary for your platform and the SHA256 checksum file from [GitHub Re
 
 | Platform | File |
 | --- | --- |
-| Windows amd64/arm64 | `elysia-api-windows-{arch}.exe` |
-| Linux amd64/arm64 | `elysia-api-linux-{arch}` |
-| macOS universal | `elysia-api-macos.dmg` |
+| Windows amd64/arm64 | `columba-windows-{arch}.exe` |
+| Linux amd64/arm64 | `columba-linux-{arch}` |
+| macOS universal | `columba-macos.dmg` |
 
 </details>
 
@@ -60,10 +60,10 @@ The first launch creates a configuration file and SQLite database. On Windows / 
 Double-click the executable for your architecture, or run:
 
 ```powershell
-.\elysia-api-windows-amd64.exe
+.\columba-windows-amd64.exe
 ```
 
-On ARM64, use `elysia-api-windows-arm64.exe`. The configuration is created in the current working directory.
+On ARM64, use `columba-windows-arm64.exe`. The configuration is created in the current working directory.
 
 </details>
 
@@ -71,23 +71,23 @@ On ARM64, use `elysia-api-windows-arm64.exe`. The configuration is created in th
 <summary><strong>Linux</strong></summary>
 
 ```bash
-chmod +x ./elysia-api-linux-amd64
-./elysia-api-linux-amd64
+chmod +x ./columba-linux-amd64
+./columba-linux-amd64
 ```
 
-On ARM64, replace both filenames with `elysia-api-linux-arm64`.
+On ARM64, replace both filenames with `columba-linux-arm64`.
 
 </details>
 
 <details>
 <summary><strong>macOS</strong></summary>
 
-1. Mount the DMG and drag ElysiaApi into Applications. Requires macOS 12+; supports Intel and Apple Silicon.
-2. Copy the panel token from the menu bar. Data is stored in `~/Library/Application Support/ElysiaApi/`.
+1. Mount the DMG and drag Columba into Applications. Requires macOS 12+; supports Intel and Apple Silicon.
+2. Copy the panel token from the menu bar. Data is stored in `~/Library/Application Support/Columba/`.
 3. If Gatekeeper blocks the downloaded app, run this command and try again:
 
    ```bash
-   xattr -d com.apple.quarantine /Applications/ElysiaApi.app
+   xattr -d com.apple.quarantine /Applications/Columba.app
    ```
 
 </details>
@@ -97,16 +97,16 @@ On ARM64, replace both filenames with `elysia-api-linux-arm64`.
 
 ```bash
 # Build from the repository root
-docker build -t elysia-api:local .
+docker build -t columba:local .
 # Start the service
-docker run -d --name elysia-api \
+docker run -d --name columba \
   -p 127.0.0.1:8765:8765 \
   -v elysia-data:/data \
-  -e ELYSIA_API_HOST=0.0.0.0 \
-  elysia-api:local
+  -e COLUMBA_HOST=0.0.0.0 \
+  columba:local
 ```
 
-Run `docker logs elysia-api` to obtain the initial panel token. See [deployment](docs/deployment.en.md) for a Compose example and production settings.
+Run `docker logs columba` to obtain the initial panel token. See [deployment](docs/deployment.en.md) for a Compose example and production settings.
 
 </details>
 
@@ -139,7 +139,7 @@ The file is normally created automatically. This minimal manual configuration om
   "host": "127.0.0.1",
   "port": 8765,
   "panelAccessToken": "change-me",
-  "databasePath": "elysia-api.sqlite3"
+  "databasePath": "columba.sqlite3"
 }
 ```
 

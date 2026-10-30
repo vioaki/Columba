@@ -16,8 +16,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/tracer/stats"
 	"github.com/cloudwego/hertz/pkg/protocol/http1/ext"
 	"github.com/cloudwego/hertz/pkg/route"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
 )
 
 func newHTTPEngine(cfg *config.Config, extra ...hconfig.Option) *route.Engine {

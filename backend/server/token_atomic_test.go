@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/storage"
 )
 
 func TestTokenMutationConflictsAreAtomic(t *testing.T) {

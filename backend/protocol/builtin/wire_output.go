@@ -2,7 +2,7 @@ package builtin
 
 import (
 	"fmt"
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func (adapter module) ValidateWireOutput(direction p.Direction, value p.Value) error {

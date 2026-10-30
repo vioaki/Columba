@@ -10,7 +10,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/utils"
 	"github.com/cloudwego/hertz/pkg/route"
 
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 )
 
 // AI 助手远程面之一：REST（/api/agent/*）。与 /api/admin/agent/* 共用同一

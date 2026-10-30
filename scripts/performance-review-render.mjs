@@ -47,7 +47,7 @@ try {
           child.stdout.on('data', receive); child.stderr.on('data', receive); child.once('error', reject)
         })
         const page = await browser.newPage({ viewport: { width: 1800, height: 1050 } })
-        for (const focus of ['', 'github.com/elysia-api/backend/protocol']) {
+        for (const focus of ['', 'columba.local/backend/protocol']) {
           const png = `${prefix}${focus ? '-protocol' : '-full'}.png`
           const focusedTop = focus ? text(['-top', '-nodecount=60', '-relative_percentages', `-focus=${focus}`, `-sample_index=${sample}`, binary, profile]) : top
           const topName = `${prefix}${focus ? '-protocol' : ''}-top.txt`

@@ -8,7 +8,7 @@
 // - 在 OS 临时目录用 git worktree 检出干净 tag 构建，不触碰工作区未发版变更；
 // - 平台包版本号与后端 tag 严格一致（v1.4.0 → 1.4.0），一眼对应；
 // - os/cpu 字段隔离平台，npm/yarn/pnpm 安装时自动只装匹配当前机器的那一个
-//   （esbuild/rollup 的 optionalDependencies 模式），供 koishi-plugin-elysia-api 消费；
+//   （esbuild/rollup 的 optionalDependencies 模式），供 koishi-plugin-columba 消费；
 // - 发布前逐包检查 registry，已存在的版本自动跳过（幂等重跑）。
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,15 +31,15 @@ const version = tag.replace(/^v/, '')
 
 // goos/goarch → npm 的 os/cpu 标准值（注意不是 go 命名：win32/x64）。
 const targets = [
-  { suffix: 'windows-amd64', goos: 'windows', goarch: 'amd64', npmOs: 'win32', npmCpu: 'x64', source: `elysia-api-windows-amd64.exe`, binary: 'elysia-api.exe' },
-  { suffix: 'windows-arm64', goos: 'windows', goarch: 'arm64', npmOs: 'win32', npmCpu: 'arm64', source: `elysia-api-windows-arm64.exe`, binary: 'elysia-api.exe' },
-  { suffix: 'linux-amd64', goos: 'linux', goarch: 'amd64', npmOs: 'linux', npmCpu: 'x64', source: `elysia-api-linux-amd64`, binary: 'elysia-api' },
-  { suffix: 'linux-arm64', goos: 'linux', goarch: 'arm64', npmOs: 'linux', npmCpu: 'arm64', source: `elysia-api-linux-arm64`, binary: 'elysia-api' },
-  { suffix: 'darwin-amd64', goos: 'darwin', goarch: 'amd64', npmOs: 'darwin', npmCpu: 'x64', source: `elysia-api-darwin-amd64`, binary: 'elysia-api' },
-  { suffix: 'darwin-arm64', goos: 'darwin', goarch: 'arm64', npmOs: 'darwin', npmCpu: 'arm64', source: `elysia-api-darwin-arm64`, binary: 'elysia-api' },
+  { suffix: 'windows-amd64', goos: 'windows', goarch: 'amd64', npmOs: 'win32', npmCpu: 'x64', source: `columba-windows-amd64.exe`, binary: 'columba.exe' },
+  { suffix: 'windows-arm64', goos: 'windows', goarch: 'arm64', npmOs: 'win32', npmCpu: 'arm64', source: `columba-windows-arm64.exe`, binary: 'columba.exe' },
+  { suffix: 'linux-amd64', goos: 'linux', goarch: 'amd64', npmOs: 'linux', npmCpu: 'x64', source: `columba-linux-amd64`, binary: 'columba' },
+  { suffix: 'linux-arm64', goos: 'linux', goarch: 'arm64', npmOs: 'linux', npmCpu: 'arm64', source: `columba-linux-arm64`, binary: 'columba' },
+  { suffix: 'darwin-amd64', goos: 'darwin', goarch: 'amd64', npmOs: 'darwin', npmCpu: 'x64', source: `columba-darwin-amd64`, binary: 'columba' },
+  { suffix: 'darwin-arm64', goos: 'darwin', goarch: 'arm64', npmOs: 'darwin', npmCpu: 'arm64', source: `columba-darwin-arm64`, binary: 'columba' },
 ]
 
-const buildRoot = join(tmpdir(), 'elysia-api-npm-binaries')
+const buildRoot = join(tmpdir(), 'columba-npm-binaries')
 const worktree = join(buildRoot, tag)
 const packagesRoot = join(buildRoot, `${tag}-packages`)
 
@@ -87,14 +87,14 @@ rmSync(packagesRoot, { recursive: true, force: true })
 mkdirSync(packagesRoot, { recursive: true })
 
 for (const target of targets) {
-  const name = `elysia-api-${target.suffix}`
+  const name = `columba-${target.suffix}`
   const dir = join(packagesRoot, name)
   mkdirSync(join(dir, 'bin'), { recursive: true })
   cpSync(join(standaloneDir, target.source), join(dir, 'bin', target.binary))
   writeFileSync(join(dir, 'package.json'), `${JSON.stringify({
     name,
     version,
-    description: `Elysia-API standalone backend binary (${target.suffix}).`,
+    description: `Columba standalone backend binary (${target.suffix}).`,
     license: 'MIT',
     os: [target.npmOs],
     cpu: [target.npmCpu],
@@ -112,7 +112,7 @@ for (const target of targets) {
 
 const dryRunArgs = publish ? ['publish'] : ['publish', '--dry-run']
 for (const target of targets) {
-  const name = `elysia-api-${target.suffix}`
+  const name = `columba-${target.suffix}`
   if (publish) {
     const view = runQuiet('npm', ['view', `${name}@${version}`, 'version'])
     if (view.status === 0 && view.stdout.trim() === version) {

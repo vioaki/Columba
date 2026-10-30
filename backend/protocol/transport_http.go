@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/eventstream"
+	"columba.local/backend/internal/eventstream"
 	sse "github.com/tmaxmax/go-sse"
 )
 

@@ -10,7 +10,7 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 
 // 登录成功 → 总览的入场标记：登录页置位，总览的 ElysiaStage
 // 挂载时消费（读后即删，刷新与普通路由跳转不重播）。
-export const ARRIVED_FROM_LOGIN_KEY = 'elysia-webui.arrived-from-login'
+export const ARRIVED_FROM_LOGIN_KEY = 'columba-webui.arrived-from-login'
 
 type Listener = (token: string | null) => void
 

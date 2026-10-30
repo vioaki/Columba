@@ -17,7 +17,7 @@ test('fresh backend loads all four presets and discovers models', async ({ page,
   expect(status.runtimeReady).toBe(true)
   expect(status.startupFailure).toBeUndefined()
   expect(Object.keys(status.loaded)).toEqual(expect.arrayContaining(['openai-chat-completions', 'openai-responses', 'anthropic-messages', 'google-generate-content']))
-  await page.addInitScript((value) => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript((value) => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto('/#/protocols')
   await expect(page.getByRole('heading', { name: '预置协议（只读）' })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: '协议运行时已就绪' })).toBeVisible()

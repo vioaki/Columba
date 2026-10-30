@@ -8,7 +8,7 @@ test('source frame preview uses startup policy and exposes strict rejection', as
   const first = { id: 'a', model: 'm', created: 1, object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', content: '' } }] }
   const second = { ...first, id: 'b', created: 81, choices: [{ index: 0, delta: { role: 'assistant' } }] }
   const context = { source: { definitionId: 'openai-chat-completions' }, target: { definitionId: 'openai-chat-completions' }, transport: 'sse' }
-  await page.addInitScript(value => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript(value => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto(`${process.env.PROTOCOL_UI_PATH ?? '/'}#/protocols/conversions`)
   await page.getByLabel('预览阶段').selectOption('source_event')
   await page.getByLabel('行为预览上下文').fill(JSON.stringify(context))

@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elysia-api/backend/internal/routing"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/internal/routing"
+	"columba.local/backend/storage"
 )
 
 func newKeyPermissionTestServer(t *testing.T) *Server {

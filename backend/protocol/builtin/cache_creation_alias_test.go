@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // new-api's Anthropic adapter emits both cached_creation_tokens and

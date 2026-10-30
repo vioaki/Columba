@@ -3,7 +3,7 @@ package protocol
 import (
 	"strings"
 
-	"github.com/elysia-api/backend/internal/jsonutil"
+	"columba.local/backend/internal/jsonutil"
 )
 
 type streamTool struct {

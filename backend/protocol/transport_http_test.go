@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/internal/eventstream"
+	"columba.local/backend/internal/eventstream"
 )
 
 type fragmentedReader struct{ content string }

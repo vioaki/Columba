@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	log "github.com/elysia-api/backend/logging"
+	log "columba.local/backend/logging"
 )
 
 func TestConsoleBrowserEnvironmentOverride(t *testing.T) {
@@ -44,13 +44,13 @@ func TestConsoleBrowserEnvironmentOverride(t *testing.T) {
 		{"empty falls back on", strPtr(""), &on, true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("ELYSIA_API_OPEN_BROWSER", "")
+			t.Setenv("COLUMBA_OPEN_BROWSER", "")
 			if tc.env == nil {
-				if err := os.Unsetenv("ELYSIA_API_OPEN_BROWSER"); err != nil {
+				if err := os.Unsetenv("COLUMBA_OPEN_BROWSER"); err != nil {
 					t.Fatal(err)
 				}
 			} else {
-				t.Setenv("ELYSIA_API_OPEN_BROWSER", *tc.env)
+				t.Setenv("COLUMBA_OPEN_BROWSER", *tc.env)
 			}
 			var output bytes.Buffer
 			previous := log.Default()
@@ -62,7 +62,7 @@ func TestConsoleBrowserEnvironmentOverride(t *testing.T) {
 			if got := strings.Contains(output.String(), "已尝试在默认浏览器打开控制台"); got != tc.wantOpen {
 				t.Fatalf("opened=%v, want %v; log=%s", got, tc.wantOpen, output.String())
 			}
-			if got := strings.Contains(output.String(), "ELYSIA_API_OPEN_BROWSER"); got != tc.wantWarning {
+			if got := strings.Contains(output.String(), "COLUMBA_OPEN_BROWSER"); got != tc.wantWarning {
 				t.Fatalf("warning=%v, want %v; log=%s", got, tc.wantWarning, output.String())
 			}
 		})

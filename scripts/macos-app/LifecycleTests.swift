@@ -64,7 +64,7 @@ enum LifecycleTests {
         try NativeTests.expect(await NativeTests.wait { delegate.pollForTests(); return delegate.backendState == .running }, "backend remains usable after parent-pipe cleanup")
 
         let beforeHandoff = delegate.backend!.processIdentifier
-        let missingStage = root.appendingPathComponent(".ElysiaApi-update-missing/ElysiaApi.app")
+        let missingStage = root.appendingPathComponent(".Columba-update-missing/Columba.app")
         delegate.handoffForTests(missingStage)
         try NativeTests.expect(await NativeTests.wait(12) {
             delegate.pollForTests()

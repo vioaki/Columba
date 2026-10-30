@@ -10,7 +10,7 @@ The Chinese reference preserves runtime help verbatim. Reading notes: the `key c
 
 ## Call contract
 
-Execute Elysia API gateway operations. Every command starts with `elysia`. Read `elysia help` on first use, then `elysia help <group> [command]` as needed.
+Execute Columba gateway operations. Every command starts with `elysia`. Read `elysia help` on first use, then `elysia help <group> [command]` as needed.
 
 ```json
 {"command":"elysia source ls"}

@@ -13,8 +13,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
 )
 
 // unknown length exercises chunked reading

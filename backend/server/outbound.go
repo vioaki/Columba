@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/elysia-api/backend/internal/outbound"
+	"columba.local/backend/internal/outbound"
 )
 
 // syncOutboundPolicy publishes startup and runtime changes to all HTTP clients.

@@ -7,9 +7,9 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol/builtin"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 var publicProtocolIDs = map[builtin.FormatType]string{

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // Catalog generation belongs to editor/admin operations, not the gateway hot path.

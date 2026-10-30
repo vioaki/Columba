@@ -9,7 +9,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 func claudeModel(name, baseURL string) config.ModelRef {

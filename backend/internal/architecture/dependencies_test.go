@@ -74,7 +74,7 @@ func TestPackageBoundaries(t *testing.T) {
 				name = spec.Name.Name
 			}
 			imports[name] = dependency
-			if local, ok := strings.CutPrefix(dependency, "github.com/elysia-api/backend/"); ok {
+			if local, ok := strings.CutPrefix(dependency, "columba.local/backend/"); ok {
 				if boundaries, constrained := allowed[pkg]; constrained && !slices.Contains(boundaries, local) {
 					t.Errorf("%s: %s must not depend on %s", path, pkg, local)
 				}

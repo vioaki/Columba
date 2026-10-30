@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 // 回归（核心修复）：同一图片出现在两个请求里，磁盘只存一份；两个记录的

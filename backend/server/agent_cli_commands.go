@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/elysia-api/backend/internal/jsonutil"
+	"columba.local/backend/internal/jsonutil"
 )
 
 type cliInvocation struct {

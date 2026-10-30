@@ -23,8 +23,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/admission"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/admission"
 )
 
 type conversionHTTPAddress struct {

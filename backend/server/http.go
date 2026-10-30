@@ -11,10 +11,10 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
-	"github.com/elysia-api/backend/webui"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
+	"columba.local/backend/webui"
 )
 
 func (s *Server) setupRoutes() {
@@ -230,7 +230,7 @@ func (s *Server) listModels(ctx context.Context, c *app.RequestContext) {
 			"id":       group.Name, // 使用模型组名称
 			"object":   "model",
 			"created":  0,
-			"owned_by": "elysia-api",
+			"owned_by": "columba",
 		})
 	}
 
@@ -265,7 +265,7 @@ func (s *Server) listGeminiModels(ctx context.Context, c *app.RequestContext) {
 		models = append(models, geminiModel{
 			Name:                       "models/" + group.Name,
 			DisplayName:                group.Name,
-			Description:                "elysia-api model group",
+			Description:                "columba model group",
 			InputTokenLimit:            inputLimit,
 			OutputTokenLimit:           geminiDefaultOutputTokenLimit,
 			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent"},

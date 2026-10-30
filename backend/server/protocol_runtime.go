@@ -9,8 +9,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // initializeProtocolRuntime publishes only verified current definitions.

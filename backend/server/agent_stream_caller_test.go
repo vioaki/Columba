@@ -13,10 +13,10 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // agentStreamCaller 单测：传输层复用 relay 适配器后的端点/鉴权/请求体断言，

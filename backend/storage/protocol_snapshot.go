@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/atomicfile"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/internal/atomicfile"
+	"columba.local/backend/protocol"
 )
 
 // Snapshots protect current protocol edits; startup never imports historical backups.

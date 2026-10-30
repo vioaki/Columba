@@ -63,7 +63,7 @@ await replace('runtime.go', '\toptions.ResolveRequestScope = nil', '\tdiagnostic
 await replace('runtime.go', '\tvar before Value\n', '\tdiagnosticCount("native.baselineEncode",0)\n var before Value\n')
 await replace('native_reconcile.go', '\tstate := nativeReconciler{ctx:', '\tdiagnosticCount("native.reconcile",len(original.raw)+len(before.raw)+len(after.raw))\n state := nativeReconciler{ctx:')
 await writeFile(join(directory, 'backend/protocol/builtin/diagnostic_ledger_test.go'), `package builtin
-import ("encoding/json"; "os"; "strconv"; "testing"; p "github.com/elysia-api/backend/protocol")
+import ("encoding/json"; "os"; "strconv"; "testing"; p "columba.local/backend/protocol")
 func TestDiagnosticLedger(t *testing.T) {
  size,_:=strconv.Atoi(os.Getenv("ELYSIA_LEDGER_MIB")); if size==0 {size=2}
  compiled:=shippedProjectionProtocol(t,Anthropic)

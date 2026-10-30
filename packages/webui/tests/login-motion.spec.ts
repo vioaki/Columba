@@ -52,8 +52,8 @@ test('media sampling, cover crop, flight endpoints and text use separate determi
 
 async function mockLogin(page: Page, valid = true) {
   await page.addInitScript(() => {
-    localStorage.removeItem('elysia-webui.panel-token')
-    localStorage.setItem('elysia-webui.theme', 'light')
+    localStorage.removeItem('columba-webui.panel-token')
+    localStorage.setItem('columba-webui.theme', 'light')
   })
   await page.route('**/api/admin/**', (route) => {
     const path = new URL(route.request().url()).pathname
@@ -85,7 +85,7 @@ test('a verified login immediately animates even while its trace is still loadin
     await expect(page.locator('.garden')).toHaveAttribute('data-cinematic', 'fallback', { timeout: 1000 })
     await expect(page.locator('.garden')).toHaveAttribute('data-phase', 'entering')
     await expect.poll(() => page.locator('.garden-interlude-cn').evaluate((element) => Number(getComputedStyle(element).opacity))).toBeGreaterThan(0.5)
-    expect(await page.evaluate(() => localStorage.getItem('elysia-webui.panel-token'))).toBeNull()
+    expect(await page.evaluate(() => localStorage.getItem('columba-webui.panel-token'))).toBeNull()
   } finally { release() }
   await expect(page.getByRole('button', { name: '退出登录', exact: true })).toBeVisible()
   await expect(page.locator('.arrival-echo, .elysia-arrive')).toHaveCount(0)
@@ -213,7 +213,7 @@ test('pause freezes video, camera, aurora and form; the choice survives reload',
 
 test('labels remain accessible, tools are equal-sized, and errors surface in a bottom toast without moving the form', async ({ page }) => {
   await mockLogin(page, false)
-  await page.addInitScript(() => localStorage.setItem('elysia-webui.login-motion', 'paused'))
+  await page.addInitScript(() => localStorage.setItem('columba-webui.login-motion', 'paused'))
   await page.goto('/#/login')
   const token = page.getByLabel('访问令牌 Panel Access Token')
   await expect(token).toHaveAttribute('placeholder', 'Panel Access Token')
@@ -229,7 +229,7 @@ test('labels remain accessible, tools are equal-sized, and errors surface in a b
   await expect(token).toHaveValue('invalid-test-token')
   expect(await token.boundingBox()).toEqual(before)
   await expect(page.locator('.garden')).toHaveAttribute('data-phase', 'login')
-  expect(await page.evaluate(() => localStorage.getItem('elysia-webui.panel-token'))).toBeNull()
+  expect(await page.evaluate(() => localStorage.getItem('columba-webui.panel-token'))).toBeNull()
 })
 
 for (const mode of ['paused', 'reduced', 'unavailable'] as const) {
@@ -237,7 +237,7 @@ for (const mode of ['paused', 'reduced', 'unavailable'] as const) {
     await mockLogin(page)
     const traceRequests: string[] = []
     page.on('request', (request) => { if (request.url().includes('/login-trace/')) traceRequests.push(request.url()) })
-    if (mode === 'paused') await page.addInitScript(() => localStorage.setItem('elysia-webui.login-motion', 'paused'))
+    if (mode === 'paused') await page.addInitScript(() => localStorage.setItem('columba-webui.login-motion', 'paused'))
     if (mode === 'reduced') await page.emulateMedia({ reducedMotion: 'reduce' })
     if (mode === 'unavailable') await page.route('**/login-trace/index-json-v1.json*', (route) => route.fulfill({ status: 404 }))
     await page.goto('/#/login')
@@ -245,7 +245,7 @@ for (const mode of ['paused', 'reduced', 'unavailable'] as const) {
     await page.getByRole('button', { name: '立即登录' }).click()
     await expect(page.getByRole('button', { name: '退出登录', exact: true })).toBeVisible()
     await expect(page.locator('.garden-cinematic, .arrival-echo, .elysia-arrive, .app-fade')).toHaveCount(0)
-    expect(await page.evaluate(() => sessionStorage.getItem('elysia-webui.arrived-from-login'))).toBeNull()
+    expect(await page.evaluate(() => sessionStorage.getItem('columba-webui.arrived-from-login'))).toBeNull()
     if (mode !== 'unavailable') expect(traceRequests).toHaveLength(0)
   })
 }
@@ -276,7 +276,7 @@ test('cinematic follows a looping video, keeps Chinese text centered and hands o
   await page.waitForFunction(() => Number(document.querySelector<HTMLCanvasElement>('.garden-cinematic')?.dataset.elapsed) > 4.5)
   expect(await text.evaluate((element) => Number(getComputedStyle(element).opacity))).toBeLessThan(1)
   await expect(page.getByRole('button', { name: '退出登录', exact: true })).toBeVisible()
-  expect(await page.evaluate(() => localStorage.getItem('elysia-webui.panel-token'))).toBe('animated-test-token')
+  expect(await page.evaluate(() => localStorage.getItem('columba-webui.panel-token'))).toBe('animated-test-token')
   await expect(canvas).toHaveCount(0)
 })
 
@@ -376,7 +376,7 @@ test('autoplay refusal preserves the preference and the play button retries', as
   await page.goto('/#/login')
   await expect(page.getByRole('button', { name: '播放动态效果' })).toBeVisible()
   await expect(page.locator('.garden-form')).toHaveCSS('opacity', '1')
-  expect(await page.evaluate(() => localStorage.getItem('elysia-webui.login-motion'))).toBeNull()
+  expect(await page.evaluate(() => localStorage.getItem('columba-webui.login-motion'))).toBeNull()
   await page.getByRole('button', { name: '播放动态效果' }).click()
   await expect(page.getByRole('button', { name: '暂停动态效果' })).toBeVisible()
   await expect.poll(() => page.locator('video').evaluate((video) => !video.paused && video.currentTime > 0)).toBe(true)
@@ -385,7 +385,7 @@ test('autoplay refusal preserves the preference and the play button retries', as
 test('save-data and visibility restrictions do not overwrite the saved preference', async ({ page }) => {
   await mockLogin(page)
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.login-motion', 'playing')
+    localStorage.setItem('columba-webui.login-motion', 'playing')
     const connection = Object.assign(new EventTarget(), { saveData: true })
     Object.defineProperty(navigator, 'connection', { configurable: true, value: connection })
   })
@@ -404,7 +404,7 @@ test('save-data and visibility restrictions do not overwrite the saved preferenc
     document.dispatchEvent(new Event('visibilitychange'))
   })
   await expect.poll(() => page.locator('video').evaluate((video) => video.paused)).toBe(true)
-  expect(await page.evaluate(() => localStorage.getItem('elysia-webui.login-motion'))).toBe('playing')
+  expect(await page.evaluate(() => localStorage.getItem('columba-webui.login-motion'))).toBe('playing')
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, value: false })
     document.dispatchEvent(new Event('visibilitychange'))
@@ -447,7 +447,7 @@ test('failed GPU allocation releases partially initialized resources and skips t
 
 test('empty submissions use the toast and repeated pending submissions verify only once', async ({ page }) => {
   await mockLogin(page)
-  await page.addInitScript(() => localStorage.setItem('elysia-webui.login-motion', 'paused'))
+  await page.addInitScript(() => localStorage.setItem('columba-webui.login-motion', 'paused'))
   let verifications = 0
   let release: () => void = () => undefined
   const pending = new Promise<void>((resolve) => { release = resolve })

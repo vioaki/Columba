@@ -9,8 +9,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol/builtin"
 )
 
 // 四线制错误矩阵:未知模型在每条客户端线制上都返回该协议的标准错误体

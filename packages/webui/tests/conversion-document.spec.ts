@@ -47,7 +47,7 @@ test('real backend policy editing and preview preserve large integers and recove
   const token = process.env.PROTOCOL_E2E_TOKEN!
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
-  await page.addInitScript((value) => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript((value) => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto(`${process.env.PROTOCOL_UI_PATH ?? '/'}#/protocols/conversions`)
   await expect(page.getByRole('button', { name: '新建策略' })).toBeEnabled()
   await page.getByText('完整策略 JSON', { exact: true }).click()
@@ -77,7 +77,7 @@ test('real backend policy editing and preview preserve large integers and recove
 
 test('preview completion belongs to the exact current input', async ({ page }) => {
   test.skip(!process.env.PROTOCOL_E2E_URL, 'requires isolated real backend')
-  await page.addInitScript((token) => localStorage.setItem('elysia-webui.panel-token', token), process.env.PROTOCOL_E2E_TOKEN!)
+  await page.addInitScript((token) => localStorage.setItem('columba-webui.panel-token', token), process.env.PROTOCOL_E2E_TOKEN!)
   await page.goto('/#/protocols/conversions')
   await expect(page.getByRole('button', { name: '新建策略' })).toBeEnabled()
   let release!: () => void

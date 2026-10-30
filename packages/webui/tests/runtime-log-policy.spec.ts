@@ -14,7 +14,7 @@ async function mockSettings(page: Page, usageLog: UsageLogRuntimeConfig = logCon
     logLevel: 'info', httpTimeout: 120, enablePprof: false, usageLog, systemLog: { retentionDays: 0, maxRecords: 0, maxContentMB: 0 },
   }
   const updates: RuntimeConfigUpdate[] = []
-  await page.addInitScript(() => localStorage.setItem('elysia-webui.panel-token', 'test-only'))
+  await page.addInitScript(() => localStorage.setItem('columba-webui.panel-token', 'test-only'))
   await page.route('**/api/admin/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname

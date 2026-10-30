@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
 )
 
 type gatewayJobService struct {

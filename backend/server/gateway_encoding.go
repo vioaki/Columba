@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // gatewayRequestEncoding is single-consumer, shared only by copies of the same

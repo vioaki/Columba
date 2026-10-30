@@ -1,8 +1,8 @@
 package routing
 
 import (
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 type sourceKeys struct {

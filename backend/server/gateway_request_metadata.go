@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // Extract HTTP metadata at ingress; continuation persistence and projection

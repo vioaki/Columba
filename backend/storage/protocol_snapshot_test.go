@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestCurrentSnapshotPreservesDamagedProtocolWithoutVerification(t *testing.T) {

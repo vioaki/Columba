@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // protocolSourceStream owns upstream normalization, validation and accounting.

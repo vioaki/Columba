@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 )
 
 func newAgentTestStore(t *testing.T) *Store {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // 事件类型：引擎只产出结构化事件，SSE 编码由 HTTP 层完成。

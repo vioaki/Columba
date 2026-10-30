@@ -1,6 +1,6 @@
 package builtin
 
-import p "github.com/elysia-api/backend/protocol"
+import p "columba.local/backend/protocol"
 
 // The provider documents one ordering constraint on mixed-TTL breakpoints:
 // "Cache entries with longer TTL must appear before shorter TTLs." Blocks are

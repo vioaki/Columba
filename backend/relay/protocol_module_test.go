@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func compileBuiltinModule(t *testing.T, name string) *protocol.Compiled {

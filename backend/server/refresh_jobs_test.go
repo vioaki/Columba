@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/storage"
 )
 
 // Scheduler tests use a small, verified text protocol with the real discovery

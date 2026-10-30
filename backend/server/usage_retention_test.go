@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 // seedUsageRecord 插入一条指定时间的 usage 记录（record_json 填充 pad 大小）。

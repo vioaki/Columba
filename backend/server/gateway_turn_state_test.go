@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
-	p "github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	p "columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
+	"columba.local/backend/storage"
 )
 
 func turnStateFrames(t *testing.T, sample p.Sample) []p.Value {

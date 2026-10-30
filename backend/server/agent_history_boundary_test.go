@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/storage"
 )
 
 func TestAgentHistoryRejectsInvalidBoundaryWithoutMutation(t *testing.T) {

@@ -1,4 +1,4 @@
-# Elysia API WebUI
+# Columba WebUI
 
 [Documentation](../../docs/README.en.md) · [简体中文](README.md) · **English**
 
@@ -31,10 +31,10 @@ Use Node.js 22, npm and Go 1.27.2. Run the following commands from the repositor
 
 3. Open `http://127.0.0.1:5273/` and log in with `panelAccessToken` from the backend configuration.
 
-Vite listens on loopback by default. Override the backend with `ELYSIA_DEV_PROXY` and the frontend bind address with `ELYSIA_DEV_HOST`. For a non-default backend:
+Vite listens on loopback by default. Override the backend with `COLUMBA_DEV_PROXY` and the frontend bind address with `COLUMBA_DEV_HOST`. For a non-default backend:
 
 ```sh
-ELYSIA_DEV_PROXY=http://127.0.0.1:8799 npm run dev --workspace @root/webui
+COLUMBA_DEV_PROXY=http://127.0.0.1:8799 npm run dev --workspace @root/webui
 ```
 
 Proxies cover `/api`, `/v1` (also matching `/v1beta`), `/health`, `/mcp`, `/a2a`, `/.well-known/agent-card.json` and `/debug`.

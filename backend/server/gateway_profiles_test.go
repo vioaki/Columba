@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // A profile verified before this edit cannot authorize the edited contract.

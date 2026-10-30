@@ -13,11 +13,11 @@
 在下载目录启动。以下为 Linux amd64 示例：
 
 ```bash
-chmod +x ./elysia-api-linux-amd64
-./elysia-api-linux-amd64 --config ./config.json
+chmod +x ./columba-linux-amd64
+./columba-linux-amd64 --config ./config.json
 ```
 
-Windows 使用 `.\elysia-api-windows-amd64.exe --config .\config.json`；ARM64 使用对应的 arm64 文件名。
+Windows 使用 `.\columba-windows-amd64.exe --config .\config.json`；ARM64 使用对应的 arm64 文件名。
 
 - 不传 `--config` 时，配置路径为**当前工作目录**下的 `config.json`，不一定是可执行文件所在目录。
 - 仅文件不存在时自动创建配置，并在日志输出随机面板令牌。配置损坏时启动失败，不覆盖原文件。
@@ -27,14 +27,14 @@ Windows 使用 `.\elysia-api-windows-amd64.exe --config .\config.json`；ARM64 �
 
 ### macOS App
 
-将 DMG 内的 ElysiaApi 拖入 Applications。支持 macOS 12+、Intel 和 Apple Silicon；运行和更新不需要 Xcode。
+将 DMG 内的 Columba 拖入 Applications。支持 macOS 12+、Intel 和 Apple Silicon；运行和更新不需要 Xcode。
 
-主壳作为菜单栏 supervisor 托管后端、健康检查和更新。打开面板时，它复用包内 `ElysiaApi` 可执行文件，以 `--webui-process` 启动独立的 WebUI 子进程；窗口和 WebKit 属于这个子进程。关窗会结束 WebUI 及其 WebKit 服务，菜单栏主壳和原后端继续运行。仅释放 `WKWebView` 的 Swift 引用不足以结束 WebKit 服务，因此资源回收以所属进程退出为边界。
+主壳作为菜单栏 supervisor 托管后端、健康检查和更新。打开面板时，它复用包内 `Columba` 可执行文件，以 `--webui-process` 启动独立的 WebUI 子进程；窗口和 WebKit 属于这个子进程。关窗会结束 WebUI 及其 WebKit 服务，菜单栏主壳和原后端继续运行。仅释放 `WKWebView` 的 Swift 引用不足以结束 WebKit 服务，因此资源回收以所属进程退出为边界。
 
 | 操作 | 行为 |
 | --- | --- |
 | 首次登录 | 从菜单栏复制面板令牌；应用不会自动注入凭证 |
-| 数据目录 | `~/Library/Application Support/ElysiaApi/`，包含配置、数据库、主密钥和运行日志 |
+| 数据目录 | `~/Library/Application Support/Columba/`，包含配置、数据库、主密钥和运行日志 |
 | 端口占用 | 尝试配置端口；占用时在 `8799–8899` 寻找可用端口，以菜单栏显示地址为准 |
 | 关闭窗口 | 退出 WebUI 子进程及其 WebKit 服务；菜单栏和原后端继续运行，重开保留登录态、窗口位置和主题 |
 | 启动 / 重启服务 | 服务未运行时启动；运行时先优雅退出，再启动新的后端进程 |
@@ -44,12 +44,12 @@ Windows 使用 `.\elysia-api-windows-amd64.exe --config .\config.json`；ARM64 �
 | 通知 | 重要通知默认开启，首次发送或显式启用时请求系统授权 |
 | 更新 | 校验并暂存 DMG 中的应用，停止后端及旧壳后由 helper 替换；新版服务和面板就绪后清理旧包，失败回滚；保留配置和数据库 |
 
-菜单提供服务启动和重启、API 地址和令牌复制、日志、偏好设置、浏览器打开和检查更新。应用托管的后端使用 `ELYSIA_API_OPEN_BROWSER=false`。WebUI 使用默认持久化 WebKit 数据存储保存手动登录后的 Cookie 与登录状态，主题、窗口尺寸和位置保存在应用偏好中；重建子进程不会清除这些数据。主动退出登录后需要重新认证。
+菜单提供服务启动和重启、API 地址和令牌复制、日志、偏好设置、浏览器打开和检查更新。应用托管的后端使用 `COLUMBA_OPEN_BROWSER=false`。WebUI 使用默认持久化 WebKit 数据存储保存手动登录后的 Cookie 与登录状态，主题、窗口尺寸和位置保存在应用偏好中；重建子进程不会清除这些数据。主动退出登录后需要重新认证。
 
 CI 产物使用 ad-hoc 签名，未等同于 Developer ID 公证。确认文件来自项目 Release 后，如遇 Gatekeeper 拦截，可执行：
 
 ```bash
-xattr -d com.apple.quarantine /Applications/ElysiaApi.app
+xattr -d com.apple.quarantine /Applications/Columba.app
 ```
 
 详细行为与验收见 [macOS 验证](macos-testing.md)。
@@ -59,16 +59,16 @@ xattr -d com.apple.quarantine /Applications/ElysiaApi.app
 在仓库根目录构建镜像。容器内必须监听 `0.0.0.0`，宿主机端口仍绑定回环地址：
 
 ```bash
-docker build -t elysia-api:local .
-docker run -d --name elysia-api \
+docker build -t columba:local .
+docker run -d --name columba \
   --restart unless-stopped --init \
   --read-only --tmpfs /tmp:size=64m,mode=1777 \
   --security-opt no-new-privileges:true --cap-drop ALL \
   -p 127.0.0.1:8765:8765 \
-  -e ELYSIA_API_HOST=0.0.0.0 \
+  -e COLUMBA_HOST=0.0.0.0 \
   -v elysia-data:/data \
-  elysia-api:local
-docker logs elysia-api
+  columba:local
+docker logs columba
 ```
 
 镜像以 UID/GID `65532` 运行，配置为 `/data/config.json`。命名卷保留配置、数据库和密钥。使用宿主目录挂载时，需为该用户提供写权限。
@@ -77,10 +77,10 @@ docker logs elysia-api
 
 ```yaml
 services:
-  elysia-api:
+  columba:
     build: .
-    image: elysia-api:local
-    container_name: elysia-api
+    image: columba:local
+    container_name: columba
     restart: unless-stopped
     init: true
     read_only: true
@@ -93,8 +93,8 @@ services:
     ports:
       - "127.0.0.1:8765:8765"
     environment:
-      ELYSIA_API_HOST: 0.0.0.0
-      ELYSIA_API_OPEN_BROWSER: "false"
+      COLUMBA_HOST: 0.0.0.0
+      COLUMBA_OPEN_BROWSER: "false"
     volumes:
       - elysia-data:/data
 volumes:
@@ -103,7 +103,7 @@ volumes:
 
 ```bash
 docker compose up -d --build
-docker compose logs elysia-api
+docker compose logs columba
 ```
 
 使用反向代理提供 TLS 和外部访问；仅为需要访问的网段开放端口。若更改容器内端口，需同时调整映射和镜像内固定 `8765` 的健康检查、关闭探针。
@@ -117,7 +117,7 @@ docker compose logs elysia-api
   "host": "127.0.0.1",
   "port": 8765,
   "panelAccessToken": "change-me",
-  "databasePath": "elysia-api.sqlite3",
+  "databasePath": "columba.sqlite3",
   "secretKeyPath": ".master-key",
   "logLevel": "info",
   "httpTimeout": 120,
@@ -129,8 +129,8 @@ docker compose logs elysia-api
 | --- | --- |
 | `host` / `port` | `127.0.0.1` / `8765`；改变监听需重启 |
 | `panelAccessToken` | 首次创建时生成；保护管理 API，不是推理令牌 |
-| `databasePath` | `elysia-api.sqlite3`；模型、令牌、会话等业务数据 |
-| `logDatabasePath` | 默认在业务库文件名后加 `-logs`，如 `elysia-api-logs.sqlite3`；系统日志、调用明细、媒体索引和用量汇总；变更需重启 |
+| `databasePath` | `columba.sqlite3`；模型、令牌、会话等业务数据 |
+| `logDatabasePath` | 默认在业务库文件名后加 `-logs`，如 `columba-logs.sqlite3`；系统日志、调用明细、媒体索引和用量汇总；变更需重启 |
 | `secretKeyPath` | `.master-key`；SQLite 敏感字段的加密密钥 |
 | `logLevel` | `info`；可选 `debug`、`info`、`warn`、`error` |
 | `logPersistLevel` | `info`；数据库诊断日志阈值，与控制台独立；操作事件和 error 始终尝试持久化 |
@@ -150,9 +150,9 @@ docker compose logs elysia-api
 
 | 变量 | 作用 |
 | --- | --- |
-| `ELYSIA_API_HOST` | 覆盖配置中的监听地址，加载及热重载均应用 |
-| `ELYSIA_API_OPEN_BROWSER` | 覆盖浏览器启动设置，不写回文件；无效布尔值记录提示并回退 |
-| `ELYSIA_API_MASTER_KEY` | 优先于密钥文件；应由受保护的运行环境注入 |
+| `COLUMBA_HOST` | 覆盖配置中的监听地址，加载及热重载均应用 |
+| `COLUMBA_OPEN_BROWSER` | 覆盖浏览器启动设置，不写回文件；无效布尔值记录提示并回退 |
+| `COLUMBA_MASTER_KEY` | 优先于密钥文件；应由受保护的运行环境注入 |
 
 密钥读取顺序：环境变量 → `secretKeyPath` → 自动创建随机密钥。不再读取旧 `.db-key`；启用加密的存储不接受历史明文密钥字段。密钥创建失败会记录告警；检查启动日志，不要将服务启动成功视为加密已建立的证明。
 
@@ -212,18 +212,18 @@ SIGTERM、SIGINT、本地关闭接口与父进程 EOF 共用关停流程：停�
 
 ## 服务托管
 
-普通二进制是长驻进程，可由 systemd、Windows 服务包装器或容器托管。以下 unit 假设已创建系统用户 `elysia`，程序位于 `/opt/elysia-api/`，且该用户可写配置和数据目录：
+普通二进制是长驻进程，可由 systemd、Windows 服务包装器或容器托管。以下 unit 假设已创建系统用户 `elysia`，程序位于 `/opt/columba/`，且该用户可写配置和数据目录：
 
 ```ini
 [Unit]
-Description=Elysia API
+Description=Columba
 After=network.target
 
 [Service]
 User=elysia
-WorkingDirectory=/opt/elysia-api
-ExecStart=/opt/elysia-api/elysia-api-linux-amd64 --config /opt/elysia-api/config.json
-Environment=ELYSIA_API_OPEN_BROWSER=false
+WorkingDirectory=/opt/columba
+ExecStart=/opt/columba/columba-linux-amd64 --config /opt/columba/config.json
+Environment=COLUMBA_OPEN_BROWSER=false
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=45
@@ -232,7 +232,7 @@ TimeoutStopSec=45
 WantedBy=multi-user.target
 ```
 
-保存为 `/etc/systemd/system/elysia-api.service` 后执行 `sudo systemctl daemon-reload` 和 `sudo systemctl enable --now elysia-api`。用 `journalctl -u elysia-api` 查看启动日志。
+保存为 `/etc/systemd/system/columba.service` 后执行 `sudo systemctl daemon-reload` 和 `sudo systemctl enable --now columba`。用 `journalctl -u columba` 查看启动日志。
 
 ## 升级、备份与恢复
 
@@ -273,7 +273,7 @@ WantedBy=multi-user.target
 
 | 现象 | 检查 |
 | --- | --- |
-| 连接被拒绝 | 服务日志、实际端口；Docker 内是否设置 `ELYSIA_API_HOST=0.0.0.0` |
+| 连接被拒绝 | 服务日志、实际端口；Docker 内是否设置 `COLUMBA_HOST=0.0.0.0` |
 | 面板 401 | 使用面板令牌；检查配置路径，避免误用推理或 Agent Key |
 | 上游连接被拦截 | 出站 CIDR 策略、DNS 解析结果和代理配置 |
 | 用量日志没有正文 | `bodyMaxKB` 是否为正；历史请求不会补采集 |

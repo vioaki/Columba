@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // ProtocolUpgradeRevision is a verified runtime revision prepared without writes.

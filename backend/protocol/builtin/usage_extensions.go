@@ -1,6 +1,6 @@
 package builtin
 
-import p "github.com/elysia-api/backend/protocol"
+import p "columba.local/backend/protocol"
 
 var inputUsageDetails = []string{"cached_tokens", "cache_write_tokens", "cached_creation_tokens", "text_tokens", "image_tokens", "audio_tokens"}
 var outputUsageDetails = []string{"reasoning_tokens", "text_tokens", "image_tokens", "audio_tokens", "accepted_prediction_tokens", "rejected_prediction_tokens"}

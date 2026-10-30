@@ -17,8 +17,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // Acceptance runs standard HTTP and opt-in installed clients against a loopback gateway and a

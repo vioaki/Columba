@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/routing"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/routing"
 )
 
 // All source/group/token mutations invalidate this snapshot after persistence.

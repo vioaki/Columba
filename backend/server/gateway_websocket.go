@@ -10,7 +10,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/network"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 	"github.com/hertz-contrib/websocket"
 )
 

@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function mockAdmin(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.panel-token', 'test-only-token')
-    localStorage.setItem('elysia-webui.theme', 'light')
+    localStorage.setItem('columba-webui.panel-token', 'test-only-token')
+    localStorage.setItem('columba-webui.theme', 'light')
   })
   await page.route('**/api/admin/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -60,7 +60,7 @@ test('overview KPI defaults to cumulative, toggles to today, and remembers the c
   await expect(page.getByText('12,345', { exact: true })).not.toBeVisible()
   await expect(seg.getByRole('button', { name: '今日', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('elysia-webui.overview-kpi-range')))
+    .poll(() => page.evaluate(() => localStorage.getItem('columba-webui.overview-kpi-range')))
     .toBe('today')
 
   // 刷新后保持今日档（localStorage 记忆）。

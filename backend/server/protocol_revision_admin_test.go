@@ -11,7 +11,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/route"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func revisionAdminRequest(t *testing.T, engine *route.Engine, method, path string, body []byte, etag string) *httptest.ResponseRecorder {

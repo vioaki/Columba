@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 const hostedUsageFixture = `{"image_gen":{"input_tokens":7,"output_tokens":5,"total_tokens":12,"input_tokens_details":{"image_tokens":4,"text_tokens":3},"output_tokens_details":{"image_tokens":5,"text_tokens":0}},"web_search":{"num_requests":2}}`

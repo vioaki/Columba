@@ -10,9 +10,9 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/relay"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/relay"
+	"columba.local/backend/storage"
 )
 
 // DBG-001 回归:删除某 token 的唯一授权组后,该 token 必须被禁用,而不是因

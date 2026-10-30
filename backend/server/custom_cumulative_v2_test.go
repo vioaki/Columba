@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func cumulativeWireDefinition(t *testing.T) protocol.Definition {

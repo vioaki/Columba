@@ -6,7 +6,7 @@ import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export type OverviewKpiRange = "all" | "today";
 
-const CHANGE_EVENT = "elysia-webui:overview-kpi-range-change";
+const CHANGE_EVENT = "columba-webui:overview-kpi-range-change";
 
 function readRange(): OverviewKpiRange {
   try {

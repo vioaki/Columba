@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 	"golang.org/x/sync/singleflight"
 )
 

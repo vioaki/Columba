@@ -1,10 +1,10 @@
 // 生成 macOS 应用图标:白色方形底 + 居中 logo(macOS 会自动套用圆角遮罩)。
-// 用法: icon-gen <logo.png> <输出iconset目录>
+// 用法: icon-gen <Columba.svg> <输出iconset目录>
 
 import AppKit
 
 guard CommandLine.arguments.count >= 3 else {
-    print("usage: icon-gen <logo.png> <output-iconset-dir>")
+    print("usage: icon-gen <Columba.svg> <output-iconset-dir>")
     exit(1)
 }
 let logoPath = CommandLine.arguments[1]

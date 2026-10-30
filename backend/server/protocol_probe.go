@@ -10,8 +10,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
 )
 
 type protocolProbeInput struct {

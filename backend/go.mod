@@ -1,4 +1,4 @@
-module github.com/elysia-api/backend
+module columba.local/backend
 
 go 1.27.2
 

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // A bounded capture can end inside a state value, including an escaped JSON

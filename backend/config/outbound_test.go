@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/outbound"
+	"columba.local/backend/internal/outbound"
 )
 
 // writeOutboundConfig 落一份 config.json 并 Load。

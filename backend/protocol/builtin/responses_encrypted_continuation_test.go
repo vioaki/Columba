@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 const encryptedReasoningResponse = `{"id":"r","object":"response","created_at":1,"model":"m","status":"completed","output":[{"type":"reasoning","content":[{"type":"reasoning_text","text":"visible thought"}],"summary":[],"encrypted_content":"synthetic-opaque-state"},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"OK","annotations":[]}]}],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}`

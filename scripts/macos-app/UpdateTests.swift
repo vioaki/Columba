@@ -40,7 +40,7 @@ enum UpdateTests {
                 try manager.moveItem(at: from, to: to)
             }
         }
-        let backup = try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasPrefix(".ElysiaApi-backup-") }
+        let backup = try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasPrefix(".Columba-backup-") }
         let version = try backup.map { try String(contentsOf: $0.appendingPathComponent("version"), encoding: .utf8) }
         try NativeTests.expect(version == "old" && manager.fileExists(atPath: staged.path),
                                "rollback failure retains both old backup and staged new version")
@@ -61,15 +61,15 @@ enum UpdateTests {
 
     private static func extraction(_ root: URL) async throws {
         let source = root.appendingPathComponent("image-source")
-        let app = source.appendingPathComponent("ElysiaApi.app")
+        let app = source.appendingPathComponent("Columba.app")
         let macos = app.appendingPathComponent("Contents/MacOS")
         let manager = FileManager.default
         try manager.createDirectory(at: macos, withIntermediateDirectories: true)
         let identifier = Bundle.main.bundleIdentifier!
-        let plist: [String: Any] = ["CFBundleIdentifier": identifier, "CFBundleExecutable": "ElysiaApi", "CFBundlePackageType": "APPL"]
+        let plist: [String: Any] = ["CFBundleIdentifier": identifier, "CFBundleExecutable": "Columba", "CFBundlePackageType": "APPL"]
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
             .write(to: app.appendingPathComponent("Contents/Info.plist"))
-        for name in ["ElysiaApi", "elysia-api"] {
+        for name in ["Columba", "columba-server"] {
             try manager.copyItem(at: URL(fileURLWithPath: dataDirPath).appendingPathComponent("fixture-universal"), to: macos.appendingPathComponent(name))
         }
         let dmg = root.appendingPathComponent("valid update '$()` .dmg")
@@ -81,7 +81,7 @@ enum UpdateTests {
             return try UpdateInstaller.extractApp(fromDMG: dmg, beside: current)
         }.value
         defer { try? manager.removeItem(at: staged.deletingLastPathComponent()) }
-        try NativeTests.expect(manager.isExecutableFile(atPath: staged.appendingPathComponent("Contents/MacOS/ElysiaApi").path),
+        try NativeTests.expect(manager.isExecutableFile(atPath: staged.appendingPathComponent("Contents/MacOS/Columba").path),
                                "a real signed universal DMG extracts without shell interpolation")
         try NativeTests.expect(!manager.fileExists(atPath: current.path), "DMG validation and staging never mutate the current bundle")
         let mounts = Set(try manager.contentsOfDirectory(atPath: manager.temporaryDirectory.path).filter { $0.hasPrefix("elysia-dmg-") })
@@ -100,7 +100,7 @@ enum UpdateTests {
         if mode == "ready" { body += "\nif [ \"$2\" = \"--update-ack\" ]; then printf '%s\\n' \"$$\" > \"$3\"; fi\n" }
         if mode == "wrong-ack" { body += "\nprintf '%s\\n' 1 > \"$3\"\n" }
         body += mode == "exit" ? "\nexit 23\n" : "\nexec /bin/sleep 60\n"
-        let executable = macos.appendingPathComponent("ElysiaApi")
+        let executable = macos.appendingPathComponent("Columba")
         try Data(body.utf8).write(to: executable)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
         try Data(tag.utf8).write(to: app.appendingPathComponent("version"))
@@ -110,8 +110,8 @@ enum UpdateTests {
         let manager = FileManager.default
         let directory = root.appendingPathComponent(mode)
         let current = directory.appendingPathComponent("Current '$()` app.app")
-        let staging = directory.appendingPathComponent(".ElysiaApi-update-\(UUID().uuidString)")
-        let staged = staging.appendingPathComponent("ElysiaApi.app")
+        let staging = directory.appendingPathComponent(".Columba-update-\(UUID().uuidString)")
+        let staged = staging.appendingPathComponent("Columba.app")
         try makeApp(current, mode: "old")
         try makeApp(staged, mode: mode)
         defer {
@@ -131,7 +131,7 @@ enum UpdateTests {
         let version = try String(contentsOf: current.appendingPathComponent("version"), encoding: .utf8)
         if mode == "ready" {
             try NativeTests.expect(failure == nil && version == "new", "update commits only after the new child acknowledges readiness")
-            let backups = try manager.contentsOfDirectory(atPath: directory.path).filter { $0.hasPrefix(".ElysiaApi-backup-") }
+            let backups = try manager.contentsOfDirectory(atPath: directory.path).filter { $0.hasPrefix(".Columba-backup-") }
             try NativeTests.expect(backups.isEmpty && !manager.fileExists(atPath: staging.path), "acknowledged update releases backup and staging resources")
         } else {
             try NativeTests.expect(failure != nil && version == "old", "\(mode) launch failure restores the old bundle")
@@ -142,8 +142,8 @@ enum UpdateTests {
 
     private static func parentTimeout(_ root: URL) async throws {
         let current = root.appendingPathComponent("parent-timeout.app")
-        let staging = root.appendingPathComponent(".ElysiaApi-update-\(UUID().uuidString)")
-        let staged = staging.appendingPathComponent("ElysiaApi.app")
+        let staging = root.appendingPathComponent(".Columba-update-\(UUID().uuidString)")
+        let staged = staging.appendingPathComponent("Columba.app")
         try makeApp(current, mode: "old")
         try makeApp(staged, mode: "ready")
         let arguments = UpdateInstaller.helperArguments(staged: staged, current: current, parentPID: getpid(), background: true)
@@ -162,10 +162,10 @@ enum UpdateTests {
         let manager = FileManager.default
         let directory = root.appendingPathComponent("failed-recovery-launch")
         let current = directory.appendingPathComponent("Current.app")
-        let staging = directory.appendingPathComponent(".ElysiaApi-update-\(UUID().uuidString)")
-        let staged = staging.appendingPathComponent("ElysiaApi.app")
+        let staging = directory.appendingPathComponent(".Columba-update-\(UUID().uuidString)")
+        let staged = staging.appendingPathComponent("Columba.app")
         try makeApp(current, mode: "old")
-        try manager.removeItem(at: current.appendingPathComponent("Contents/MacOS/ElysiaApi"))
+        try manager.removeItem(at: current.appendingPathComponent("Contents/MacOS/Columba"))
         try makeApp(staged, mode: "exit")
         let arguments = UpdateInstaller.helperArguments(staged: staged, current: current, parentPID: Int32.max, background: false)
         let failure: String? = await Task.detached {
@@ -182,10 +182,10 @@ enum UpdateTests {
         let manager = FileManager.default
         let directory = root.appendingPathComponent("forked '$()` helper")
         let current = directory.appendingPathComponent("Current '$()` app.app")
-        let staging = directory.appendingPathComponent(".ElysiaApi-update-\(UUID().uuidString)")
-        let staged = staging.appendingPathComponent("ElysiaApi.app")
+        let staging = directory.appendingPathComponent(".Columba-update-\(UUID().uuidString)")
+        let staged = staging.appendingPathComponent("Columba.app")
         try makeApp(current, mode: "old")
-        let executable = current.appendingPathComponent("Contents/MacOS/ElysiaApi")
+        let executable = current.appendingPathComponent("Contents/MacOS/Columba")
         try manager.removeItem(at: executable)
         try manager.copyItem(at: Bundle.main.executableURL!, to: executable)
         try makeApp(staged, mode: "ready")

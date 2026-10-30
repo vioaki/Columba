@@ -3,7 +3,7 @@ package builtin
 import (
 	"context"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // ObserveNativeFrame keeps only the sequence watermark. It does not replay

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // Consume only declared leaf counters. Unrecognized nested extensions remain

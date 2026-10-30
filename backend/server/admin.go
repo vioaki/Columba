@@ -20,9 +20,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/route"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/outbound"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/outbound"
+	"columba.local/backend/storage"
 )
 
 type adminError struct {

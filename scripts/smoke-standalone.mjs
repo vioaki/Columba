@@ -15,7 +15,7 @@ const architectures = { x64: 'amd64', arm64: 'arm64' }
 const platform = platforms[process.platform]
 const architecture = architectures[process.arch]
 assert(platform && architecture, 'No standalone target for this host')
-const executable = `elysia-api-${platform}-${architecture}${platform === 'windows' ? '.exe' : ''}`
+const executable = `columba-${platform}-${architecture}${platform === 'windows' ? '.exe' : ''}`
 const binary = join(root, 'dist', 'standalone', executable)
 const binaryBytes = await readFile(binary)
 const expectedCommit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim()

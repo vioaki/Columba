@@ -7,8 +7,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 // Response delivery uses the same narrow handoff as streaming; request history

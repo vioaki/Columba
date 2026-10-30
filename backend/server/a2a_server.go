@@ -11,7 +11,7 @@ import (
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 
 	"golang.org/x/sync/singleflight"
 )

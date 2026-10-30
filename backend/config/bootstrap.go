@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/atomicfile"
+	"columba.local/backend/internal/atomicfile"
 )
 
 const panelTokenRandomBytes = 32
@@ -59,7 +59,7 @@ func writeDefaultConfig(path, token string) error {
 		"host":                "127.0.0.1",
 		"port":                8765,
 		"panelAccessToken":    token,
-		"databasePath":        "elysia-api.sqlite3",
+		"databasePath":        "columba.sqlite3",
 		"logLevel":            "info",
 		"logFormat":           "auto",
 		"logPersistLevel":     "info",

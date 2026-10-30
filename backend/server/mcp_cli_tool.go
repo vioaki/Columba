@@ -14,12 +14,12 @@ import (
 func mcpCLITool() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        agentToolCLI,
-		Title:       "执行 Elysia API 网关运维命令",
+		Title:       "执行 Columba 网关运维命令",
 		Description: cliToolDescription + "每次调用无状态，草稿和测试目标仅在同一次批处理中复用。",
 		InputSchema: objectSchema(map[string]any{
 			"command": map[string]any{"type": "string", "description": "要执行的 elysia 命令（可多行批处理）"},
 		}, "command"),
-		Annotations: &mcp.ToolAnnotations{Title: "执行 Elysia API 网关运维命令"},
+		Annotations: &mcp.ToolAnnotations{Title: "执行 Columba 网关运维命令"},
 	}
 }
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func TestNewAPIErrorProjectionMatrix(t *testing.T) {

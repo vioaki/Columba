@@ -2,7 +2,7 @@
 
 [文档索引](README.md) · [开发指南](development.md) · [数据库参考](storage-schema.md)
 
-Elysia API 是自部署 AI 网关。Go 后端负责鉴权、路由、协议转换、Agent 和 SQLite 存储；React 前端通过管理 API 配置模型源、模型组、协议及运行策略。
+Columba 是自部署 AI 网关。Go 后端负责鉴权、路由、协议转换、Agent 和 SQLite 存储；React 前端通过管理 API 配置模型源、模型组、协议及运行策略。
 
 ## 模块职责
 

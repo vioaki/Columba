@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/elysia-api/backend/internal/outbound"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/internal/outbound"
+	"columba.local/backend/protocol"
 )
 
 // ProtocolTransport owns shared secure HTTP and session clients. All wire

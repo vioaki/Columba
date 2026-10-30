@@ -1,6 +1,6 @@
 # Production single-image deployment (frontend is embedded into the Go binary).
-# Standard hardened run (add ELYSIA_API_MASTER_KEY only when using an external key):
-# docker run -d --name elysia-api --restart unless-stopped --init --read-only --tmpfs /tmp:size=64m,mode=1777 --security-opt no-new-privileges:true --cap-drop ALL -p "${ELYSIA_BIND_ADDRESS:-127.0.0.1}:${ELYSIA_HTTP_PORT:-8765}:8765" -v elysia-data:/data -e ELYSIA_API_HOST=0.0.0.0 [-e ELYSIA_API_MASTER_KEY] elysia-api:local
+# Standard hardened run (add COLUMBA_MASTER_KEY only when using an external key):
+# docker run -d --name columba --restart unless-stopped --init --read-only --tmpfs /tmp:size=64m,mode=1777 --security-opt no-new-privileges:true --cap-drop ALL -p "${ELYSIA_BIND_ADDRESS:-127.0.0.1}:${ELYSIA_HTTP_PORT:-8765}:8765" -v elysia-data:/data -e COLUMBA_HOST=0.0.0.0 [-e COLUMBA_MASTER_KEY] columba:local
 
 FROM node:22-bookworm-slim AS frontend-builder
 WORKDIR /workspace
@@ -22,7 +22,7 @@ ARG TARGETOS
 ARG TARGETARCH
 # 版本标识经 ldflags 注入 /health 上报；未传时为 dev。
 ARG APP_VERSION=dev
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w -X github.com/elysia-api/backend/server.AppVersion=${APP_VERSION}" -o /out/elysia-api .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w -X columba.local/backend/server.AppVersion=${APP_VERSION}" -o /out/columba .
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates \
@@ -33,7 +33,7 @@ RUN apk add --no-cache ca-certificates \
     && printf '%s\n' \
        '#!/bin/sh' \
        'set -eu' \
-       '/usr/local/bin/elysia-api "$@" &' \
+       '/usr/local/bin/columba "$@" &' \
        'pid=$!' \
        'shutdown() {' \
        '  wget -q -T 2 -O /dev/null --post-data="" http://127.0.0.1:8765/__shutdown || kill -TERM "$pid" 2>/dev/null || true' \
@@ -45,7 +45,7 @@ RUN apk add --no-cache ca-certificates \
        'exit "$status"' \
        > /usr/local/bin/docker-entrypoint.sh \
     && chmod 0755 /usr/local/bin/docker-entrypoint.sh
-COPY --from=backend-builder /out/elysia-api /usr/local/bin/elysia-api
+COPY --from=backend-builder /out/columba /usr/local/bin/columba
 WORKDIR /data
 ENV HOME=/data
 USER 65532:65532

@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/dbpath"
-	"github.com/elysia-api/backend/internal/storagequery"
+	"columba.local/backend/internal/dbpath"
+	"columba.local/backend/internal/storagequery"
 )
 
 const sqliteBusyTimeout = 5 * time.Second

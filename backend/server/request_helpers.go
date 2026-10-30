@@ -9,7 +9,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol/builtin"
 )
 
 // errorDetailTruncateBytes 是错误详情入库的展示截断上限。

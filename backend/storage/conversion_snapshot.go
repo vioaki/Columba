@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // ConversionRevisionKey keeps immutable revisions separate from the active

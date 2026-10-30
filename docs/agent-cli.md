@@ -27,7 +27,7 @@
 
 ## 调用契约
 
-执行 Elysia API 网关运维命令。每条命令须以 elysia 开头；首次使用先查 elysia help，具体用法按需查 elysia help <组> [命令]。
+执行 Columba 网关运维命令。每条命令须以 elysia 开头；首次使用先查 elysia help，具体用法按需查 elysia help <组> [命令]。
 
 ```json
 {"command":"elysia source ls"}

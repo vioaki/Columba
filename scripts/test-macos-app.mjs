@@ -16,7 +16,7 @@ const app = join(temp, 'ElysiaNativeTests.app')
 const macos = join(app, 'Contents', 'MacOS')
 const data = join(temp, 'data')
 const previewOnly = process.argv.includes('--panel')
-const bundleID = `dev.pinkelysiadev.ElysiaApi.tests.${process.pid}`
+const bundleID = `local.columba.app.tests.${process.pid}`
 function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, { stdio: 'inherit', ...options })
   if (result.status !== 0) throw result.error ?? new Error(`${cmd}: ${result.status ?? result.signal}`)
@@ -38,18 +38,18 @@ try {
   }
   writeFileSync(join(app, 'Contents', 'Info.plist'), `<?xml version="1.0"?><plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>${bundleID}</string>
-  <key>CFBundleExecutable</key><string>ElysiaApi</string>
+  <key>CFBundleExecutable</key><string>Columba</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/>
   <key>NSExceptionDomains</key><dict><key>proxy-target.invalid</key><dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict></dict>
   </dict>
   </dict></plist>`)
-  cpSync(previewOnly ? join(repo, 'dist', 'standalone', 'ElysiaApi.app', 'Contents', 'MacOS', 'elysia-api') : join(source, 'BackendFixture.py'), join(macos, 'elysia-api'))
-  chmodSync(join(macos, 'elysia-api'), 0o755)
+  cpSync(previewOnly ? join(repo, 'dist', 'standalone', 'Columba.app', 'Contents', 'MacOS', 'columba-server') : join(source, 'BackendFixture.py'), join(macos, 'columba-server'))
+  chmodSync(join(macos, 'columba-server'), 0o755)
   run('xcrun', ['--sdk', 'macosx', 'swiftc', '-D', 'NATIVE_TESTS', '-target', `${process.arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macos12.0`,
-    '-o', join(macos, 'ElysiaApi'), join(source, 'NativeTests.swift'), join(source, 'UpdateTests.swift'), join(source, 'ResourceTests.swift'), join(source, 'LifecycleTests.swift'), ...nativeAppSources(source)])
+    '-o', join(macos, 'Columba'), join(source, 'NativeTests.swift'), join(source, 'UpdateTests.swift'), join(source, 'ResourceTests.swift'), join(source, 'LifecycleTests.swift'), ...nativeAppSources(source)])
   run('codesign', ['--force', '--sign', '-', '--deep', app])
-  if (!process.argv.includes('--flows')) run(join(macos, 'ElysiaApi'), previewOnly ? ['--panel'] : [], { timeout: 120000, env: { ...process.env, ELYSIA_NATIVE_TEST_DATA: data, ELYSIA_NATIVE_SCREENSHOT: join(repo, 'dist', 'macos-panel-preview.png') } })
+  if (!process.argv.includes('--flows')) run(join(macos, 'Columba'), previewOnly ? ['--panel'] : [], { timeout: 120000, env: { ...process.env, COLUMBA_NATIVE_TEST_DATA: data, COLUMBA_NATIVE_SCREENSHOT: join(repo, 'dist', 'macos-panel-preview.png') } })
   await runNativeTrayFlow({ app, temp, bundleID, previewOnly })
   await runNativeUpdateFlow({ app, temp, bundleID, previewOnly })
 } finally {
@@ -58,7 +58,7 @@ try {
     const pid = Number(readFileSync(join(data, 'owned-backend.pid'), 'utf8'))
     if (Number.isSafeInteger(pid) && pid > 1) {
       const command = execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' })
-      if (command.includes(join(macos, 'elysia-api'))) process.kill(pid, 'SIGKILL')
+      if (command.includes(join(macos, 'columba-server'))) process.kill(pid, 'SIGKILL')
     }
   } catch { /* The suite normally stopped the child already. */ }
   // Always remove this unique test domain, including timeouts; never touch production preferences.

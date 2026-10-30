@@ -16,10 +16,10 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/network"
 	"github.com/cloudwego/hertz/pkg/network/standard"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/logging"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func TestGatewayFinalizeFailureSettlesOnce(t *testing.T) {

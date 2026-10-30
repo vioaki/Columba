@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/atomicfile"
-	"github.com/elysia-api/backend/internal/outbound"
-	log "github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/internal/atomicfile"
+	"columba.local/backend/internal/outbound"
+	log "columba.local/backend/logging"
+	"columba.local/backend/protocol"
 )
 
 type Config struct {
@@ -287,7 +287,7 @@ func (c *Config) applyBootstrapDefaults(path string) {
 		c.Port = 8765
 	}
 	if c.DatabasePath == "" {
-		c.DatabasePath = filepath.Join(filepath.Dir(path), "elysia-api.sqlite3")
+		c.DatabasePath = filepath.Join(filepath.Dir(path), "columba.sqlite3")
 	} else if !filepath.IsAbs(c.DatabasePath) {
 		c.DatabasePath = filepath.Join(filepath.Dir(path), c.DatabasePath)
 	}
@@ -324,7 +324,7 @@ func (c *Config) normalizeOutboundLocked() {
 }
 
 func (c *Config) applyEnvironmentOverrides() {
-	if host := strings.TrimSpace(os.Getenv("ELYSIA_API_HOST")); host != "" {
+	if host := strings.TrimSpace(os.Getenv("COLUMBA_HOST")); host != "" {
 		c.Host = host
 	}
 }
@@ -455,7 +455,7 @@ func (c *Config) SetDatabasePath(path string) {
 func (c *Config) GetDefaultDatabasePath() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return filepath.Join(filepath.Dir(c.path), "elysia-api.sqlite3")
+	return filepath.Join(filepath.Dir(c.path), "columba.sqlite3")
 }
 
 // GetMaxBodyBytes 返回请求体大小上限。热路径（body-limit 中间件）每请求
@@ -542,7 +542,7 @@ func (c *Config) Reload() error {
 
 	newCfg.path = c.path
 	newCfg.applyBootstrapDefaults(c.path)
-	// 与 Load 同序：环境变量覆盖最后应用。否则热重载会让 ELYSIA_API_HOST
+	// 与 Load 同序：环境变量覆盖最后应用。否则热重载会让 COLUMBA_HOST
 	// 部署静默失效，且随后的 Save 会把文件值固化覆盖部署配置。
 	newCfg.applyEnvironmentOverrides()
 	if err := newCfg.validateProxySettings(); err != nil {
@@ -705,13 +705,13 @@ func (c *Config) GetHealthCheckConfig() HealthCheckConfig {
 
 // GetDBEncryptionKey 返回用于 SQLite 敏感字段（token / api_key）透明加密的密钥。
 // 来源优先级：
-//  1. 环境变量 ELYSIA_API_MASTER_KEY；
+//  1. 环境变量 COLUMBA_MASTER_KEY；
 //  2. SecretKeyPath（默认 .master-key），不存在则生成随机密钥并落盘。
 //
 // 返回空切片表示无法建立密钥（理论上仅在文件系统不可写时），此时上层
 // 会退化为明文存储以保证可用性，但应在日志中告警。
 func (c *Config) GetDBEncryptionKey() []byte {
-	if envValue := strings.TrimSpace(os.Getenv("ELYSIA_API_MASTER_KEY")); envValue != "" {
+	if envValue := strings.TrimSpace(os.Getenv("COLUMBA_MASTER_KEY")); envValue != "" {
 		return []byte(envValue)
 	}
 
@@ -748,7 +748,7 @@ func (c *Config) GetDBEncryptionKey() []byte {
 	// 修复 S1：密钥若与数据库同目录，备份/卷快照/cp -r 会同时带走密文与密钥，
 	// at-rest 加密形同虚设。落到同目录时打印醒目告警，引导改用环境变量或独立路径。
 	if dbPath != "" && filepath.Dir(target) == filepath.Dir(dbPath) {
-		log.Warn().Str("component", "config").Str("path", target).Msg("db encryption key sits in the SAME directory as the database; a backup/snapshot exposes both ciphertext and key. Prefer ELYSIA_API_MASTER_KEY or a separately-secured secretKeyPath.")
+		log.Warn().Str("component", "config").Str("path", target).Msg("db encryption key sits in the SAME directory as the database; a backup/snapshot exposes both ciphertext and key. Prefer COLUMBA_MASTER_KEY or a separately-secured secretKeyPath.")
 	}
 	return []byte(key)
 }

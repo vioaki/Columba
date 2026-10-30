@@ -12,10 +12,10 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
+	"columba.local/backend/storage"
 )
 
 type gatewayCandidate struct {

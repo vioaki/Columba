@@ -10,8 +10,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 func declareResponseFailures(t *testing.T, definition protocol.Definition, field string) protocol.Definition {

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/storagequery"
+	"columba.local/backend/internal/storagequery"
 )
 
 // modelColumns 是 models 行读取的统一列清单（含 enabled/origin/capability_source）。

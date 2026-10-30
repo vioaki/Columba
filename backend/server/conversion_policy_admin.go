@@ -8,9 +8,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/utils"
 	"github.com/cloudwego/hertz/pkg/route"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func (s *Server) registerConversionPolicyRoutes(group *route.RouterGroup) {

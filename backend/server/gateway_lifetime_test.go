@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestGatewayPreparationHandoff(t *testing.T) {

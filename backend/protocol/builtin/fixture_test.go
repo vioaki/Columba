@@ -3,7 +3,7 @@ package builtin
 import (
 	"sync"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // Compiled revisions are immutable; Definition returns an independent editable

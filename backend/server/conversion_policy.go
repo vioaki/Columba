@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/routing"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/routing"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func conversionPolicyRank(selector protocol.ConversionMatch) int {

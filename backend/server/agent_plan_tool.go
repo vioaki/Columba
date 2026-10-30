@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 )
 
 // update_plan 工具：模型维护多步任务的工作方案清单，侧边栏「方案」页实时

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 // 端到端:Claude 客户端 × Responses 型上游的完整工具循环(定义→调用→

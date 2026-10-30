@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // The application adapter uses verified generation bindings without retries.

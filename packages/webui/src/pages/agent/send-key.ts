@@ -6,7 +6,7 @@ import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 export type SendKeyMode = "enter" | "ctrl-enter";
 
-const CHANGE_EVENT = "elysia-webui:agent-send-key-change";
+const CHANGE_EVENT = "columba-webui:agent-send-key-change";
 
 function readMode(): SendKeyMode {
   try {

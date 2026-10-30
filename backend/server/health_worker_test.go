@@ -7,8 +7,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 func TestHealthWorkerNeutralEvidenceAndRouteInvalidation(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // 预置只读的持久化边界：探测证据只允许落在当前激活（shipped）修订上，

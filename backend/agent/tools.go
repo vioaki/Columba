@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // Tool 是 Agent 可用的工具抽象。引擎对工具的具体行为一无所知；领域知识

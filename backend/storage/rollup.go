@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"time"
 
-	log "github.com/elysia-api/backend/logging"
+	log "columba.local/backend/logging"
 )
 
 // 小时级预聚合表（usage_rollup_hour）：把 usage_records 按 (小时, 模型, 组,

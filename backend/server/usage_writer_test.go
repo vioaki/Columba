@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/storage"
 )
 
 func TestResetKeepsRecordsSubmittedAfterReturn(t *testing.T) {

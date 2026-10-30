@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 func TestRateLimitMidnightRolloverProtectsNewDay(t *testing.T) {

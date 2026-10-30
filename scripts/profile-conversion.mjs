@@ -176,7 +176,7 @@ async function render() {
         })
         try {
           const page = await browser.newPage({ viewport: { width: 1800, height: 1000 }, deviceScaleFactor: 1 })
-          for (const focus of ['', 'github.com/elysia-api/backend/protocol']) {
+          for (const focus of ['', 'columba.local/backend/protocol']) {
             await page.goto(`${url}/ui/flamegraph${focus ? `?f=${encodeURIComponent(focus)}` : ''}`, { waitUntil: 'networkidle' })
             await page.locator('#stack-chart').waitFor()
             const scope = directory.name === 'historical' || directory.name === 'phases' ? 'codec test harness' : 'whole gateway'

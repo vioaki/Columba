@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/relay"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/logging"
+	"columba.local/backend/relay"
+	"columba.local/backend/storage"
 )
 
 func New(cfg *config.Config) *Server {
@@ -41,7 +41,7 @@ func New(cfg *config.Config) *Server {
 	if hasEncrypted, decryptOK, err := store.SecretIntegrityProbe(context.Background()); err != nil {
 		server.logEvent("error").Err(err).Msg("secret integrity probe failed")
 	} else if hasEncrypted && !decryptOK {
-		server.logEvent("error").Msg("encrypted secrets cannot be decrypted; restore the original .master-key or ELYSIA_API_MASTER_KEY. Routing and token/source administration are unavailable until repaired; rows are retained")
+		server.logEvent("error").Msg("encrypted secrets cannot be decrypted; restore the original .master-key or COLUMBA_MASTER_KEY. Routing and token/source administration are unavailable until repaired; rows are retained")
 	}
 	protocolErr := server.initializeProtocolRuntime(context.Background())
 	server.syncOutboundPolicy()

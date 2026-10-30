@@ -17,9 +17,9 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/logging"
+	"columba.local/backend/storage"
 	"github.com/rs/zerolog"
 )
 

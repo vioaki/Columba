@@ -13,7 +13,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/network"
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 // 回归：OpenAI 系同协议透传时，上游 SSE 必须原样转发，provider 私有字段

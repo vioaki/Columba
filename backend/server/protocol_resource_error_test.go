@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestResourceFailureEvidenceBoundaries(t *testing.T) {

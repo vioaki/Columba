@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // addUsage sums independent model calls. A missing component in any call makes

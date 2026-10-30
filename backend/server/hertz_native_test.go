@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

@@ -5,7 +5,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 func names(refs []config.ModelRef) []string {

@@ -135,8 +135,8 @@ test('source metadata errors show upstream decoding and legacy records keep unkn
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.panel-token', 'test-only')
-    localStorage.setItem('elysia-webui.theme', 'light')
+    localStorage.setItem('columba-webui.panel-token', 'test-only')
+    localStorage.setItem('columba-webui.theme', 'light')
   })
   await page.route('**/api/admin/**', async (route) => {
     const url = new URL(route.request().url())

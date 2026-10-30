@@ -3,9 +3,9 @@ package server
 import (
 	"unicode/utf8"
 
-	"github.com/elysia-api/backend/internal/routing"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/internal/routing"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 const estimatedFileBlockBytes = 1024

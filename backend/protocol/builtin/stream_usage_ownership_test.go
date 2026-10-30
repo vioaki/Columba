@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func TestTargetStreamUsageMatchesSnapshotMerging(t *testing.T) {

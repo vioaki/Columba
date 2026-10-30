@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/network"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/relay"
+	"columba.local/backend/protocol"
+	"columba.local/backend/relay"
 )
 
 type finalizeFailureWriter struct {

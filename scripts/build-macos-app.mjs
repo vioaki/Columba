@@ -1,18 +1,18 @@
 import { nativeAppSources } from './macos-app/sources.mjs'
-// Assemble the macOS app bundle (ElysiaApi.app) from the prebuilt darwin binaries.
+// Assemble the macOS app bundle (Columba.app) from the prebuilt darwin binaries.
 //
 // Prerequisites:
 //   - macOS host (uses lipo / iconutil / codesign / hdiutil)
-//   - `npm run build` has produced dist/standalone/elysia-api-darwin-{arm64,amd64}
+//   - `npm run build` has produced dist/standalone/columba-darwin-{arm64,amd64}
 //   - Command Line Tools with Swift runtime libraries for both target architectures
 //
 // Output:
-//   dist/standalone/ElysiaApi.app      universal (arm64 + amd64)
-//   dist/standalone/elysia-api-macos.dmg distribution image (app + /Applications link)
+//   dist/standalone/Columba.app      universal (arm64 + amd64)
+//   dist/standalone/columba-macos.dmg distribution image (app + /Applications link)
 //
 // The app embeds the backend binary and ships the React WebUI it carries; data
 // (config / SQLite / master key / logs) lives in
-// ~/Library/Application Support/ElysiaApi and survives updates.
+// ~/Library/Application Support/Columba and survives updates.
 
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, rmdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -22,15 +22,15 @@ import { execFileSync, spawnSync } from 'node:child_process'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const releaseDir = join(repoRoot, 'dist', 'standalone')
-const appDir = join(releaseDir, 'ElysiaApi.app')
+const appDir = join(releaseDir, 'Columba.app')
 const contentsDir = join(appDir, 'Contents')
 const macosDir = join(contentsDir, 'MacOS')
 const resourcesDir = join(contentsDir, 'Resources')
 const sourceDir = join(repoRoot, 'scripts', 'macos-app')
-const logoSource = join(repoRoot, 'packages', 'webui', 'public', 'logo.png')
-const armBinary = join(releaseDir, 'elysia-api-darwin-arm64')
-const amdBinary = join(releaseDir, 'elysia-api-darwin-amd64')
-const dmgPath = join(releaseDir, 'elysia-api-macos.dmg')
+const logoSource = join(repoRoot, 'packages', 'webui', 'public', 'Columba.svg')
+const armBinary = join(releaseDir, 'columba-darwin-arm64')
+const amdBinary = join(releaseDir, 'columba-darwin-amd64')
+const dmgPath = join(releaseDir, 'columba-macos.dmg')
 
 function log(message) {
   console.log(`==> ${message}`)
@@ -56,7 +56,7 @@ function checkToolchain() {
     for (const arch of ['arm64', 'x86_64']) {
       const result = spawnSync('xcrun', ['--sdk', 'macosx', 'swiftc', '-target', `${arch}-apple-macos12.0`, '-o', join(probeDir, arch), '-'], {
         cwd: repoRoot,
-        input: 'import Cocoa\nprint("ElysiaApi toolchain check")\n',
+        input: 'import Cocoa\nprint("Columba toolchain check")\n',
         encoding: 'utf8',
       })
       if (result.status !== 0) {
@@ -76,7 +76,7 @@ function checkToolchain() {
 
 function verifyApp(bundle) {
   run('plutil', ['-lint', join(bundle, 'Contents', 'Info.plist')])
-  for (const name of ['ElysiaApi', 'elysia-api']) {
+  for (const name of ['Columba', 'columba']) {
     const executable = join(bundle, 'Contents', 'MacOS', name)
     if (!(statSync(executable).mode & 0o111)) throw new Error(`Not executable: ${executable}`)
     const architectures = capture('lipo', ['-archs', executable]).split(/\s+/)
@@ -130,7 +130,7 @@ mkdirSync(macosDir, { recursive: true })
 mkdirSync(resourcesDir, { recursive: true })
 
 log('Creating universal backend binary (lipo)')
-run('lipo', ['-create', '-output', join(macosDir, 'elysia-api'), armBinary, amdBinary])
+run('lipo', ['-create', '-output', join(macosDir, 'columba'), armBinary, amdBinary])
 
 log('Generating AppIcon.icns (white background) from WebUI logo')
 const iconsetDir = join(releaseDir, 'AppIcon.iconset')
@@ -141,7 +141,7 @@ run(iconGen, [logoSource, iconsetDir])
 rmSync(iconGen, { force: true })
 run('iconutil', ['-c', 'icns', iconsetDir, '-o', join(resourcesDir, 'AppIcon.icns')])
 rmSync(iconsetDir, { recursive: true, force: true })
-cpSync(logoSource, join(resourcesDir, 'logo.png'))
+cpSync(logoSource, join(resourcesDir, 'Columba.svg'))
 
 log('Compiling native wrapper (swiftc, universal)')
 // 目标系统版本与后端二进制对齐:Go 1.25 构建的 darwin 二进制最低要求 macOS 12
@@ -150,7 +150,7 @@ const wrapperAmd = join(releaseDir, 'wrapper-amd64')
 const wrapperSources = nativeAppSources(sourceDir)
 run('xcrun', ['--sdk', 'macosx', 'swiftc', '-O', '-target', 'arm64-apple-macos12.0', '-o', wrapperArm, ...wrapperSources])
 run('xcrun', ['--sdk', 'macosx', 'swiftc', '-O', '-target', 'x86_64-apple-macos12.0', '-o', wrapperAmd, ...wrapperSources])
-run('lipo', ['-create', '-output', join(macosDir, 'ElysiaApi'), wrapperArm, wrapperAmd])
+run('lipo', ['-create', '-output', join(macosDir, 'Columba'), wrapperArm, wrapperAmd])
 rmSync(wrapperArm, { force: true })
 rmSync(wrapperAmd, { force: true })
 
@@ -165,8 +165,8 @@ const plist = readFileSync(join(sourceDir, 'Info.plist'), 'utf8')
   .replaceAll('@@BUILD_NUMBER@@', buildNumber)
 writeFileSync(join(contentsDir, 'Info.plist'), plist)
 writeFileSync(join(resourcesDir, 'version.txt'), `${version}\n`)
-chmodSync(join(macosDir, 'ElysiaApi'), 0o755)
-chmodSync(join(macosDir, 'elysia-api'), 0o755)
+chmodSync(join(macosDir, 'Columba'), 0o755)
+chmodSync(join(macosDir, 'columba'), 0o755)
 
 log('Ad-hoc code signing')
 run('codesign', ['--force', '--sign', '-', '--deep', appDir])
@@ -177,9 +177,9 @@ const stagingDir = join(releaseDir, 'dmg-staging')
 rmSync(stagingDir, { recursive: true, force: true })
 rmSync(dmgPath, { force: true })
 mkdirSync(stagingDir, { recursive: true })
-cpSync(appDir, join(stagingDir, 'ElysiaApi.app'), { recursive: true })
+cpSync(appDir, join(stagingDir, 'Columba.app'), { recursive: true })
 run('ln', ['-s', '/Applications', join(stagingDir, 'Applications')])
-run('hdiutil', ['create', '-volname', 'ElysiaApi', '-format', 'UDZO', '-srcfolder', stagingDir, '-o', dmgPath])
+run('hdiutil', ['create', '-volname', 'Columba', '-format', 'UDZO', '-srcfolder', stagingDir, '-o', dmgPath])
 rmSync(stagingDir, { recursive: true, force: true })
 log('Verifying DMG and mounted contents')
 run('hdiutil', ['verify', dmgPath])
@@ -191,7 +191,7 @@ try {
   if (readlinkSync(join(mountDir, 'Applications')) !== '/Applications') {
     throw new Error('DMG is missing the /Applications installation shortcut')
   }
-  verifyApp(join(mountDir, 'ElysiaApi.app'))
+  verifyApp(join(mountDir, 'Columba.app'))
 } finally {
   // Never recursively delete a mount point if detach fails.
   if (mounted) run('hdiutil', ['detach', mountDir])

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 type liveStreamEvidence struct {

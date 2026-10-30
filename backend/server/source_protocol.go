@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 func (s *Server) validateSourceProtocol(source *storage.ModelSource) error {

@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/admission"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/admission"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 type preparationBody struct {

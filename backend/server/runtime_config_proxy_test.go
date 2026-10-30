@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/outbound"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/outbound"
 )
 
 func TestRuntimeProxyPatchPreservesDenylistAndPersists(t *testing.T) {

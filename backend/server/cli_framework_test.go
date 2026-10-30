@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 )
 
 func TestCLIShellSubset(t *testing.T) {

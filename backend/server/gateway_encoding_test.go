@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 func TestGatewayPreparedEncodingBoundaries(t *testing.T) {

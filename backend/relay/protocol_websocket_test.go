@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 type socketTranslator struct{ isClosed bool }

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func (adapter module) decodeMessages(value p.Value, path string, direction p.Direction, options p.EvaluationContext, history *historyState) ([]p.Node, error) {

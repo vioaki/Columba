@@ -11,9 +11,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol/builtin"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol/builtin"
+	"columba.local/backend/storage"
 )
 
 func (s *Server) authMiddleware() app.HandlerFunc {

@@ -16,7 +16,7 @@ import (
 	"github.com/a2aproject/a2a-go/v2/errordetails"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 	"github.com/rs/zerolog"
 )
 

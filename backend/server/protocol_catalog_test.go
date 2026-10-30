@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // 预置只读：未验证草稿只能以副本 ID 存在（原实现会在预置 ID 上存草稿）。

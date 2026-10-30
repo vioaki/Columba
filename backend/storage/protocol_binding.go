@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // ProtocolBinding stores model/source contracts separately from discovered

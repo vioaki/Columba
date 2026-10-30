@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 // ---- 能力目录（方向1 / G1）----

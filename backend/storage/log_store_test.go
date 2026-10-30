@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/internal/dbpath"
+	"columba.local/backend/internal/dbpath"
 )
 
 func TestLogDatabaseIsolationAndDurableBatch(t *testing.T) {

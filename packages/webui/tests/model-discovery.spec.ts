@@ -8,7 +8,7 @@ async function mockDiscovery(page: Page, apiKeys: ModelSource['apiKeys'], manual
     manualModels: manual ? [{ id: 'alpha', name: 'alpha' }] : [],
     apiKeys, keyStrategy: 'round-robin',
   }
-  await page.addInitScript(() => localStorage.setItem('elysia-webui.panel-token', 'test-token'))
+  await page.addInitScript(() => localStorage.setItem('columba-webui.panel-token', 'test-token'))
   await page.route('**/api/admin/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     let data: unknown = { items: [], total: 0 }

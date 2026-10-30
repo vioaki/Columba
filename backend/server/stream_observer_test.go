@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // 回归：流事件须保留「最后」N 条（终态事件在流尾部），且非法 JSON 不得

@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/jsonutil"
-	p "github.com/elysia-api/backend/protocol"
+	"columba.local/backend/internal/jsonutil"
+	p "columba.local/backend/protocol"
 )
 
 // Synthetic media and tool history exercise every native snapshot without

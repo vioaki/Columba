@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 // One worker owns retention, attachment GC, and database reclamation. Wakeups

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // The canonical cached/cache_write counters own their detail spellings. A

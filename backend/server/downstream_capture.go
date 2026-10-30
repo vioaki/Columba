@@ -4,7 +4,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	hprotocol "github.com/cloudwego/hertz/pkg/protocol"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 // Capture bounded downstream bytes. Buffered responses are read at settlement;

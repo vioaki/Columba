@@ -70,7 +70,7 @@ export function LoginPage() {
 
   useEffect(() => {
     mounted.current = true
-    document.title = '登录控制台 · Elysia API'
+    document.title = '登录控制台 · Columba'
     const generationState = requestGeneration.current
     return () => {
       mounted.current = false
@@ -194,9 +194,9 @@ export function LoginPage() {
       <div className="garden-aurora" aria-hidden="true" />
 
       <header className="garden-header">
-        <div className="garden-brand" aria-label="Elysia API 控制台">
+        <div className="garden-brand" aria-label="Columba 控制台">
           <img src={`${import.meta.env.BASE_URL}logo-color.png`} alt="" width={32} height={32} />
-          <span>Elysia API</span><span className="garden-brand-divider" /><span className="garden-console">Console</span>
+          <span>Columba</span><span className="garden-brand-divider" /><span className="garden-console">Console</span>
         </div>
         <div className="garden-actions">
           <Tooltip>

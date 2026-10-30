@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 )
 
 // agentSystemPrompt 只约束角色、决策与交互；CLI 调用契约由工具描述提供，
 // 具体命令、业务语义和流程按需读取 elysia help。
 func agentSystemPrompt(session *agent.Session) string {
 	var b strings.Builder
-	b.WriteString(`你是 Elysia API 网关的运维助手，通过提供的工具查询现状、分析问题并执行用户授权的操作。
+	b.WriteString(`你是 Columba 网关的运维助手，通过提供的工具查询现状、分析问题并执行用户授权的操作。
 
 ## 行为与交互
 - 使用简体中文，先结论后细节，解释简明；根据实际返回结果报告成功、失败、部分完成或信息不足。区分已确认事实与待验证推断，不从空列表或缺失字段直接断定原因，不编造数据。

@@ -16,9 +16,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/route"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // 协议 Agent 的 HTTP/SSE 薄层：参数绑定 → 引擎调用 → agent.Event 编码为

@@ -24,7 +24,7 @@ try {
       const page = await context.newPage()
       const errors = []
       page.on('pageerror', (error) => errors.push(error.message))
-      await page.addInitScript((dark) => localStorage.setItem('elysia-webui.theme', dark ? 'dark' : 'light'), variant.dark)
+      await page.addInitScript((dark) => localStorage.setItem('columba-webui.theme', dark ? 'dark' : 'light'), variant.dark)
       await page.route('**/api/admin/**', (route) => {
         const path = new URL(route.request().url()).pathname
         const data = path.endsWith('/health') ? { status: 'ok', database: true, memory: { alloc: 0, sys: 0, numGC: 0 } }

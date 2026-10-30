@@ -35,7 +35,7 @@ async function wait(message, condition, timeout = 15000) {
 
 export async function runNativeTrayFlow({ app, temp, bundleID, previewOnly }) {
   const directory = join(temp, 'native tray flow')
-  const current = join(directory, 'ElysiaApi.app')
+  const current = join(directory, 'Columba.app')
   const data = join(directory, 'data')
   const flowID = `${bundleID}.tray`
   mkdirSync(data, { recursive: true })
@@ -44,8 +44,8 @@ export async function runNativeTrayFlow({ app, temp, bundleID, previewOnly }) {
   execFileSync('/usr/libexec/PlistBuddy', ['-c', `Set :CFBundleIdentifier ${flowID}`, join(current, 'Contents', 'Info.plist')])
   execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', '--deep', current], { stdio: 'ignore' })
   const outputPath = join(data, 'tray-starter.log')
-  const executable = join(current, 'Contents', 'MacOS', 'ElysiaApi')
-  const environment = { ...process.env, ELYSIA_NATIVE_APP_TEST: '1', ELYSIA_NATIVE_TRAY_TEST: '1', ELYSIA_NATIVE_TEST_DATA: data }
+  const executable = join(current, 'Contents', 'MacOS', 'Columba')
+  const environment = { ...process.env, COLUMBA_NATIVE_APP_TEST: '1', COLUMBA_NATIVE_TRAY_TEST: '1', COLUMBA_NATIVE_TEST_DATA: data }
   let startError
   const supervisorPIDs = new Set()
   const launchOwner = () => {
@@ -191,7 +191,7 @@ export async function runNativeTrayFlow({ app, temp, bundleID, previewOnly }) {
     console.log('PASS: ordinary quit completes terminateLater cleanup and exits the supervisor, UI/WebKit and backend')
     if (!previewOnly) console.log(`PASS: persistent WebUI localStorage survives ${persistentOpenCount} UI processes and a supervisor restart`)
   } catch (error) {
-    console.error(`Tray starter log:\n${read(outputPath).slice(-6000)}\nBackend log:\n${read(join(data, 'elysia-api.log')).slice(-3000)}`)
+    console.error(`Tray starter log:\n${read(outputPath).slice(-6000)}\nBackend log:\n${read(join(data, 'columba.log')).slice(-3000)}`)
     console.error('Tray process evidence:', {
       supervisor: starter.pid, allSupervisors: [...supervisorPIDs], backend: backendPID,
       ui: [...uiPIDs], webKit: [...servicePIDs], duplicateShells: [...duplicatePIDs],

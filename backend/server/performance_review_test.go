@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // Authored mappings are installed and verified before measurement. These

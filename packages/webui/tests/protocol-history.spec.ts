@@ -7,8 +7,8 @@ const custom = { ...old, id: 'my-protocol~def123456789', protocolId: 'my-protoco
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('elysia-webui.panel-token', 'test-only')
-    localStorage.setItem('elysia-webui.theme', 'light')
+    localStorage.setItem('columba-webui.panel-token', 'test-only')
+    localStorage.setItem('columba-webui.theme', 'light')
   })
 })
 

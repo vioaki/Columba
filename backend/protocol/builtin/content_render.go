@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 var audioFormats = map[string]string{"wav": "audio/wav", "mp3": "audio/mpeg"}

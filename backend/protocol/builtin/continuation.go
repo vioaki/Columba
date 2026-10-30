@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // ExtractContinuationCarriers recognizes only our reserved carriers at protocol

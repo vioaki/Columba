@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestAgentUsageSumPreservesPresenceAndProvenance(t *testing.T) {

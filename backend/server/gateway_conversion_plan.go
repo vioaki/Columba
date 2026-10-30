@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // Snapshots are pinned for the whole request. Only compiled programs are shared;

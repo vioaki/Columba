@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
+	"columba.local/backend/storage"
 )
 
 // newPersistTestServer 带 store + 可写 config 的 Server（免登录直调 handler）。

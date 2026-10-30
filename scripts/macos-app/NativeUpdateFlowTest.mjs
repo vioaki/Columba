@@ -17,9 +17,9 @@ export async function runNativeUpdateFlow(options) {
 
 async function runFlow({ app, temp, bundleID, brokenUI, slowStartup = false }) {
   const directory = join(temp, `native update '$()\` ${brokenUI ? 'broken UI' : slowStartup ? 'slow startup' : 'ready UI'} flow`)
-  const current = join(directory, "Current '$()` ElysiaApi.app")
-  const staging = join(directory, '.ElysiaApi-update-e2e')
-  const staged = join(staging, 'ElysiaApi.app')
+  const current = join(directory, "Current '$()` Columba.app")
+  const staging = join(directory, '.Columba-update-e2e')
+  const staged = join(staging, 'Columba.app')
   const data = join(directory, 'data')
   const flowID = `${bundleID}.update${brokenUI ? '.broken' : slowStartup ? '.slow' : ''}`
   mkdirSync(data, { recursive: true })
@@ -36,11 +36,11 @@ async function runFlow({ app, temp, bundleID, brokenUI, slowStartup = false }) {
   }
   const outputPath = join(data, 'native-starter.log')
   const output = openSync(outputPath, 'a', 0o600)
-  const starter = spawn(join(current, 'Contents', 'MacOS', 'ElysiaApi'), ['--native-update-parent'], {
+  const starter = spawn(join(current, 'Contents', 'MacOS', 'Columba'), ['--native-update-parent'], {
     stdio: ['ignore', output, output],
-    env: { ...process.env, ELYSIA_NATIVE_APP_TEST: '1', ELYSIA_NATIVE_TEST_DATA: data, ELYSIA_NATIVE_STAGED_APP: staged,
+    env: { ...process.env, COLUMBA_NATIVE_APP_TEST: '1', COLUMBA_NATIVE_TEST_DATA: data, COLUMBA_NATIVE_STAGED_APP: staged,
       // Allow multiple 3-second health polls and cold WebKit startup before testing UI readiness.
-      ...(brokenUI ? { ELYSIA_NATIVE_UPDATE_LAUNCH_TIMEOUT: '12' } : {}) },
+      ...(brokenUI ? { COLUMBA_NATIVE_UPDATE_LAUNCH_TIMEOUT: '12' } : {}) },
   })
   closeSync(output)
   let startError
@@ -61,7 +61,7 @@ async function runFlow({ app, temp, bundleID, brokenUI, slowStartup = false }) {
         const newNative = Number(read(join(data, 'new-native.pid')))
         if (newNative > 1 && Number(read(join(data, 'new-html-loaded.pid'))) === newNative) {
           sawLoadedBrokenHTML = true
-          for (const backup of readdirSync(directory).filter(name => name.startsWith('.ElysiaApi-backup-'))) {
+          for (const backup of readdirSync(directory).filter(name => name.startsWith('.Columba-backup-'))) {
             if (read(join(directory, backup, 'Contents', 'Resources', 'version.txt')) === 'v1.0.0') sawRecoverableBackup = true
           }
         }
@@ -97,13 +97,13 @@ async function runFlow({ app, temp, bundleID, brokenUI, slowStartup = false }) {
       if (slowStartup) assert.equal(read(join(data, 'starts.txt')), '2', 'slow initialization must finish in the original new backend without watchdog restarts')
     }
     assert(!existsSync(staging), 'finished handoff must release its staging directory')
-    assert(!readdirSync(directory).some(name => name.startsWith('.ElysiaApi-backup-')), 'committed or restored handoff must release its transaction backup')
+    assert(!readdirSync(directory).some(name => name.startsWith('.Columba-backup-')), 'committed or restored handoff must release its transaction backup')
     console.log(brokenUI
       ? 'PASS: loaded HTML with a broken React UI preserves the backup, times out, stops the failed shell/backend, and restores the old app'
       : slowStartup ? 'PASS: a 50-second backend initialization survives startup health checks and update acknowledgement without restarting or rolling back'
       : 'PASS: real native update stops the old backend, replaces after shell exit, and relaunches a ready shell/backend/WebView')
   } catch (error) {
-    console.error(`Native starter log:\n${read(outputPath).slice(-6000)}\nUpdate helper log:\n${read(join(data, 'update.log')).slice(-6000)}\nBackend log:\n${read(join(data, 'elysia-api.log')).slice(-3000)}`)
+    console.error(`Native starter log:\n${read(outputPath).slice(-6000)}\nUpdate helper log:\n${read(join(data, 'update.log')).slice(-6000)}\nBackend log:\n${read(join(data, 'columba.log')).slice(-3000)}`)
     console.error('Native readiness evidence:', Object.fromEntries([...pidFiles, 'new-html-loaded.pid'].map(name => [name, read(join(data, name))])))
     throw error
   } finally {

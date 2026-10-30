@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 )
 
 // elysia CLI：把既有工具面收敛为单一 elysia_cli 入口的命令路由层。命令表里的

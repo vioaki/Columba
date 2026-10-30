@@ -15,10 +15,10 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/relay"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/config"
+	"columba.local/backend/relay"
+	"columba.local/backend/storage"
 )
 
 // agentContextWithID 为带 :id 路由参数的 handler 构造测试上下文。

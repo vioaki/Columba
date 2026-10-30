@@ -11,8 +11,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/storage"
 )
 
 func TestAgentKeyStorageInvariants(t *testing.T) {

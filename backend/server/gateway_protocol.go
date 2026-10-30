@@ -11,9 +11,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
 
-	"github.com/elysia-api/backend/internal/routing"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/internal/routing"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 type gatewayFailure struct {

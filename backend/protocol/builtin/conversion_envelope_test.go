@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func TestResponsesStorageConversion(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/logging"
+	"columba.local/backend/storage"
 )
 
 // usageQueueCapacity 是异步 usage 写入缓冲区大小。突发流量下若 writer

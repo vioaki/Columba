@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/relay"
+	"columba.local/backend/config"
+	"columba.local/backend/relay"
 )
 
 // 协议设计器新增路由与既有 admin 路由注册不冲突（冲突会在启动时 panic）。

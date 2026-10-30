@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/coder/websocket"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // Standard-library fake providers exercise the outbound session transport.

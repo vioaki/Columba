@@ -2,7 +2,7 @@
 
 [项目首页](../README.md) · **简体中文** · [English](README.en.md)
 
-Elysia API 的部署、协议、接口和开发参考。首次使用从[快速开始](../README.md#快速开始)进入。
+Columba 的部署、协议、接口和开发参考。首次使用从[快速开始](../README.md#快速开始)进入。
 
 ## 部署与运维
 

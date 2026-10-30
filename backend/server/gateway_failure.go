@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
+	"columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
 )
 
 // upstreamHTTPFailure distinguishes an observed HTTP rejection from a 502

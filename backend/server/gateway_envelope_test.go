@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestGatewayAnthropicEnvelopeAndClients(t *testing.T) {

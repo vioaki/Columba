@@ -13,11 +13,11 @@ Download the matching artifact and `SHA256SUMS` from [Releases](https://github.c
 Start from the download directory. This example uses Linux amd64:
 
 ```bash
-chmod +x ./elysia-api-linux-amd64
-./elysia-api-linux-amd64 --config ./config.json
+chmod +x ./columba-linux-amd64
+./columba-linux-amd64 --config ./config.json
 ```
 
-On Windows use `.\elysia-api-windows-amd64.exe --config .\config.json`; on ARM64 use the matching arm64 filename.
+On Windows use `.\columba-windows-amd64.exe --config .\config.json`; on ARM64 use the matching arm64 filename.
 
 - Without `--config`, the path is `config.json` in the **current working directory**, which is not necessarily the executable directory.
 - A missing file is created automatically and a random panel token is printed to the startup log. A malformed file causes startup to fail without overwriting it.
@@ -27,14 +27,14 @@ On Windows use `.\elysia-api-windows-amd64.exe --config .\config.json`; on ARM64
 
 ### macOS app
 
-Drag ElysiaApi from the DMG into Applications. Requires macOS 12+ and supports Intel and Apple Silicon. Running and updating do not require Xcode.
+Drag Columba from the DMG into Applications. Requires macOS 12+ and supports Intel and Apple Silicon. Running and updating do not require Xcode.
 
-The main shell acts as a menu-bar supervisor for the backend, health checks and updates. Opening the panel starts a separate WebUI child using the bundled `ElysiaApi` executable with `--webui-process`; that child owns the window and WebKit. Closing the window exits the WebUI and its WebKit services while retaining the supervisor and original backend. Releasing Swift references to `WKWebView` alone does not end WebKit services, so resource cleanup uses the owning process's exit as its boundary.
+The main shell acts as a menu-bar supervisor for the backend, health checks and updates. Opening the panel starts a separate WebUI child using the bundled `Columba` executable with `--webui-process`; that child owns the window and WebKit. Closing the window exits the WebUI and its WebKit services while retaining the supervisor and original backend. Releasing Swift references to `WKWebView` alone does not end WebKit services, so resource cleanup uses the owning process's exit as its boundary.
 
 | Action | Behavior |
 | --- | --- |
 | First sign-in | Copy the panel token from the menu bar; credentials are not injected automatically |
-| Data directory | `~/Library/Application Support/ElysiaApi/`, containing configuration, database, master key, and runtime log |
+| Data directory | `~/Library/Application Support/Columba/`, containing configuration, database, master key, and runtime log |
 | Port conflict | Try the configured port, then an available port in `8799–8899`; use the address shown in the menu |
 | Close window | Exit the WebUI child and its WebKit services; retain the menu bar and original backend, authentication, position and theme |
 | Start / restart service | Start when not running; otherwise wait for graceful shutdown before starting a new backend process |
@@ -44,12 +44,12 @@ The main shell acts as a menu-bar supervisor for the backend, health checks and 
 | Notifications | Important notifications default to enabled; request system authorization on first use or explicit enable |
 | Update | Validate and stage the DMG app; stop the backend and old shell before helper replacement; retain the old bundle until the new service and panel are ready, roll back failures, and preserve configuration and database |
 
-The menu provides service start and restart, API address and token copying, logs, preferences, browser access, and update checks. The managed backend uses `ELYSIA_API_OPEN_BROWSER=false`. The WebUI uses WebKit's default persistent data store for cookies and authentication after manual sign-in; application preferences retain theme, window size and position. Recreating the child does not clear this data. Signing out requires authentication again.
+The menu provides service start and restart, API address and token copying, logs, preferences, browser access, and update checks. The managed backend uses `COLUMBA_OPEN_BROWSER=false`. The WebUI uses WebKit's default persistent data store for cookies and authentication after manual sign-in; application preferences retain theme, window size and position. Recreating the child does not clear this data. Signing out requires authentication again.
 
 CI artifacts use ad-hoc signing, which is not Developer ID notarization. After verifying the file came from the project Release, a Gatekeeper block can be cleared with:
 
 ```bash
-xattr -d com.apple.quarantine /Applications/ElysiaApi.app
+xattr -d com.apple.quarantine /Applications/Columba.app
 ```
 
 See [macOS validation](macos-testing.en.md) for detailed behavior and checks.
@@ -59,16 +59,16 @@ See [macOS validation](macos-testing.en.md) for detailed behavior and checks.
 Build the image from the repository root. Listen on `0.0.0.0` inside the container while binding the host port to loopback:
 
 ```bash
-docker build -t elysia-api:local .
-docker run -d --name elysia-api \
+docker build -t columba:local .
+docker run -d --name columba \
   --restart unless-stopped --init \
   --read-only --tmpfs /tmp:size=64m,mode=1777 \
   --security-opt no-new-privileges:true --cap-drop ALL \
   -p 127.0.0.1:8765:8765 \
-  -e ELYSIA_API_HOST=0.0.0.0 \
+  -e COLUMBA_HOST=0.0.0.0 \
   -v elysia-data:/data \
-  elysia-api:local
-docker logs elysia-api
+  columba:local
+docker logs columba
 ```
 
 The image runs as UID/GID `65532` with `/data/config.json`. The named volume retains configuration, database, and keys. Bind-mounted directories must be writable by that user.
@@ -77,10 +77,10 @@ Alternatively, save this as `compose.yaml` in the repository root:
 
 ```yaml
 services:
-  elysia-api:
+  columba:
     build: .
-    image: elysia-api:local
-    container_name: elysia-api
+    image: columba:local
+    container_name: columba
     restart: unless-stopped
     init: true
     read_only: true
@@ -93,8 +93,8 @@ services:
     ports:
       - "127.0.0.1:8765:8765"
     environment:
-      ELYSIA_API_HOST: 0.0.0.0
-      ELYSIA_API_OPEN_BROWSER: "false"
+      COLUMBA_HOST: 0.0.0.0
+      COLUMBA_OPEN_BROWSER: "false"
     volumes:
       - elysia-data:/data
 volumes:
@@ -103,7 +103,7 @@ volumes:
 
 ```bash
 docker compose up -d --build
-docker compose logs elysia-api
+docker compose logs columba
 ```
 
 Use a reverse proxy for TLS and external access; expose ports only to intended networks. If changing the internal port, also update the mapping and the image's health and shutdown probes, which use `8765`.
@@ -117,7 +117,7 @@ These are the main fields written on first launch. Replace the example token; do
   "host": "127.0.0.1",
   "port": 8765,
   "panelAccessToken": "change-me",
-  "databasePath": "elysia-api.sqlite3",
+  "databasePath": "columba.sqlite3",
   "secretKeyPath": ".master-key",
   "logLevel": "info",
   "httpTimeout": 120,
@@ -129,7 +129,7 @@ These are the main fields written on first launch. Replace the example token; do
 | --- | --- |
 | `host` / `port` | `127.0.0.1` / `8765`; restart to change the listener |
 | `panelAccessToken` | Generated on first creation; protects management APIs, not inference |
-| `databasePath` | `elysia-api.sqlite3`; business data including models, tokens, and sessions |
+| `databasePath` | `columba.sqlite3`; business data including models, tokens, and sessions |
 | `logDatabasePath` | Defaults to the business filename with `-logs` before its extension; dedicated system/usage logs, aggregates and media references; changing it requires restart |
 | `secretKeyPath` | `.master-key`; encryption key for sensitive SQLite fields |
 | `logLevel` | `info`; accepts `debug`, `info`, `warn`, `error` |
@@ -150,9 +150,9 @@ SSE/NDJSON streams use the protocol’s `framing.idleMillis`: omitted or `0` mea
 
 | Variable | Effect |
 | --- | --- |
-| `ELYSIA_API_HOST` | Overrides the configured listener address on load and reload |
-| `ELYSIA_API_OPEN_BROWSER` | Overrides browser startup without writing the file; an invalid boolean logs a warning and falls back |
-| `ELYSIA_API_MASTER_KEY` | Takes precedence over key files; inject through a protected runtime environment |
+| `COLUMBA_HOST` | Overrides the configured listener address on load and reload |
+| `COLUMBA_OPEN_BROWSER` | Overrides browser startup without writing the file; an invalid boolean logs a warning and falls back |
+| `COLUMBA_MASTER_KEY` | Takes precedence over key files; inject through a protected runtime environment |
 
 Key lookup order: environment variable → `secretKeyPath` → generate a random key. Legacy `.db-key` files are not read, and encrypted storage rejects plaintext secret fields. Key creation failures produce warnings; a running service alone does not prove encryption was established.
 
@@ -212,18 +212,18 @@ SIGTERM, SIGINT, the shutdown endpoint and parent EOF share a shutdown sequence:
 
 ## Process supervision
 
-Standalone binaries are long-running processes. Use systemd, a Windows service wrapper, or a container. This unit assumes a system user named `elysia`, a binary under `/opt/elysia-api/`, and writable configuration and data directories for that user:
+Standalone binaries are long-running processes. Use systemd, a Windows service wrapper, or a container. This unit assumes a system user named `elysia`, a binary under `/opt/columba/`, and writable configuration and data directories for that user:
 
 ```ini
 [Unit]
-Description=Elysia API
+Description=Columba
 After=network.target
 
 [Service]
 User=elysia
-WorkingDirectory=/opt/elysia-api
-ExecStart=/opt/elysia-api/elysia-api-linux-amd64 --config /opt/elysia-api/config.json
-Environment=ELYSIA_API_OPEN_BROWSER=false
+WorkingDirectory=/opt/columba
+ExecStart=/opt/columba/columba-linux-amd64 --config /opt/columba/config.json
+Environment=COLUMBA_OPEN_BROWSER=false
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=45
@@ -232,7 +232,7 @@ TimeoutStopSec=45
 WantedBy=multi-user.target
 ```
 
-Save it as `/etc/systemd/system/elysia-api.service`, then run `sudo systemctl daemon-reload` and `sudo systemctl enable --now elysia-api`. Inspect startup logs with `journalctl -u elysia-api`.
+Save it as `/etc/systemd/system/columba.service`, then run `sudo systemctl daemon-reload` and `sudo systemctl enable --now columba`. Inspect startup logs with `journalctl -u columba`.
 
 ## Upgrades, backup, and restore
 
@@ -273,7 +273,7 @@ The backend provides no backward compatibility or automatic migration. Use a new
 
 | Symptom | Check |
 | --- | --- |
-| Connection refused | Service log, actual port; Docker must set `ELYSIA_API_HOST=0.0.0.0` |
+| Connection refused | Service log, actual port; Docker must set `COLUMBA_HOST=0.0.0.0` |
 | Panel returns 401 | Use the panel token and verify the config path; relay and Agent keys are different credentials |
 | Upstream connection blocked | Outbound CIDRs, resolved IP addresses, and proxy settings |
 | Logs have no bodies | A positive `bodyMaxKB` enables future capture; old requests cannot be captured retroactively |

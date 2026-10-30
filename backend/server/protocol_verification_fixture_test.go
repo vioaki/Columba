@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 var liveProtocolIDs = []string{"openai-chat-completions", "openai-responses", "anthropic-messages", "google-generate-content"}

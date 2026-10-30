@@ -3,7 +3,7 @@ package agent
 import (
 	"encoding/json"
 
-	"github.com/elysia-api/backend/internal/jsonutil"
+	"columba.local/backend/internal/jsonutil"
 )
 
 const invalidToolResultSummary = "工具返回的数据不是合法 JSON，未重试已执行的工具"

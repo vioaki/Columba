@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func flameMatrixProtocol(t *testing.T, name string) *protocol.Compiled {

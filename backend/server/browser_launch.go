@@ -2,7 +2,7 @@ package server
 
 // 启动时自动在系统默认浏览器打开控制台。默认（未配置）尝试打开——桌面
 // 直跑场景开箱即用；作为子进程托管（如 Koishi 插件宿主）或无桌面环境用
-// ELYSIA_API_OPEN_BROWSER=false 或 config.json 的 "openBrowserOnStart": false
+// COLUMBA_OPEN_BROWSER=false 或 config.json 的 "openBrowserOnStart": false
 // 显式关闭；环境变量优先且不落盘。打开命令缺失时跳过，不影响启动。
 
 import (
@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/elysia-api/backend/logging"
+	log "columba.local/backend/logging"
 )
 
 // consoleLaunchURL 由监听地址推导浏览器可访问的控制台地址：通配监听
@@ -58,11 +58,11 @@ func launchBrowser(url string) bool {
 // 打开了），日志措辞与失败分支都保持可排查。
 func launchConsoleBrowser(openBrowser *bool, host string, port int) {
 	enabled := openBrowser == nil || *openBrowser
-	if value, present := os.LookupEnv("ELYSIA_API_OPEN_BROWSER"); present {
+	if value, present := os.LookupEnv("COLUMBA_OPEN_BROWSER"); present {
 		if override, err := strconv.ParseBool(strings.TrimSpace(value)); err == nil {
 			enabled = override
 		} else {
-			log.Warn().Msg("ELYSIA_API_OPEN_BROWSER 不是有效布尔值，沿用 openBrowserOnStart 配置")
+			log.Warn().Msg("COLUMBA_OPEN_BROWSER 不是有效布尔值，沿用 openBrowserOnStart 配置")
 		}
 	}
 	if !enabled {

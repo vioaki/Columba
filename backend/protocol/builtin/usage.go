@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 func counter(value p.Value) (*p.Counter, error) {

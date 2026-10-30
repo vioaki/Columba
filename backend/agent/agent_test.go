@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/jsonutil"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/internal/jsonutil"
+	"columba.local/backend/protocol"
 )
 
 // ---- fakes ----

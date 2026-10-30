@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func TestCustomProtocolStreamTrailingUsageAfterFinishEndToEnd(t *testing.T) {

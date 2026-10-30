@@ -2,7 +2,7 @@ package agent
 
 import (
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // conversationTurn keeps persistence and compaction boundaries without

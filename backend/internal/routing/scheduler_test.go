@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 func makeGroup(strategy string, modelNames ...string) *config.ModelGroupConfig {

@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func (s *Store) SaveConversionProviderEvidence(ctx context.Context, policyHash, ruleID, scopeKey, targetHash string, expiresAt int64) error {

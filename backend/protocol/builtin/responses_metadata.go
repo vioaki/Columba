@@ -3,7 +3,7 @@ package builtin
 import (
 	"errors"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // The shared envelope also serves source decoding. Final wire failures belong

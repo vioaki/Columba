@@ -32,7 +32,7 @@ extension AppDelegate {
         // 静默检查不弹胶囊；手动查不闪胶囊（idle 穿梭时胶囊隐藏）
         refreshUpdateUI()
         var request = URLRequest(url: url)
-        request.setValue("ElysiaApi/\(currentVersion)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Columba/\(currentVersion)", forHTTPHeaderField: "User-Agent")
         session.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 guard let self, !self.terminating else { return }
@@ -68,7 +68,7 @@ extension AppDelegate {
                 self.refreshUpdateUI(animated: true)
                 appLogger.info("Update available: \(info.tag, privacy: .public)")
                 if isNewRelease {
-                    self.notifications.requestAndSend(title: "Elysia API 有新版本", body: "\(info.tag) 已发布，点击打开应用更新。", identifier: "update-available")
+                    self.notifications.requestAndSend(title: "Columba 有新版本", body: "\(info.tag) 已发布，点击打开应用更新。", identifier: "update-available")
                 }
                 // 手动检查发现新版本时，把窗口带出来像旧版「开始下载」可见一样显式
                 if !silent { self.showMainWindow() }
@@ -87,7 +87,7 @@ extension AppDelegate {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let tag = json["tag_name"] as? String,
               let assets = json["assets"] as? [[String: Any]] else { return nil }
-        for entry in assets where entry["name"] as? String == "elysia-api-macos.dmg" {
+        for entry in assets where entry["name"] as? String == "columba-macos.dmg" {
             if let url = entry["browser_download_url"] as? String, URL(string: url)?.scheme == "https" {
                 return ReleaseInfo(tag: tag, dmgURL: url, dmgDigest: entry["digest"] as? String ?? "")
             }
@@ -280,7 +280,7 @@ extension AppDelegate {
         updateCapsuleVisible = true
         appLogger.error("更新失败：\(message, privacy: .public)")
         refreshUpdateUI(animated: true)
-        notifications.requestAndSend(title: "Elysia API 更新失败", body: "\(message) 点击打开应用重试。", identifier: "update-failed")
+        notifications.requestAndSend(title: "Columba 更新失败", body: "\(message) 点击打开应用重试。", identifier: "update-failed")
         if resumeBackendAfterUpdateFailure && backend == nil { startBackend() }
         resumeBackendAfterUpdateFailure = false
         pollHealth()

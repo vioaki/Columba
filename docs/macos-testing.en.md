@@ -10,7 +10,7 @@ The App targets macOS 12+. The build host needs compatible Command Line Tools (o
 
 ## Processes and window closure
 
-The menu-bar shell supervises the backend and updates. The panel runs its AppKit window and WebKit in a separate child, using the bundled `ElysiaApi` executable with `--webui-process`. Closing the window cleans up window resources and exports, then exits the panel and its WebKit services while retaining the supervisor and original backend. Resource cleanup therefore no longer depends on whether WebKit retains services used by a released `WKWebView`. Reopening starts a fresh child; showing an already open panel reuses its current process.
+The menu-bar shell supervises the backend and updates. The panel runs its AppKit window and WebKit in a separate child, using the bundled `Columba` executable with `--webui-process`. Closing the window cleans up window resources and exports, then exits the panel and its WebKit services while retaining the supervisor and original backend. Resource cleanup therefore no longer depends on whether WebKit retains services used by a released `WKWebView`. Reopening starts a fresh child; showing an already open panel reuses its current process.
 
 The panel uses WebKit's default persistent data store for manual sign-in and cookies; the same application's preferences retain theme, window size and position. Closing ends runtime resources without clearing persistent data. If the supervisor crashes, the panel's communication pipe and the backend's stdin receive EOF, triggering their respective shutdown paths.
 
@@ -77,12 +77,12 @@ Automated coverage includes:
 
 `build:macos-app` compiles arm64 and x86_64 native shells targeting macOS 12, then performs:
 
-- `lipo -verify_arch arm64 x86_64` for `ElysiaApi` and `elysia-api`.
+- `lipo -verify_arch arm64 x86_64` for `Columba` and `columba`.
 - `plutil -lint` for Info.plist.
 - `codesign --verify --deep --strict --verbose=2` for the App.
 - `hdiutil verify`, a read-only DMG mount, App/architecture/signature/Applications-shortcut checks, then unmounting.
 
-Outputs are `dist/standalone/ElysiaApi.app` and `dist/standalone/elysia-api-macos.dmg`. Builds use ad-hoc signing; signature verification is not Developer ID notarization.
+Outputs are `dist/standalone/Columba.app` and `dist/standalone/columba-macos.dmg`. Builds use ad-hoc signing; signature verification is not Developer ID notarization.
 
 ## Hardware acceptance matrix
 
@@ -115,10 +115,10 @@ These checks require the specified OS, permission or interaction. Automated test
 | Start or restart service | ⌥⌘S |
 | Check updates / quit | ⇧⌘U / ⌘Q |
 
-The menu-bar log action opens `~/Library/Application Support/ElysiaApi/elysia-api.log`. Update handoff, readiness and rollback events are written to `update.log` in the same directory. Native startup, port, health and update events go to OSLog:
+The menu-bar log action opens `~/Library/Application Support/Columba/columba.log`. Update handoff, readiness and rollback events are written to `update.log` in the same directory. Native startup, port, health and update events go to OSLog:
 
 ```sh
-log stream --predicate 'subsystem == "dev.pinkelysiadev.ElysiaApi"' --level info
+log stream --predicate 'subsystem == "local.columba.app"' --level info
 ```
 
 ## Troubleshooting

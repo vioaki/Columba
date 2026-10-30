@@ -19,7 +19,7 @@ const config = join(runDirectory, 'config.json')
 const logDatabase = join(runDirectory, 'usage.sqlite3')
 const environment = {
   ...process.env,
-  ELYSIA_DEV_PROXY: backendURL,
+  COLUMBA_DEV_PROXY: backendURL,
   PROTOCOL_E2E_URL: backendURL,
   PROTOCOL_E2E_TOKEN: token,
   PROTOCOL_E2E_RUN_DIRECTORY: runDirectory,

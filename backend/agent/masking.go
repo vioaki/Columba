@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/clishell"
-	"github.com/elysia-api/backend/internal/jsonutil"
+	"columba.local/backend/internal/clishell"
+	"columba.local/backend/internal/jsonutil"
 )
 
 // MaskedPendingAction 复制待批快照并遮盖调用参数里的密钥类字段，供会话

@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/storage"
 )
 
 func (s *Server) saveUsageRecordToStore(record *usageRecord) error {

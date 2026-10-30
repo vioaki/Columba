@@ -9,14 +9,14 @@ import (
 	"github.com/cloudwego/hertz/pkg/route"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/internal/admission"
-	"github.com/elysia-api/backend/internal/routing"
-	"github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/relay"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/config"
+	"columba.local/backend/internal/admission"
+	"columba.local/backend/internal/routing"
+	"columba.local/backend/logging"
+	"columba.local/backend/protocol"
+	"columba.local/backend/relay"
+	"columba.local/backend/storage"
 )
 
 // Server composes application services and their HTTP adapters. Construction is

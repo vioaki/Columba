@@ -44,14 +44,14 @@ extension AppDelegate {
         restartWork?.cancel()
         guard let fresh = loadOrCreateConfig() else {
             setBackendState(.failed, error: "无法读取配置，请修正后重试：\n\(configPath)")
-            notifications.requestAndSend(title: "Elysia API 配置错误", body: "请打开数据文件夹检查 config.json；原文件已保留。", identifier: "config-error")
+            notifications.requestAndSend(title: "Columba 配置错误", body: "请打开数据文件夹检查 config.json；原文件已保留。", identifier: "config-error")
             return
         }
         config = fresh
         setBackendState(restartCount > 0 ? .restarting : .starting)
         do {
             // 修改 port 时保留所有未知配置键，后端始终读取同一份配置文件。
-            let host = ProcessInfo.processInfo.environment["ELYSIA_API_HOST"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let host = ProcessInfo.processInfo.environment["COLUMBA_HOST"]?.trimmingCharacters(in: .whitespacesAndNewlines)
             let listenHost = (host?.isEmpty == false ? host : nil) ?? config.host
             if !portIsFree(config.port, host: listenHost) {
                 guard let port = fallbackBackendPorts.first(where: { portIsFree($0, host: listenHost) }) else {
@@ -60,7 +60,7 @@ extension AppDelegate {
                 let original = config.port
                 try persistPort(port, at: URL(fileURLWithPath: configPath))
                 config.port = port
-                notifications.requestAndSend(title: "Elysia API 端口已调整", body: "端口 \(original) 被占用，已改用 \(port)。可从菜单栏复制新地址。", identifier: "port-changed")
+                notifications.requestAndSend(title: "Columba 端口已调整", body: "端口 \(original) 被占用，已改用 \(port)。可从菜单栏复制新地址。", identifier: "port-changed")
                 appLogger.info("Port changed from \(original) to \(port)")
             }
             let fm = FileManager.default
@@ -71,7 +71,7 @@ extension AppDelegate {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: backendPath)
             process.arguments = ["--config", configPath]
-            process.environment = ProcessInfo.processInfo.environment.merging(["ELYSIA_API_OPEN_BROWSER": "false", "ELYSIA_PARENT_STDIN": "1"]) { _, value in value }
+            process.environment = ProcessInfo.processInfo.environment.merging(["COLUMBA_OPEN_BROWSER": "false", "COLUMBA_PARENT_STDIN": "1"]) { _, value in value }
             let input = Pipe()
             process.standardInput = input
             backendInputPipe = input
@@ -186,7 +186,7 @@ extension AppDelegate {
         if restartCount < backendRestartLimit {
             restartCount += 1
             setBackendState(.restarting, error: message + "，正在尝试恢复。")
-            notifications.requestAndSend(title: "Elysia API 正在恢复", body: "服务意外停止，正在自动重启（\(restartCount)/\(backendRestartLimit)）。", identifier: "backend-restarting")
+            notifications.requestAndSend(title: "Columba 正在恢复", body: "服务意外停止，正在自动重启（\(restartCount)/\(backendRestartLimit)）。", identifier: "backend-restarting")
             let generation = backendGeneration
             let work = DispatchWorkItem { [weak self] in
                 guard let self, self.backendGeneration == generation, self.backendState == .restarting, !self.terminating else { return }
@@ -196,7 +196,7 @@ extension AppDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + backendRestartDelay, execute: work)
         } else {
             setBackendState(.failed, error: "后端连续异常退出，已停止自动重启。请查看运行日志后重试。")
-            notifications.requestAndSend(title: "Elysia API 已停止", body: "\(backendRestartLimit) 次自动重启均失败，请打开面板重试或查看运行日志。", identifier: "backend-stopped")
+            notifications.requestAndSend(title: "Columba 已停止", body: "\(backendRestartLimit) 次自动重启均失败，请打开面板重试或查看运行日志。", identifier: "backend-stopped")
         }
     }
 

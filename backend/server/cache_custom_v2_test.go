@@ -9,7 +9,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/route/param"
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 func declaredChatCacheDefinition(t *testing.T) protocol.Definition {

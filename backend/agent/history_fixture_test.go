@@ -3,7 +3,7 @@ package agent
 import (
 	"fmt"
 
-	"github.com/elysia-api/backend/protocol"
+	"columba.local/backend/protocol"
 )
 
 // buildAssistantFixture builds canonical nodes for the fake model and test store.

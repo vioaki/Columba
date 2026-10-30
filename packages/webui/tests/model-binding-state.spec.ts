@@ -13,7 +13,7 @@ async function mockBindings(page: Page, initial = true, hasPolicies = false) {
   let failNext = false
   let pending: Promise<void> | undefined
   let attempts = 0
-  await page.addInitScript(() => localStorage.setItem('elysia-webui.panel-token', 'test-token'))
+  await page.addInitScript(() => localStorage.setItem('columba-webui.panel-token', 'test-token'))
   await page.route('**/api/admin/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     let data: unknown = { items: [], total: 0 }

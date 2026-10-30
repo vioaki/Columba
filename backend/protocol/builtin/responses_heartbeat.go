@@ -1,6 +1,6 @@
 package builtin
 
-import p "github.com/elysia-api/backend/protocol"
+import p "columba.local/backend/protocol"
 
 const responsesHeartbeatSentinel = "SSE-Keep-Alive"
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
+	"columba.local/backend/agent"
 )
 
 // elysia_cli is the thin adapter exposed to the built-in Agent. The CLI
@@ -19,13 +19,13 @@ const (
 	cliToolModelBytes = 48 * 1024
 )
 
-const cliToolDescription = "执行 Elysia API 网关运维命令。每条命令须以 elysia 开头；" +
+const cliToolDescription = "执行 Columba 网关运维命令。每条命令须以 elysia 开头；" +
 	"首次使用先查 elysia help，具体用法按需查 elysia help <组> [命令]。"
 
 type elysiaCLITool struct{ server *Server }
 
 func (t *elysiaCLITool) Name() string          { return agentToolCLI }
-func (t *elysiaCLITool) Description() string   { return "执行 Elysia API 网关运维命令。" }
+func (t *elysiaCLITool) Description() string   { return "执行 Columba 网关运维命令。" }
 func (t *elysiaCLITool) Gated() bool           { return false }
 func (t *elysiaCLITool) PermissionKey() string { return "" }
 

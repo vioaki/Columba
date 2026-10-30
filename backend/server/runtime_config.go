@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 // updateRuntimeConfig publishes side effects only after the complete candidate

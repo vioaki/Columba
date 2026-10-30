@@ -10,10 +10,10 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
-	p "github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/protocol/builtin"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	p "columba.local/backend/protocol"
+	"columba.local/backend/protocol/builtin"
+	"columba.local/backend/storage"
 )
 
 const gatewayMetadataPayload = `{"openai_chatgpt_moderation_metadata":{"generation":{},"prompt":{"omnimod":{"outputs":[{"protection_type":"fixture"}]}}},"fixture":"auxiliary-metadata-fixture"}`

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 )
 
 // C1 回归：/v1/responses 入口的故障转移。首个候选 500（可重试），第二个 200，

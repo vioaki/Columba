@@ -73,7 +73,7 @@ test('real usage details and exports preserve independent delivery evidence and 
   seedUsageRecords(records)
   const token = process.env.PROTOCOL_E2E_TOKEN!
   const headers = { Authorization: `Bearer ${token}` }
-  await page.addInitScript((value) => localStorage.setItem('elysia-webui.panel-token', value), token)
+  await page.addInitScript((value) => localStorage.setItem('columba-webui.panel-token', value), token)
   await page.goto('/#/usage-logs')
 
   for (const record of records) {

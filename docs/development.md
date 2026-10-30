@@ -2,7 +2,7 @@
 
 [文档索引](README.md) · **简体中文** · [English](development.en.md)
 
-在本地开发、验证和构建 Elysia API。命令除特别说明外均在仓库根目录执行。
+在本地开发、验证和构建 Columba。命令除特别说明外均在仓库根目录执行。
 
 ## 环境
 
@@ -59,7 +59,7 @@ go run . --config ./config.json
 npm run dev --workspace @root/webui
 ```
 
-打开 `http://127.0.0.1:5273/`。Vite 默认代理到 `http://127.0.0.1:8765`，可用 `ELYSIA_DEV_PROXY` 覆盖；`ELYSIA_DEV_HOST` 控制开发服务器监听地址。完整代理与前端说明见 [WebUI 开发](../packages/webui/README.md)。
+打开 `http://127.0.0.1:5273/`。Vite 默认代理到 `http://127.0.0.1:8765`，可用 `COLUMBA_DEV_PROXY` 覆盖；`COLUMBA_DEV_HOST` 控制开发服务器监听地址。完整代理与前端说明见 [WebUI 开发](../packages/webui/README.md)。
 
 使用开发配置和测试数据。后台出站策略默认阻止回环、私网和保留段；需要本机模拟上游时仅调整相关 CIDR。
 
@@ -99,9 +99,9 @@ npm run build
 
 | 平台 | 输出 |
 | --- | --- |
-| Windows | `elysia-api-windows-amd64.exe`、`elysia-api-windows-arm64.exe` |
-| Linux | `elysia-api-linux-amd64`、`elysia-api-linux-arm64` |
-| macOS 命令行 | `elysia-api-darwin-amd64`、`elysia-api-darwin-arm64` |
+| Windows | `columba-windows-amd64.exe`、`columba-windows-arm64.exe` |
+| Linux | `columba-linux-amd64`、`columba-linux-arm64` |
+| macOS 命令行 | `columba-darwin-amd64`、`columba-darwin-arm64` |
 
 macOS 命令行产物用于本地运行及 App 组装，Release 对 macOS 发布 DMG。WebUI 单独构建输出至 `packages/webui/dist/`，完整构建才同步到后端嵌入目录。
 
@@ -113,7 +113,7 @@ npm run build
 npm run build:macos-app
 ```
 
-输出通用 `ElysiaApi.app` 和 `elysia-api-macos.dmg`。构建会验证双架构、签名、DMG 完整性及挂载内容。工具链失败时应更换兼容的工具链，不提高最低系统版本或删去 Intel 目标。
+输出通用 `Columba.app` 和 `columba-macos.dmg`。构建会验证双架构、签名、DMG 完整性及挂载内容。工具链失败时应更换兼容的工具链，不提高最低系统版本或删去 Intel 目标。
 
 ### 版本与发布
 

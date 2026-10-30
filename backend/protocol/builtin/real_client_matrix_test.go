@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // 人工协议边界样例，包含中段 system 消息及消息级缓存标记。

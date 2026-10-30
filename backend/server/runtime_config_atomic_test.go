@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/relay"
+	"columba.local/backend/config"
+	"columba.local/backend/relay"
 )
 
 func TestRuntimeConfigRejectsWholeInvalidPatch(t *testing.T) {

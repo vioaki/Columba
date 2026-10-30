@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	p "github.com/elysia-api/backend/protocol"
+	p "columba.local/backend/protocol"
 )
 
 // This state belongs only to final wire validation. It does not rewrite native

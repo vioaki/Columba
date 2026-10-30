@@ -1,6 +1,6 @@
 package builtin
 
-import p "github.com/elysia-api/backend/protocol"
+import p "columba.local/backend/protocol"
 
 // decodeUsageUpdate retains the provider's components before normalization.
 // A cache/reasoning detail can arrive after its subtotal, so adding already

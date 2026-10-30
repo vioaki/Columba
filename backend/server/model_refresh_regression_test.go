@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/routing"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/internal/routing"
+	"columba.local/backend/storage"
 )
 
 func seedDiscoverySource(t *testing.T, s *Server, url string, keys []storage.SourceAPIKey, ids ...string) storage.ModelSource {

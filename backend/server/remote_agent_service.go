@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/agent"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/agent"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // AI 助手远程面共享服务层：MCP / A2A 与 /api/agent REST 共用的会话与轮次

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/elysia-api/backend/internal/outbound"
-	"github.com/elysia-api/backend/protocol"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/internal/outbound"
+	"columba.local/backend/protocol"
+	"columba.local/backend/storage"
 )
 
 // 运维工具：模型源 / 模型组管理 + 用量统计与日志查询。与协议工具共用

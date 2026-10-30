@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/elysia-api/backend/config"
-	"github.com/elysia-api/backend/logging"
-	"github.com/elysia-api/backend/server"
-	"github.com/elysia-api/backend/storage"
+	"columba.local/backend/config"
+	"columba.local/backend/logging"
+	"columba.local/backend/server"
+	"columba.local/backend/storage"
 )
 
 func main() {
@@ -51,14 +51,14 @@ func run() error {
 	srv := server.New(cfg)
 	logging.SetDefault(srv.Logger())
 	go func() { <-signalContext.Done(); srv.RequestShutdown() }()
-	if os.Getenv("ELYSIA_PARENT_STDIN") == "1" {
+	if os.Getenv("COLUMBA_PARENT_STDIN") == "1" {
 		go func() {
 			_, _ = io.Copy(io.Discard, os.Stdin)
 			srv.RequestShutdown()
 		}()
 	}
 
-	logging.Info().Str("version", server.BuildIdentity()).Str("host", cfg.Host).Int("port", cfg.Port).Msg("starting Elysia-API backend")
+	logging.Info().Str("version", server.BuildIdentity()).Str("host", cfg.Host).Int("port", cfg.Port).Msg("starting Columba backend")
 
 	return srv.ListenAndServe()
 }

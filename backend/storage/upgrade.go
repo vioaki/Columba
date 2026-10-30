@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/elysia-api/backend/internal/atomicfile"
-	"github.com/elysia-api/backend/internal/dbpath"
+	"columba.local/backend/internal/atomicfile"
+	"columba.local/backend/internal/dbpath"
 )
 
 type upgradeFile struct {

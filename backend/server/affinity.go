@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/elysia-api/backend/config"
+	"columba.local/backend/config"
 	"github.com/maypok86/otter/v2"
 )
 
