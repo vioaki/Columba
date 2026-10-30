@@ -46,7 +46,7 @@ docs/          # Documentation
 npm install
 ```
 
-在独立终端启动后端。以下命令将开发配置写在 `backend/`；首次运行从日志读取面板令牌：
+在独立终端启动后端。以下命令将开发配置写在 `backend/`；仅允许回环地址，无需面板令牌：
 
 ```bash
 cd backend
@@ -146,3 +146,5 @@ UPDATE_AGENT_CLI_DOCS=1 go test ./server -run '^TestCLIReferenceUpToDate$' -coun
 ## 数据库升级
 
 启动前自动升级最新 Elysia 业务库版本 2 与日志库版本 1。两个数据库先统一检查，再使用 SQLite `VACUUM INTO` 备份（包含已提交 WAL），逐库事务升级并检查完整性。升级日志记录在业务库旁的 `.upgrade.json`；失败或中断会先恢复成套备份。备份目录权限为 0700，数据库和配置备份为 0600。保留原主密钥；迁移不重加密凭据。未知版本明确拒绝，不尝试迁移未版本化历史库。升级期间必须停止其他使用这两个数据库的进程。
+
+Columba 管理面板无需登录；管理请求检查本地 Host、Origin 与浏览器来源。开发面板使用固定端口 5273/5274。客户端推理仍需要调用 Key。

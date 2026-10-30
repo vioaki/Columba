@@ -23,13 +23,11 @@ func TestLoadBareConfigWithoutMasterKey(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	cfg, err := Load(path)
+	_, err := Load(path)
 	if err != nil {
 		t.Fatalf("bare config should load, got error: %v", err)
 	}
-	if cfg.PanelAccessToken != "bare-token" {
-		t.Fatalf("panelAccessToken not loaded: %q", cfg.PanelAccessToken)
-	}
+
 }
 
 func TestLoadHostEnvironmentOverride(t *testing.T) {
@@ -42,12 +40,12 @@ func TestLoadHostEnvironmentOverride(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	t.Setenv("COLUMBA_HOST", "0.0.0.0")
+	t.Setenv("COLUMBA_HOST", "::1")
 	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load with host override: %v", err)
 	}
-	if cfg.GetServer().Host != "0.0.0.0" {
+	if cfg.GetServer().Host != "::1" {
 		t.Fatalf("host override not applied: cfg.Host=%q", cfg.Host)
 	}
 
@@ -79,12 +77,6 @@ func TestEnsureConfigCreatesWhenMissing(t *testing.T) {
 	}
 
 	// 生成的 token 必须非空、且不能是已知占位符 change-me。
-	if cfg.PanelAccessToken == "" {
-		t.Fatal("generated panelAccessToken should not be empty")
-	}
-	if cfg.PanelAccessToken == "change-me" {
-		t.Fatal("generated token must not be the insecure change-me placeholder")
-	}
 
 	// 文件应已落盘（权限断言放宽：Windows 忽略 WriteFile 的 perm 位，
 	// 0o600 实际落盘为 0666，仅校验文件存在与可读）。
@@ -97,8 +89,8 @@ func TestEnsureConfigCreatesWhenMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reloading generated config should succeed: %v", err)
 	}
-	if cfg2.PanelAccessToken != cfg.PanelAccessToken {
-		t.Fatalf("reloaded token mismatch: %q vs %q", cfg2.PanelAccessToken, cfg.PanelAccessToken)
+	if cfg2.Host != cfg.Host {
+		t.Fatal("host changed after reload")
 	}
 }
 
@@ -116,16 +108,14 @@ func TestEnsureConfigLoadsExisting(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	cfg, created, err := EnsureConfig(path)
+	_, created, err := EnsureConfig(path)
 	if err != nil {
 		t.Fatalf("EnsureConfig on existing file should succeed: %v", err)
 	}
 	if created {
 		t.Fatal("created should be false when file already exists")
 	}
-	if cfg.PanelAccessToken != "preexisting-token" {
-		t.Fatalf("existing token must be preserved, got %q", cfg.PanelAccessToken)
-	}
+
 }
 
 // EnsureConfig 在配置文件存在但解析失败时，应返回错误且不覆盖原文件——
@@ -161,30 +151,6 @@ func TestEnsureConfigParseErrorNotAutoCreated(t *testing.T) {
 
 // 面板令牌校验：空令牌/未配置拒绝，空白容错，命中精确匹配。
 // constantTimeEqual 仅防时序侧信道，语义上就是精确比较。
-func TestIsValidPanelAccessToken(t *testing.T) {
-	cfg := &Config{PanelAccessToken: "panel-secret"}
-
-	if !cfg.IsValidPanelAccessToken("panel-secret") {
-		t.Fatal("exact token should be valid")
-	}
-	if cfg.IsValidPanelAccessToken("wrong-token") {
-		t.Fatal("wrong token must be rejected")
-	}
-	if cfg.IsValidPanelAccessToken("") {
-		t.Fatal("empty token must be rejected")
-	}
-	if !cfg.IsValidPanelAccessToken("  panel-secret\t") {
-		t.Fatal("surrounding whitespace should be trimmed before comparing")
-	}
-
-	empty := &Config{}
-	if empty.IsValidPanelAccessToken("panel-secret") {
-		t.Fatal("unconfigured panel token must reject everything")
-	}
-	if empty.IsValidPanelAccessToken("") {
-		t.Fatal("unconfigured panel token must reject empty token too")
-	}
-}
 
 // openBrowserOnStart 三态：不写键 = nil（默认尝试）、显式 true/false 原样读回，
 // Save 后落盘不丢失；nil 时 Save 不写键。

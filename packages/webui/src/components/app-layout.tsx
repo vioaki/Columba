@@ -2,32 +2,10 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
-import { createPortal } from 'react-dom'
 import { Sidebar } from './sidebar'
 import { useUsageLive } from '@/lib/hooks'
-import { ARRIVED_FROM_LOGIN_KEY, readArrivedFromLogin } from '@/lib/auth'
-import { ROLE_ANCHOR_CLASS, roleMaskStyle } from '@/lib/role-presentation'
 import { cn } from '@/lib/utils'
 import { Z_INDEX } from '@/lib/z-index'
-
-/**
- * 交接残影：登录页的线稿以 0.45 浓度原地交接的瞬间，控制台外壳正从透明
- * 渐显，内部的水印会被带着一起「消失再出现」。这枚与控制台水印同位置、
- * 同浓度的残影悬浮在最上层顶住这段渐显期（1s），再自行淡出卸载。
- */
-function ArrivalEcho() {
-  const [gone, setGone] = useState(false)
-  if (gone) return null
-  return createPortal(
-    <div
-      aria-hidden
-      className={cn('arrival-echo', Z_INDEX.arrivalEcho, ROLE_ANCHOR_CLASS)}
-      style={roleMaskStyle()}
-      onAnimationEnd={() => setGone(true)}
-    />,
-    document.body,
-  )
-}
 
 /** 桌面常驻侧栏；移动端复用 Radix 的焦点管理、滚动锁定与关闭后焦点恢复。 */
 export function AppLayout() {
@@ -36,27 +14,10 @@ export function AppLayout() {
   const mainRef = useRef<HTMLElement>(null)
   useUsageLive()
 
-  // 仅登录到达时外壳渐显（app-fade）；刷新与普通路由跳转保持无动画。
-  // 初始化器读取标记，移除由 ElysiaStage 的 effect 负责。
-  const [arriving] = useState(readArrivedFromLogin)
-
   useEffect(() => {
     setMobileOpen(false)
     // 'auto' 而非 'instant'：Safari < 15.4 的 ScrollBehavior 枚举里没有后者，会抛 TypeError。
     window.scrollTo({ top: 0, behavior: 'auto' })
-  }, [location.pathname])
-
-  // arrival 标记的删除通常由 overview 内的 ElysiaStage 读后即删完成；若 overview
-  // 懒加载 chunk 完成前用户已导航离开，标记会滞留 sessionStorage，导致同会话稍后
-  // 首次进入 overview 意外重播入场动画。离开 overview 时在此兜底删除。
-  useEffect(() => {
-    if (location.pathname !== '/overview') {
-      try {
-        sessionStorage.removeItem(ARRIVED_FROM_LOGIN_KEY)
-      } catch {
-        /* ignore */
-      }
-    }
   }, [location.pathname])
 
   useEffect(() => {
@@ -69,8 +30,7 @@ export function AppLayout() {
   }, [])
 
   return (
-    <div className={cn(arriving && 'app-fade', 'grid min-h-dvh grid-cols-[228px_minmax(0,1fr)] max-rail:grid-cols-1')}>
-      {arriving && <ArrivalEcho />}
+    <div className={cn('grid min-h-dvh grid-cols-[228px_minmax(0,1fr)] max-rail:grid-cols-1')}>
       <a
         href="#main-content"
         onClick={(event) => {

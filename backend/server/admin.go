@@ -19,10 +19,10 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/utils"
 	"github.com/cloudwego/hertz/pkg/route"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/config"
 	"columba.local/backend/internal/outbound"
 	"columba.local/backend/storage"
+	"github.com/bytedance/sonic"
 )
 
 type adminError struct {
@@ -120,7 +120,6 @@ func (s *Server) adminRuntimeConfig(ctx context.Context, c *app.RequestContext) 
 	respondOK(ctx, c, utils.H{
 		"host":                server.Host,
 		"port":                server.Port,
-		"panelAccessToken":    s.config.GetPanelAccessToken(),
 		"databasePath":        s.config.GetDatabasePath(),
 		"logDatabasePath":     s.config.GetLogDatabasePath(),
 		"logFormat":           s.config.GetLoggingOptions().Format,
@@ -157,20 +156,19 @@ func (s *Server) adminRuntimeConfig(ctx context.Context, c *app.RequestContext) 
 // runtimeConfigPayload 是 PUT /runtime-config 的请求体：指针/空串字段
 // 表示「未提供（不修改）」。
 type runtimeConfigPayload struct {
-	Host             string                     `json:"host"`
-	Port             int                        `json:"port"`
-	LogLevel         string                     `json:"logLevel"`
-	HTTPTimeout      *int                       `json:"httpTimeout"`
-	PanelAccessToken *string                    `json:"panelAccessToken"`
-	DatabasePath     *string                    `json:"databasePath"`
-	LogDatabasePath  *string                    `json:"logDatabasePath"`
-	LogFormat        string                     `json:"logFormat"`
-	LogPersistLevel  string                     `json:"logPersistLevel"`
-	EnablePprof      *bool                      `json:"enablePprof"`
-	Outbound         *outboundConfigPayload     `json:"outbound"`
-	UsageLog         *config.UsageLogConfig     `json:"usageLog"`
-	SystemLog        *config.LogRetentionConfig `json:"systemLog"`
-	ModelCatalog     *struct {
+	Host            string                     `json:"host"`
+	Port            int                        `json:"port"`
+	LogLevel        string                     `json:"logLevel"`
+	HTTPTimeout     *int                       `json:"httpTimeout"`
+	DatabasePath    *string                    `json:"databasePath"`
+	LogDatabasePath *string                    `json:"logDatabasePath"`
+	LogFormat       string                     `json:"logFormat"`
+	LogPersistLevel string                     `json:"logPersistLevel"`
+	EnablePprof     *bool                      `json:"enablePprof"`
+	Outbound        *outboundConfigPayload     `json:"outbound"`
+	UsageLog        *config.UsageLogConfig     `json:"usageLog"`
+	SystemLog       *config.LogRetentionConfig `json:"systemLog"`
+	ModelCatalog    *struct {
 		SyncIntervalMinutes *int `json:"syncIntervalMinutes"`
 	} `json:"modelCatalog"`
 	AgentRemote *agentRemoteConfigPayload `json:"agentRemote"`
@@ -262,11 +260,7 @@ func validateRuntimeConfigPayload(p *runtimeConfigPayload) *runtimeConfigError {
 	if p.DatabasePath != nil && strings.TrimSpace(*p.DatabasePath) == "" {
 		return &runtimeConfigError{400, "invalid_database_path", "databasePath must not be empty; unset it in config.json to use the default"}
 	}
-	if p.PanelAccessToken != nil && strings.TrimSpace(*p.PanelAccessToken) == "" {
-		// 空面板令牌会让 IsValidPanelAccessToken 对一切请求返回 false，
-		// 直接锁死整个管理面板，只能去服务器手改 config.json 恢复。
-		return &runtimeConfigError{400, "invalid_panel_access_token", "panel access token must not be empty"}
-	}
+
 	if p.ModelCatalog != nil && p.ModelCatalog.SyncIntervalMinutes != nil && *p.ModelCatalog.SyncIntervalMinutes < 0 {
 		return &runtimeConfigError{400, "invalid_sync_interval", "syncIntervalMinutes must not be negative"}
 	}

@@ -56,7 +56,6 @@ func configureFlameGateway(t *testing.T, server *Server) {
 	t.Helper()
 	configureReviewMapping(t, server)
 	server.config.SetEnablePprof(true)
-	server.config.SetPanelAccessToken(flameToken)
 	if err := server.store.UpsertAPIToken(t.Context(), storage.APIToken{Name: "profile", Token: flameToken, Enabled: true, AllowedGroups: []string{"grp"}}); err != nil {
 		t.Fatal(err)
 	}

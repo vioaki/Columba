@@ -133,11 +133,11 @@ func TestSavePersistsHostPortAndModelCatalog(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 
-	cfg.SetHost("0.0.0.0")
+	cfg.SetHost("127.0.0.2")
 	cfg.SetPort(9000)
 	interval := 60
 	cfg.SetModelCatalogSyncInterval(interval)
-	if cfg.GetServer() != (ServerConfig{Host: "0.0.0.0", Port: 9000}) {
+	if cfg.GetServer() != (ServerConfig{Host: "127.0.0.2", Port: 9000}) {
 		t.Fatalf("SetHost/SetPort did not update listener settings: %+v", cfg.GetServer())
 	}
 	if err := cfg.Save(); err != nil {
@@ -149,7 +149,7 @@ func TestSavePersistsHostPortAndModelCatalog(t *testing.T) {
 	if err := sonic.ConfigStd.Unmarshal(raw, &persisted); err != nil {
 		t.Fatal(err)
 	}
-	if persisted["host"] != "0.0.0.0" || persisted["port"] != float64(9000) {
+	if persisted["host"] != "127.0.0.2" || persisted["port"] != float64(9000) {
 		t.Fatalf("host/port must persist: %s", raw)
 	}
 	catalog, ok := persisted["modelCatalog"].(map[string]any)

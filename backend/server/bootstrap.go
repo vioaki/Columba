@@ -29,6 +29,10 @@ func New(cfg *config.Config) *Server {
 		}),
 	}
 	server.initLifecycle()
+	if err := cfg.ValidateLocalHost(); err != nil {
+		server.startupErr = err
+		return server
+	}
 	server.logger = logging.New(cfg.GetLoggingOptions(), nil)
 	engine.Use(server.requestLifecycle(), server.requestLogging())
 	store, err := storage.OpenWithLogPath(cfg.GetDatabasePath(), cfg.GetLogDatabasePath(), cfg.GetDBEncryptionKey())

@@ -53,13 +53,13 @@ func (s *Server) setupRoutes() {
 	s.mountWebUI()
 	if s.config.EnablePprof {
 		debug := s.engine.Group("/debug/pprof")
-		debug.Use(s.dashboardAuthMiddleware())
+		debug.Use(s.localPanelMiddleware())
 		debug.GET("/", serveProfileIndex)
 		debug.GET("/:profile", serveProfile)
 	}
 
 	admin := s.engine.Group("/api/admin")
-	admin.Use(s.dashboardAuthMiddleware())
+	admin.Use(s.localPanelMiddleware())
 	{
 		s.setupAdminRoutes(admin)
 		s.setupAgentRoutes(admin)
@@ -77,8 +77,8 @@ func (s *Server) setupRoutes() {
 	s.engine.POST("/a2a", s.agentRemoteGate(), s.agentRemoteAuth(), s.handleA2A)
 
 	s.engine.GET("/health", s.healthCheck)
-	s.engine.POST("/__reload", s.loopbackOnly(), s.reloadConfig)
-	s.engine.POST("/__shutdown", s.loopbackOnly(), s.shutdown)
+	s.engine.POST("/__reload", s.loopbackOnly(), s.localPanelMiddleware(), s.reloadConfig)
+	s.engine.POST("/__shutdown", s.loopbackOnly(), s.localPanelMiddleware(), s.shutdown)
 }
 
 // mountWebUI 在 /ui 提供控制台静态资源，优先级：

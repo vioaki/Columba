@@ -47,7 +47,7 @@
 
 ### 2. 启动
 
-首次启动自动生成配置与 SQLite 数据库。Windows / Linux 的启动日志会输出随机面板令牌；默认监听 `127.0.0.1:8765`。端口被占用时需修改配置，macOS App 会自动寻找可用端口。
+首次启动自动生成配置与 SQLite 数据库；默认监听 `127.0.0.1:8765`。端口被占用时需修改配置，macOS App 会自动寻找可用端口。
 
 <details>
 <summary><strong>Windows</strong></summary>
@@ -78,7 +78,7 @@ ARM64 将两处文件名替换为 `columba-linux-arm64`。
 <summary><strong>macOS</strong></summary>
 
 1. 挂载 DMG，将 Columba 拖入应用目录（支持 macOS 12+，双架构通用）
-2. 面板令牌可从菜单栏复制，数据存储于 `~/Library/Application Support/Columba/`
+2. 无需面板令牌，数据存储于 `~/Library/Application Support/Columba/`
 3. 如遇 Gatekeeper 拦截，执行后重试：
 
    ```bash
@@ -107,7 +107,7 @@ docker run -d --name columba \
 
 ### 3. 接入模型
 
-1. 访问 `http://127.0.0.1:8765/ui/`，使用面板令牌登录；macOS App 以菜单栏地址为准，下方调用地址也需使用该端口
+1. 访问 `http://127.0.0.1:8765/ui/`，直接进入本地面板，无需登录；macOS App 以菜单栏地址为准，下方调用地址也需使用该端口
 
 2. 添加「模型源」，填写上游地址与 API Key，拉取模型列表
 
@@ -135,8 +135,7 @@ docker run -d --name columba \
 {
   "host": "127.0.0.1",
   "port": 8765,
-  "panelAccessToken": "change-me",
-  "databasePath": "columba.sqlite3"
+    "databasePath": "columba.sqlite3"
 }
 ```
 

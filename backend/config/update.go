@@ -27,6 +27,9 @@ func (c *Config) Update(prepare func(candidate *Config) error) error {
 		return err
 	}
 	candidate.applyEnvironmentOverrides()
+	if err := candidate.ValidateLocalHost(); err != nil {
+		return err
+	}
 	if err := candidate.validateLogSettings(); err != nil {
 		return err
 	}

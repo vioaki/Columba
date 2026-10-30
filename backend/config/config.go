@@ -2,10 +2,10 @@ package config
 
 import (
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,39 +13,38 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/internal/atomicfile"
 	"columba.local/backend/internal/outbound"
 	log "columba.local/backend/logging"
 	"columba.local/backend/protocol"
+	"github.com/bytedance/sonic"
 )
 
 type Config struct {
-	Host             string              `json:"host,omitempty"`
-	Port             int                 `json:"port,omitempty"`
-	PanelAccessToken string              `json:"panelAccessToken,omitempty"`
-	DatabasePath     string              `json:"databasePath,omitempty"`
-	LogDatabasePath  string              `json:"logDatabasePath,omitempty"`
-	LogLevel         string              `json:"logLevel,omitempty"`
-	LogFormat        string              `json:"logFormat,omitempty"`
-	LogPersistLevel  string              `json:"logPersistLevel,omitempty"`
-	SecretKeyPath    string              `json:"secretKeyPath,omitempty"`
-	WebUIDir         string              `json:"webuiDir,omitempty"`
-	EnablePprof      bool                `json:"enablePprof,omitempty"`
-	MaxBodyBytes     int64               `json:"maxBodyBytes,omitempty"`
-	Preparation      PreparationConfig   `json:"preparation,omitempty"`
-	Responses        ResponsesConfig     `json:"responses,omitempty"` // Responses API 开关
-	Usage            UsageConfig         `json:"usage,omitempty"`     // 用量估算配置
-	SystemLog        LogRetentionConfig  `json:"systemLog,omitempty"`
-	UsageLog         UsageLogConfig      `json:"usageLog,omitempty"`     // 请求日志留存与内容策略
-	HTTPTimeout      int                 `json:"httpTimeout,omitempty"`  // HTTP 请求超时时间（秒），0 为不限制
-	DebugMode        bool                `json:"debugMode,omitempty"`    // 调试模式
-	VerboseLog       bool                `json:"verboseLog,omitempty"`   // 详细日志模式
-	HealthCheck      HealthCheckConfig   `json:"healthCheck,omitempty"`  // 可选的后台健康检测
-	Outbound         OutboundConfig      `json:"outbound,omitempty"`     // 出站网络策略：禁止拨号的 IP 段（CIDR 列表，可编辑）
-	ModelCatalog     ModelCatalogConfig  `json:"modelCatalog,omitempty"` // 模型能力元数据目录（默认 models.dev）
-	AgentRemote      AgentRemoteConfig   `json:"agentRemote,omitempty"`  // AI 助手远程暴露面（REST/MCP/A2A）
-	Agent            AgentDefaultsConfig `json:"agent,omitempty"`        // AI 助手全局默认（工具循环上限等）
+	Host            string              `json:"host,omitempty"`
+	Port            int                 `json:"port,omitempty"`
+	DatabasePath    string              `json:"databasePath,omitempty"`
+	LogDatabasePath string              `json:"logDatabasePath,omitempty"`
+	LogLevel        string              `json:"logLevel,omitempty"`
+	LogFormat       string              `json:"logFormat,omitempty"`
+	LogPersistLevel string              `json:"logPersistLevel,omitempty"`
+	SecretKeyPath   string              `json:"secretKeyPath,omitempty"`
+	WebUIDir        string              `json:"webuiDir,omitempty"`
+	EnablePprof     bool                `json:"enablePprof,omitempty"`
+	MaxBodyBytes    int64               `json:"maxBodyBytes,omitempty"`
+	Preparation     PreparationConfig   `json:"preparation,omitempty"`
+	Responses       ResponsesConfig     `json:"responses,omitempty"` // Responses API 开关
+	Usage           UsageConfig         `json:"usage,omitempty"`     // 用量估算配置
+	SystemLog       LogRetentionConfig  `json:"systemLog,omitempty"`
+	UsageLog        UsageLogConfig      `json:"usageLog,omitempty"`     // 请求日志留存与内容策略
+	HTTPTimeout     int                 `json:"httpTimeout,omitempty"`  // HTTP 请求超时时间（秒），0 为不限制
+	DebugMode       bool                `json:"debugMode,omitempty"`    // 调试模式
+	VerboseLog      bool                `json:"verboseLog,omitempty"`   // 详细日志模式
+	HealthCheck     HealthCheckConfig   `json:"healthCheck,omitempty"`  // 可选的后台健康检测
+	Outbound        OutboundConfig      `json:"outbound,omitempty"`     // 出站网络策略：禁止拨号的 IP 段（CIDR 列表，可编辑）
+	ModelCatalog    ModelCatalogConfig  `json:"modelCatalog,omitempty"` // 模型能力元数据目录（默认 models.dev）
+	AgentRemote     AgentRemoteConfig   `json:"agentRemote,omitempty"`  // AI 助手远程暴露面（REST/MCP/A2A）
+	Agent           AgentDefaultsConfig `json:"agent,omitempty"`        // AI 助手全局默认（工具循环上限等）
 	// OpenBrowserOnStart 控制启动时是否在系统默认浏览器打开控制台。
 	// nil = 默认尝试（桌面开箱即用；无桌面环境命令缺失时静默跳过），
 	// false = 不打开（子进程托管场景），true = 强制尝试。
@@ -269,6 +268,9 @@ func Load(path string) (*Config, error) {
 	if err := protocol.ValidateRequestBodyLimit(cfg.MaxBodyBytes); err != nil {
 		return nil, err
 	}
+	if err := cfg.ValidateLocalHost(); err != nil {
+		return nil, err
+	}
 	if err := cfg.validateLogSettings(); err != nil {
 		return nil, err
 	}
@@ -352,7 +354,7 @@ func (c *Config) saveLocked() error {
 		return fmt.Errorf("configuration must be a JSON object")
 	}
 	fields := map[string]any{
-		"host": c.Host, "port": c.Port, "panelAccessToken": c.PanelAccessToken,
+		"host": c.Host, "port": c.Port,
 		"databasePath": c.DatabasePath, "logDatabasePath": c.LogDatabasePath,
 		"logLevel": c.LogLevel, "logFormat": c.LogFormat, "logPersistLevel": c.LogPersistLevel,
 		"enablePprof": c.EnablePprof, "httpTimeout": c.HTTPTimeout,
@@ -432,18 +434,6 @@ func mergeConfigSection(original json.RawMessage, section any) ([]byte, error) {
 		fields["deniedIpRanges"], _ = sonic.ConfigStd.Marshal(outbound.DeniedIPRanges)
 	}
 	return sonic.ConfigStd.Marshal(fields)
-}
-
-func (c *Config) SetPanelAccessToken(token string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.PanelAccessToken = token
-}
-
-func (c *Config) GetPanelAccessToken() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.PanelAccessToken
 }
 
 func (c *Config) SetDatabasePath(path string) {
@@ -753,25 +743,9 @@ func (c *Config) GetDBEncryptionKey() []byte {
 	return []byte(key)
 }
 
-func (c *Config) IsValidPanelAccessToken(token string) bool {
-	token = strings.TrimSpace(token)
-	if token == "" {
-		return false
-	}
-
-	c.mu.RLock()
-	panelAccessToken := c.PanelAccessToken
-	c.mu.RUnlock()
-
-	return panelAccessToken != "" && constantTimeEqual(panelAccessToken, token)
-}
-
 // constantTimeEqual 以常量时间比较两个字符串，避免通过比较耗时差异
 // 逐字节爆破 token（时序侧信道）。长度不同直接返回 false，但仍调用
 // subtle.ConstantTimeCompare 以减少长度上的时序泄漏。
-func constantTimeEqual(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
-}
 
 func (c *Config) GetResponsesConfig() ResponsesConfig {
 	c.mu.RLock()
@@ -915,7 +889,6 @@ func (c *Config) SetUsageLogConfig(patch UsageLogConfig) {
 func (c *Config) publishSettingsLocked(newCfg *Config) {
 	c.Host = newCfg.Host
 	c.Port = newCfg.Port
-	c.PanelAccessToken = newCfg.PanelAccessToken
 	c.DatabasePath = newCfg.DatabasePath
 	c.LogDatabasePath = newCfg.LogDatabasePath
 	c.LogLevel = newCfg.LogLevel
@@ -939,4 +912,17 @@ func (c *Config) publishSettingsLocked(newCfg *Config) {
 	c.AgentRemote = newCfg.AgentRemote
 	c.OpenBrowserOnStart = newCfg.OpenBrowserOnStart
 	c.Agent = newCfg.Agent
+}
+
+// ValidateLocalHost keeps an unauthenticated panel on the local machine.
+func (c *Config) ValidateLocalHost() error {
+	host := c.Host
+	if host == "" || host == "localhost" {
+		return nil
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("host must be localhost or a loopback IP address")
+	}
+	return nil
 }

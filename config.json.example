@@ -1,7 +1,6 @@
 {
   "host": "127.0.0.1",
   "port": 8765,
-  "panelAccessToken": "change-me",
   "databasePath": "columba.sqlite3",
   "logDatabasePath": "columba-logs.sqlite3",
   "logLevel": "info",

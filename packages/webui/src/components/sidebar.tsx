@@ -1,11 +1,6 @@
 import { NavLink } from 'react-router-dom'
-import { useSWRConfig } from 'swr'
-import { Activity, BarChart3, Database, KeyRound, Layers, LogOut, Puzzle, ScrollText, Settings, Sparkles, Stethoscope, Terminal, type LucideIcon } from 'lucide-react'
+import { Activity, BarChart3, Database, KeyRound, Layers, Puzzle, ScrollText, Settings, Sparkles, Stethoscope, Terminal, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { clearToken } from '@/lib/auth'
-import { clearAssetCache } from '@/lib/asset-blob-cache'
-import { useConfirm } from './ui/confirm-dialog'
-import { Button } from './ui/button'
 import { ThemeToggle } from './theme-toggle'
 import { BrandMark } from './brand-mark'
 
@@ -34,27 +29,10 @@ const NAV_ITEMS: NavItem[] = [
 const GROUP_ORDER = [...new Set(NAV_ITEMS.map((item) => item.group))]
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const { confirm, dialog } = useConfirm()
-  const { mutate } = useSWRConfig()
   const grouped = GROUP_ORDER.map((group) => ({
     group,
     items: NAV_ITEMS.filter((item) => item.group === group),
   }))
-
-  // 登出需二次确认，防止误触直接清除本地令牌。
-  async function handleLogout() {
-    const ok = await confirm({
-      title: '退出登录？',
-      description: '将清除本地保存的 Panel Access Token，重新输入令牌后才能进入控制台。',
-      confirmText: '退出',
-    })
-    if (!ok) return
-    clearToken()
-    // 清空 SWR 全局缓存与媒体 LRU：令牌轮换后重新登录不应看到上一会话的数据。
-    // filter 匹配所有 key，data=undefined 即删除对应缓存条目。
-    void mutate(() => true, undefined, { revalidate: false })
-    clearAssetCache()
-  }
 
   return (
     <div className="flex h-full flex-col gap-[22px] bg-rail-fade py-[22px] pb-[max(18px,env(safe-area-inset-bottom))] text-sidebar-foreground max-rail:bg-background">
@@ -104,17 +82,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       {/* 底部：主题切换 · 退出登录 */}
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-border px-[22px] pt-3.5">
         <ThemeToggle />
-        <Button
-          variant="danger"
-          size="iconSm"
-          onClick={handleLogout}
-          aria-label="退出登录"
-          title="退出登录"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-        </Button>
       </div>
-      {dialog}
     </div>
   )
 }

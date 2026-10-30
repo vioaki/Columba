@@ -172,7 +172,7 @@ enum NativeTests {
         try expect(isNewer("v1.2.0", than: "v1.1.9") && !isNewer("v1.2", than: "v1.2.0"), "version comparisons handle missing patch component")
         try expect(AppDelegate.releaseForTests(Data("{\"tag_name\":\"v2\",\"assets\":[]}".utf8)) == nil, "release with missing DMG is rejected")
         let fresh = loadOrCreateConfig()
-        try expect(fresh?.port == 8765 && fresh?.panelAccessToken.hasPrefix("elysia-app-") == true, "missing configuration creates secure first-run defaults")
+        try expect(fresh?.port == 8765 && fresh?.host == "127.0.0.1", "missing configuration creates secure first-run defaults")
         let configURL = URL(fileURLWithPath: configPath)
         let malformed = Data("{invalid json".utf8)
         try malformed.write(to: configURL)
@@ -268,7 +268,7 @@ enum NativeTests {
         let browserAction = NSApp.mainMenu?.items.first(where: { $0.submenu?.title == "视图" })?.submenu?.item(withTitle: "在浏览器中打开面板")
         try expect(browserAction?.action == NSSelectorFromString("openPanelInBrowser") && delegate.validateMenuItem(browserAction!), "manual browser action remains available")
         let copyToken = delegate.statusItem.menu?.item(withTitle: "复制面板访问令牌")
-        try expect(copyToken?.action == NSSelectorFromString("copyPanelToken") && copyToken?.target === delegate && delegate.validateMenuItem(copyToken!), "menu bar exposes the enabled panel token copy action")
+        try expect(copyToken == nil, "panel token menu is removed")
         try await downloadTests(port: delegate.backendPort)
         try await proxyTests(delegate)
         UserDefaults.standard.set("#/logs", forKey: "Columba.lastRoute")
@@ -281,7 +281,7 @@ enum NativeTests {
         try expect(delegate.webView.url?.fragment == "/overview", "native window opens overview even with a legacy saved route")
         let jsState = try await delegate.webView.evaluateJavaScript("localStorage.getItem('columba-webui.theme') === 'dark' && localStorage.getItem('columba-webui.panel-token') === null && !document.cookie.includes('panel_access_token=')") as? Bool
         try expect(jsState == true, "theme is restored without injecting a token or authentication cookie")
-        try expect(delegate.webView.configuration.websiteDataStore.isPersistent, "WebKit persists the user's manual login")
+        try expect(delegate.webView.configuration.websiteDataStore.isPersistent, "WebKit persists UI preferences")
         try await updateCapsuleTests(delegate)
         _ = try await delegate.webView.evaluateJavaScript("location.hash = '#/protocols'")
         try expect(await wait { delegate.webView.url?.fragment == "/protocols" }, "panel can navigate away from overview")
@@ -427,26 +427,14 @@ enum NativeTests {
         delegate.startBackend()
         delegate.showMainWindow()
         try expect(await wait(30) { delegate.pollForTests(); return delegate.backendState == .running && delegate.panelLoaded && !delegate.webView.isLoading }, "bundled universal backend serves the real WebUI")
-        try await pulseEndpointTest(port: delegate.backendPort, token: delegate.config.panelAccessToken)
-        let loginReady = "location.hash === '#/login' && document.querySelector('#token')?.value === '' && localStorage.getItem('columba-webui.panel-token') === null && !document.cookie.includes('panel_access_token=')"
-        try expect(await webMatches(delegate, loginReady), "first launch shows the real login page with no prefilled token or cookie")
-        try expect(await webMatches(delegate, "document.documentElement.classList.contains('dark')"), "login page retains the native theme")
-        // Exercise the real login form; credentials are never written directly to browser storage.
-        _ = try await delegate.webView.evaluateJavaScript("""
-        (() => {
-          const input = document.querySelector('#token');
-          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, \(javascriptString(delegate.config.panelAccessToken)));
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-        })()
-        """)
-        _ = try await delegate.webView.evaluateJavaScript("document.querySelector('#token').form.requestSubmit()")
+        try await pulseEndpointTest(port: delegate.backendPort)
         let overviewReady = "!!document.querySelector('main h1') && document.documentElement.classList.contains('dark') && location.hash === '#/overview'"
-        try expect(await webMatches(delegate, overviewReady), "manual login reaches overview")
-        try expect(await webMatches(delegate, "localStorage.getItem('columba-webui.panel-token') === \(javascriptString(delegate.config.panelAccessToken)) && document.cookie.includes('panel_access_token=')"), "manual login saves the token and authentication cookie")
+        try expect(await webMatches(delegate, overviewReady), "panel opens overview without login")
+        try expect(await webMatches(delegate, "!document.querySelector('#token') && !document.cookie.includes('panel_access_token=')"), "panel has no login form or authentication cookie")
         delegate.window.close()
         delegate.showMainWindow()
         try expect(await wait { delegate.pollForTests(); return delegate.panelLoaded && !delegate.webView.isLoading }, "reopened window loads the real panel")
-        try expect(await webMatches(delegate, overviewReady), "reopening the window keeps the manual login")
+        try expect(await webMatches(delegate, overviewReady), "reopening the window requires no login")
         delegate.latestRelease = ReleaseInfo(tag: "v99.0.0", dmgURL: "https://example.com/unused.dmg", dmgDigest: "sha256:00")
         delegate.updatePhase = .available
         delegate.updateMessage = "发现新版本 v99.0.0 · 原生更新胶囊预览"
@@ -490,25 +478,17 @@ enum NativeTests {
         try expect(configBefore == configAfter, "real backend restart preserves configuration")
         try expect(keyBefore == keyAfter, "real backend restart preserves master key")
         try expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("columba.sqlite3").path), "real backend retains SQLite database")
-        _ = try await delegate.webView.evaluateJavaScript("document.querySelector('button[aria-label=\"退出登录\"]').click()")
-        try expect(await webMatches(delegate, "!!document.querySelector('[role=dialog]')"), "logout opens its confirmation dialog")
-        _ = try await delegate.webView.evaluateJavaScript("Array.from(document.querySelectorAll('[role=dialog] button')).find(button => button.textContent.trim() === '退出').click()")
-        try expect(await webMatches(delegate, loginReady), "logout clears the saved token and cookie")
-        delegate.window.close()
-        delegate.showMainWindow()
-        try expect(await wait { delegate.pollForTests(); return delegate.panelLoaded && !delegate.webView.isLoading }, "window reopens after logout")
-        try expect(await webMatches(delegate, loginReady), "reopening after logout does not silently sign back in")
+
     }
 
     /// 命中真实后端的用量接口：验证菜单栏脉冲图依赖的管理员鉴权与响应信封都能被解析。
     /// 仅在 `--panel` 模式调用——替身后端不实现 admin API。
-    static func pulseEndpointTest(port: Int, token: String) async throws {
+    static func pulseEndpointTest(port: Int) async throws {
         guard let url = usagePulseURL(base: panelOrigin(host: "127.0.0.1", port: port)) else {
             throw UpdateError(message: "usage pulse URL could not be built")
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let session = URLSession(configuration: .ephemeral)
         defer { session.finishTasksAndInvalidate() }
         var summary: UsagePulseSummary?

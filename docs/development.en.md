@@ -151,3 +151,5 @@ Review the diff, links, code blocks, and language parity. Run checks relevant to
 ## Database upgrades
 
 Startup accepts the latest Elysia business schema 2 and log schema 1. Both files are validated before SQLite `VACUUM INTO` snapshots include committed WAL pages. Each database upgrades transactionally and passes an integrity check. A `.upgrade.json` journal beside the business database restores the complete backup pair after failure or interruption. Backup directories use mode 0700; database and configuration copies use 0600. Keep the original master key; credentials are not re-encrypted. Unknown and unversioned historical schemas are rejected. Stop other processes using either database during an upgrade.
+
+Columba has no panel login. Management requests validate local Host, Origin and browser fetch metadata; development uses ports 5273/5274. Inference still requires an API key.

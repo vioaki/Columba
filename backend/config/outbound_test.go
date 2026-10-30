@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/internal/outbound"
+	"github.com/bytedance/sonic"
 )
 
 // writeOutboundConfig 落一份 config.json 并 Load。

@@ -1,4 +1,3 @@
-import { getToken } from "../auth";
 import type { AgentStreamEvent } from "./types";
 
 /**
@@ -12,11 +11,10 @@ export async function streamAgentEvents(
   onEvent: (event: AgentStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const token = getToken();
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
 
   const response = await fetch(url, {
     method: "POST",

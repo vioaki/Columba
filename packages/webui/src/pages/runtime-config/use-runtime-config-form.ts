@@ -141,7 +141,6 @@ export function useRuntimeConfigForm(data: RuntimeConfig | undefined) {
   const isDirty = Boolean(form && pristine && (
     (['host', 'port', 'logLevel', 'logPersistLevel', 'logFormat', 'httpTimeout', 'databasePath', 'logDatabasePath', 'enablePprof'] as const)
       .some((key) => form[key] !== pristine[key]) ||
-    (form.panelAccessToken.trim() !== '' && form.panelAccessToken !== pristine.panelAccessToken) ||
     Object.keys(dirtyBlockPayload()).length > 0
   ))
 

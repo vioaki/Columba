@@ -55,7 +55,6 @@ export interface OutboundConfig {
 export interface RuntimeConfig {
   host: string
   port: number
-  panelAccessToken: string
   databasePath: string
   logDatabasePath: string
   logFormat: 'auto' | 'json' | 'console'
@@ -106,7 +105,6 @@ export interface RuntimeConfigUpdate {
   port?: number
   logLevel?: LogLevel
   httpTimeout?: number
-  panelAccessToken?: string
   databasePath?: string
   logDatabasePath?: string
   logFormat?: 'auto' | 'json' | 'console'

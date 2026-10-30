@@ -3,8 +3,6 @@ import * as Tabs from "@radix-ui/react-tabs";
 import {
   AlertTriangle,
   Database,
-  Eye,
-  EyeOff,
   HardDrive,
   Layers,
   RefreshCw,
@@ -98,7 +96,6 @@ export function RuntimeConfigPage() {
   } = useRuntimeConfigForm(data);
   const [saving, setSaving] = useState(false);
   const [restartNotice, setRestartNotice] = useState(false);
-  const [showToken, setShowToken] = useState(false);
   const [catalogRefreshing, setCatalogRefreshing] = useState(false);
   const { data: storage, error: storageError, mutate: refreshStorage } = useUsageStorage();
   const { data: maintenance, error: maintenanceError, mutate: refreshMaintenance } = useLogMaintenance();
@@ -229,9 +226,6 @@ export function RuntimeConfigPage() {
         logLevel: form.logLevel,
         httpTimeout: form.httpTimeout,
         // 留空 = 不修改现有令牌；提交空串会被后端拒绝（空令牌会锁死面板）。
-        panelAccessToken: form.panelAccessToken.trim()
-          ? form.panelAccessToken
-          : undefined,
         databasePath: form.databasePath,
         enablePprof: form.enablePprof,
         // 块级脏检查：未改过的块不发送，避免用旧快照覆盖并发改动。
@@ -254,7 +248,6 @@ export function RuntimeConfigPage() {
           invalid_port: ["basic", "runtime-port"],
           invalid_http_timeout: ["basic", "runtime-timeout"],
           invalid_database_path: ["basic", "runtime-database"],
-          invalid_panel_access_token: ["security", "runtime-token"],
           invalid_outbound: ["security", "runtime-outbound"],
           invalid_proxy_url: ["security", "runtime-proxy"],
           invalid_public_url: ["remote", "runtime-public-url"],
@@ -443,35 +436,6 @@ export function RuntimeConfigPage() {
               description="WebUI 面板口令与网络出站安全守卫"
             >
               <div className="space-y-1">
-                <SettingRow
-                  label="Panel Access Token"
-                  htmlFor="runtime-token"
-                  description="用于登录控制台与管理 API 的鉴权令牌；留空提交则保持原值"
-                >
-                  <div className="flex w-full sm:w-72 items-center gap-1.5">
-                    <Input id="runtime-token" aria-describedby="runtime-token-description"
-                      type={showToken ? "text" : "password"}
-                      value={form.panelAccessToken}
-                      placeholder="输入新令牌（留空不变）"
-                      className="font-mono text-xs"
-                      onChange={(e) => update("panelAccessToken", e.target.value)}
-                    />
-                    <Button
-                      variant="outline"
-                      size="iconSm"
-                      type="button"
-                      title={showToken ? "隐藏明文" : "显示明文"}
-                      aria-label={showToken ? "隐藏访问令牌明文" : "显示访问令牌明文"}
-                      onClick={() => setShowToken(!showToken)}
-                    >
-                      {showToken ? (
-                        <EyeOff className="h-3.5 w-3.5" />
-                      ) : (
-                        <Eye className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                </SettingRow>
 
                 <SettingRow
                   label="出站代理 URL（可选）"

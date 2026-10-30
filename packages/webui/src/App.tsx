@@ -1,11 +1,9 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { getToken, subscribeToken, syncCookieFromStorage } from './lib/auth'
 import { AppLayout } from './components/app-layout'
 
 // 页面按路由拆包：recharts 等重组件只随用到它的页面下载，
 // 登录页与首屏外壳保持轻量。
-const LoginPage = lazy(() => import('./pages/login').then((m) => ({ default: m.LoginPage })))
 const OverviewPage = lazy(() => import('./pages/overview').then((m) => ({ default: m.OverviewPage })))
 const SourcesPage = lazy(() => import('./pages/sources').then((m) => ({ default: m.SourcesPage })))
 const ProtocolDesignerPage = lazy(() =>
@@ -31,16 +29,6 @@ function BootFallback() {
   )
 }
 
-/** 订阅 token 变化，集中管理登录态。 */
-function useAuthState() {
-  const [token, setTokenState] = useState<string | null>(() => getToken())
-  useEffect(() => {
-    // 启动时按 localStorage 重建 cookie，确保 pprof 等浏览器导航请求能携带认证。
-    syncCookieFromStorage()
-    return subscribeToken(setTokenState)
-  }, [])
-  return token
-}
 
 /**
  * 登录后只预热高概率下一跳（总览之后常见的调用日志 / 模型源），避开图表
@@ -74,13 +62,11 @@ function usePreloadRoutes(enabled: boolean) {
 }
 
 export function App() {
-  const token = useAuthState()
-  usePreloadRoutes(!!token)
+  usePreloadRoutes(true)
 
   return (
     <HashRouter>
       <Suspense fallback={<BootFallback />}>
-        {token ? (
           <Routes>
             <Route element={<AppLayout />}>
               <Route path="/overview" element={<OverviewPage />} />
@@ -100,12 +86,6 @@ export function App() {
             </Route>
             <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>
-        ) : (
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        )}
       </Suspense>
     </HashRouter>
   )

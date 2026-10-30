@@ -1,4 +1,3 @@
-import { clearToken, getToken } from './auth'
 import type {
   ApiResult,
   UsageTrendPoint,
@@ -35,11 +34,6 @@ export class ApiError extends Error {
   }
 }
 
-/** 会话失效统一出口：清除本地令牌并抛 unauthorized（页面层订阅后踢回登录页）。 */
-function throwUnauthorized(): never {
-  clearToken()
-  throw new ApiError('unauthorized', '认证已失效，请重新登录', 401)
-}
 
 const ADMIN_BASE = '/api/admin'
 
@@ -76,9 +70,8 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const token = getToken()
+
   const headers: Record<string, string> = { ...options.headers }
-  if (token) headers.Authorization = `Bearer ${token}`
   if (options.body !== undefined || options.rawBody !== undefined) headers['Content-Type'] = 'application/json'
 
   let response: Response
@@ -96,7 +89,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (response.status === 401) {
-    throwUnauthorized()
+    throw new ApiError('forbidden', '本地接口拒绝访问', response.status)
   }
 
   let payload: ApiResult<T> | { error?: string } | null = null
@@ -125,28 +118,6 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   return payload as T
 }
 
-/** 用 panel token 校验登录：命中受保护端点即视为有效。
- * 失败时抛 ApiError 并区分令牌无效与服务异常，由登录页分流展示文案。 */
-export async function verifyToken(token: string): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch(`${ADMIN_BASE}/health`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(15_000),
-    })
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'TimeoutError') {
-      throw new ApiError('timeout', '连接后端超时，请检查网络与服务状态', 0)
-    }
-    throw new ApiError('network_error', '无法连接到后端，请检查网络与服务状态', 0)
-  }
-  if (response.status === 401) {
-    throw new ApiError('unauthorized', 'Token 无效，请确认与后端 config.json 中的 panelAccessToken 一致', 401)
-  }
-  if (!response.ok) {
-    throw new ApiError('http_error', `后端服务异常（HTTP ${response.status}），请检查服务状态后重试`, response.status)
-  }
-}
 
 interface ListEnvelope<T> {
   items: T[]
@@ -283,16 +254,15 @@ export const api = {
   /** 拉取某条记录的外置媒体文件（二进制）。<img> 无法附带 Bearer 头，
    * 前端经此函数取 blob 再 objectURL 渲染。 */
   usageAssetBlob: async (requestId: string, file: string): Promise<Blob> => {
-    const token = getToken()
+
     const headers: Record<string, string> = {}
-    if (token) headers.Authorization = `Bearer ${token}`
     const response = await fetch(
       buildUrl(`/usage/assets/${encodeURIComponent(requestId)}/${encodeURIComponent(file)}`),
       { headers },
     )
     // 与 request() 保持一致：会话失效时踢回登录页，而非仅报媒体获取失败。
     if (response.status === 401) {
-      throwUnauthorized()
+      throw new ApiError('forbidden', '本地接口拒绝访问', response.status)
     }
     if (!response.ok) {
       throw new ApiError('asset_fetch_failed', `媒体文件获取失败（${response.status}）`, response.status)

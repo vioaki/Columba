@@ -348,7 +348,7 @@ func TestRateLimitSettlesToActualOnSuccess(t *testing.T) {
 	}
 }
 
-// cookie 路径：前端 encodeURIComponent 写入、此处 QueryUnescape 还原。
+// Panel cookies never authorize inference requests.
 func TestExtractAccessToken(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -364,11 +364,11 @@ func TestExtractAccessToken(t *testing.T) {
 		r.URL.RawQuery = "key=qk"
 	}, "qk"}, {"cookie", func(r *http.Request) {
 		r.AddCookie(&http.Cookie{Name: "panel_access_token", Value: "ck123"})
-	}, "ck123"}, {"cookie encoded", func(r *http.Request) {
+	}, ""}, {"cookie encoded", func(r *http.Request) {
 		r.AddCookie(&http.Cookie{Name: "panel_access_token", Value: url.QueryEscape("面板 令牌/4+2==")})
-	}, "面板 令牌/4+2=="}, {"cookie invalid escape falls back", func(r *http.Request) {
+	}, ""}, {"cookie invalid escape ignored", func(r *http.Request) {
 		r.AddCookie(&http.Cookie{Name: "panel_access_token", Value: "%zz"})
-	}, "%zz"}, {"bearer beats cookie", func(r *http.Request) {
+	}, ""}, {"bearer beats cookie", func(r *http.Request) {
 		r.Header.Set("Authorization", "Bearer abc123")
 		r.AddCookie(&http.Cookie{Name: "panel_access_token", Value: "ck123"})
 	}, "abc123"}, {"none", func(r *http.Request) {

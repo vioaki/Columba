@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -37,18 +36,6 @@ func (s *Server) authMiddleware() app.HandlerFunc {
 		c.Set("elysiaKeyName", accessToken.Name)
 		c.Set("elysiaKeyHash", shortTokenHash(token))
 		c.Set("elysiaAllowedGroups", accessToken.AllowedGroups)
-		c.Next(ctx)
-	}
-}
-
-func (s *Server) dashboardAuthMiddleware() app.HandlerFunc {
-	return func(ctx context.Context, c *app.RequestContext) {
-		if !s.config.IsValidPanelAccessToken(extractAccessToken(c)) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, utils.H{
-				"error": "panel access token is not configured or invalid",
-			})
-			return
-		}
 		c.Next(ctx)
 	}
 }
@@ -99,13 +86,6 @@ func extractAccessToken(c *app.RequestContext) string {
 	}
 	if key := strings.TrimSpace(c.Query("key")); key != "" {
 		return key
-	}
-	// The WebUI writes encodeURIComponent values.
-	if cookie := string(r.Header.Cookie("panel_access_token")); cookie != "" {
-		if decoded, err := url.QueryUnescape(cookie); err == nil {
-			return strings.TrimSpace(decoded)
-		}
-		return strings.TrimSpace(cookie)
 	}
 	return ""
 }

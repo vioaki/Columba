@@ -38,9 +38,7 @@ func run() error {
 		return err
 	}
 	if created {
-		logging.Info().Str("path", *configPath).Msg("created default config with a generated panelAccessToken")
-		logging.Info().Msgf("Generated panelAccessToken: %s", cfg.GetPanelAccessToken())
-		logging.Info().Msgf("Please review %s and rotate the token before exposing the service.", *configPath)
+		logging.Info().Str("path", *configPath).Msg("created local configuration")
 	}
 	logging.Info().Str("component", "config").Msg("config loaded successfully")
 

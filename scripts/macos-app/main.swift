@@ -37,7 +37,6 @@ struct PanelConfig: Codable {
     var outbound: Outbound?
     var host: String = "127.0.0.1"
     var port: Int = 8765
-    var panelAccessToken: String = ""
     var databasePath: String = "columba.sqlite3"
     var logLevel: String = "info"
     var httpTimeout: Int = 120
@@ -52,7 +51,6 @@ struct PanelConfig: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         host = try container.decodeIfPresent(String.self, forKey: .host) ?? host
         port = try container.decodeIfPresent(Int.self, forKey: .port) ?? port
-        panelAccessToken = try container.decodeIfPresent(String.self, forKey: .panelAccessToken) ?? panelAccessToken
         databasePath = try container.decodeIfPresent(String.self, forKey: .databasePath) ?? databasePath
         logLevel = try container.decodeIfPresent(String.self, forKey: .logLevel) ?? logLevel
         httpTimeout = try container.decodeIfPresent(Int.self, forKey: .httpTimeout) ?? httpTimeout
@@ -70,13 +68,6 @@ struct ReleaseInfo {
 
 // MARK: - 工具函数
 
-func randomToken() throws -> String {
-    var bytes = [UInt8](repeating: 0, count: 24)
-    guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-        throw UpdateError(message: "无法生成面板访问令牌")
-    }
-    return "elysia-app-" + bytes.map { String(format: "%02x", $0) }.joined()
-}
 
 func portIsFree(_ port: Int, host: String = "127.0.0.1") -> Bool {
     guard (1...65535).contains(port) else { return false }
@@ -112,8 +103,7 @@ func loadOrCreateConfig() -> PanelConfig? {
     do {
         if !fm.fileExists(atPath: configPath) {
             try fm.createDirectory(atPath: dataDirPath, withIntermediateDirectories: true)
-            var config = PanelConfig()
-            config.panelAccessToken = try randomToken()
+            let config = PanelConfig()
             let data = try JSONEncoder().encode(config)
             try data.write(to: URL(fileURLWithPath: configPath), options: .atomic)
             try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: configPath)
@@ -739,7 +729,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         addAction(viewMenu, "在浏览器中打开面板", #selector(openPanelInBrowser), "b", [.command, .shift])
         addAction(viewMenu, "复制面板地址", #selector(copyPanelURL), "l", [.command, .shift])
         addAction(viewMenu, "复制 API 地址", #selector(copyAPIURL), "c", [.command, .option])
-        addAction(viewMenu, "复制面板访问令牌", #selector(copyPanelToken), "c", [.command, .option, .shift])
         addAction(viewMenu, "启动服务", #selector(restartBackend), "s", [.command, .option])
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
@@ -1056,8 +1045,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         menu.addItem(.separator())
         addAction(menu, "复制 API 地址", #selector(copyAPIURL), "c", [.command, .option])
             .image = NSImage(systemSymbolName: "link", accessibilityDescription: nil)
-        addAction(menu, "复制面板访问令牌", #selector(copyPanelToken), "c", [.command, .option, .shift])
-            .image = NSImage(systemSymbolName: "key", accessibilityDescription: nil)
 
         // —— 更新（单一动作入口，标题随 phase 变化） ——
         menu.addItem(.separator())
@@ -1191,7 +1178,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             return canRestartBackend
         case #selector(reloadPanel): return webView != nil && backendState == .running
         case #selector(openPanelInBrowser): return backendState == .running
-        case #selector(copyPanelToken): return !config.panelAccessToken.isEmpty
         case #selector(checkForUpdatesFromMenu):
             item.title = checkingUpdates ? "正在检查更新…" : "检查更新…"
             return !checkingUpdates && !updatePhase.busy && updatePhase != .readyToRelaunch
@@ -1226,7 +1212,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let now = Date()
         guard let url = usagePulseURL(base: apiBaseURL, now: now) else { return }
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(config.panelAccessToken)", forHTTPHeaderField: "Authorization")
         healthSession.dataTask(with: request) { [weak self] data, response, _ in
             guard (response as? HTTPURLResponse)?.statusCode == 200, let data,
                   let summary = parseUsagePulse(data) else { return }
@@ -1550,10 +1535,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSPasteboard.general.setString(apiBaseURL, forType: .string)
     }
 
-    @objc private func copyPanelToken() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(config.panelAccessToken, forType: .string)
-    }
 
     @objc private func openDataFolder() {
         NSWorkspace.shared.open(URL(fileURLWithPath: dataDirPath))

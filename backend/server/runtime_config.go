@@ -55,9 +55,7 @@ func applyRuntimeConfig(candidate *config.Config, payload runtimeConfigPayload) 
 	if payload.HTTPTimeout != nil {
 		candidate.SetHTTPTimeout(*payload.HTTPTimeout)
 	}
-	if payload.PanelAccessToken != nil {
-		candidate.SetPanelAccessToken(*payload.PanelAccessToken)
-	}
+
 	if payload.DatabasePath != nil {
 		candidate.SetDatabasePath(*payload.DatabasePath)
 	}

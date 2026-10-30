@@ -1,23 +1,13 @@
 package config
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"os"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/internal/atomicfile"
+	"github.com/bytedance/sonic"
 )
 
-const panelTokenRandomBytes = 32
-
-// EnsureConfig loads the config at path. If the file does not exist, it writes a
-// default config (with a randomly generated panelAccessToken) to path and loads
-// that instead. The bool result is true when a default config was created on
-// disk, false when an existing file was loaded. Parse errors and other non-
-// "not exist" failures are returned as-is and never trigger auto-creation — only
-// a genuinely missing file is self-bootstrapped, mirroring how GetDBEncryptionKey
-// auto-generates .master-key on first use.
+// EnsureConfig creates local defaults only when the configuration is missing.
 func EnsureConfig(path string) (*Config, bool, error) {
 	cfg, err := Load(path)
 	if err == nil {
@@ -27,8 +17,7 @@ func EnsureConfig(path string) (*Config, bool, error) {
 		return nil, false, err
 	}
 
-	token := generateRandomToken()
-	if err := writeDefaultConfig(path, token); err != nil {
+	if err := writeDefaultConfig(path); err != nil {
 		return nil, false, err
 	}
 
@@ -39,26 +28,10 @@ func EnsureConfig(path string) (*Config, bool, error) {
 	return cfg, true, nil
 }
 
-// generateRandomToken returns a fresh random panel access token of the form
-// "elysia-<43 url-safe base64 chars>" (32 random bytes). It is suitable as an
-// unguessable first-run credential that the operator should rotate later.
-func generateRandomToken() string {
-	raw := make([]byte, panelTokenRandomBytes)
-	_, _ = rand.Read(raw)
-	return "elysia-" + base64.RawURLEncoding.EncodeToString(raw)
-}
-
-// writeDefaultConfig writes a minimal bootstrap config to path, mirroring the
-// field set of config.json.example but with the provided token in place of the
-// insecure "change-me" placeholder. The file is written with 0o600 to protect the
-// freshly generated credential. logLifecycleVersion is stamped at birth so the
-// pristine default never triggers the (otherwise harmless) pre-log-lifecycle
-// backup on first load.
-func writeDefaultConfig(path, token string) error {
+func writeDefaultConfig(path string) error {
 	defaults := map[string]any{
 		"host":                "127.0.0.1",
 		"port":                8765,
-		"panelAccessToken":    token,
 		"databasePath":        "columba.sqlite3",
 		"logLevel":            "info",
 		"logFormat":           "auto",

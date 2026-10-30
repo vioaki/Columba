@@ -11,7 +11,7 @@ func TestLoadKeepsConfigurationsIndependent(t *testing.T) {
 	t.Parallel()
 	// Concurrent loaders must not share mutable configuration instances.
 	path := filepath.Join(t.TempDir(), "config.json")
-	if err := os.WriteFile(path, []byte(`{"host":"loaded"}`), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"host":"127.0.0.2"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	const count = 8
@@ -31,7 +31,7 @@ func TestLoadKeepsConfigurationsIndependent(t *testing.T) {
 		if errors[i] != nil {
 			t.Fatal(errors[i])
 		}
-		if cfg == nil || seen[cfg] || cfg.Host != "loaded" {
+		if cfg == nil || seen[cfg] || cfg.Host != "127.0.0.2" {
 			t.Fatalf("load %d did not return an independent configuration: %+v", i, cfg)
 		}
 		seen[cfg] = true
