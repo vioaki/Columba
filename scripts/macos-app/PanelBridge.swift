@@ -5,18 +5,12 @@ struct PanelMessage: Codable {
     var type: String
     var action: String? = nil
     var generation: String? = nil
-    var updateEnabled: Bool? = nil
     var backendState: String? = nil
     var host: String? = nil
     var port: Int? = nil
     var config: PanelConfig? = nil
     var restartCount: Int? = nil
     var error: String? = nil
-    var updatePhase: String? = nil
-    var updateMessage: String? = nil
-    var updateDetail: String? = nil
-    var updateFraction: Double? = nil
-    var capsuleVisible: Bool? = nil
 }
 
 /// One JSON message per line. Each endpoint owns its pipe handles.

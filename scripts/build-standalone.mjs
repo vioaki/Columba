@@ -2,11 +2,10 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync,
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { copySnapshotPlan, readSnapshotPlan } from './source-snapshot.mjs'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
-// 后端版本标识：取最近 git tag（publish-npm-binaries 的 worktree HEAD 即发布 tag），
+// 后端版本标识取最近 git tag；
 // 未打 tag 的开发构建回落 dev；经 ldflags 注入 server.AppVersion，/health 上报。
 function resolveAppVersion() {
   const result = spawnSync('git', ['describe', '--tags', '--abbrev=0'], { cwd: repoRoot, encoding: 'utf8' })
@@ -24,7 +23,7 @@ const webuiDist = join(repoRoot, 'packages', 'webui', 'dist')
 const embeddedWebuiDist = join(backendDir, 'webui', 'dist')
 
 // 与主机无关，六个目标全部交叉编译。darwin 二进制同时是 macOS DMG 的组装输入；
-// DMG 只能在 macOS 上组装，发布时由 CI 产出（本地可用 npm run build:macos-app）。
+// DMG 只能在 macOS 上组装（npm run build:macos-app）。
 const targets = [
   { goos: 'windows', goarch: 'amd64', output: 'columba-windows-amd64.exe' },
   { goos: 'windows', goarch: 'arm64', output: 'columba-windows-arm64.exe' },
@@ -93,18 +92,6 @@ cpSync(webuiDist, embeddedWebuiDist, { recursive: true })
 stripTrailingWhitespace(embeddedWebuiDist)
 // 恢复 embed 占位文件：go:embed all:dist 依赖目录非空，该文件被 git 跟踪。
 writeFileSync(join(embeddedWebuiDist, '.gitkeep'), '')
-
-// 源码快照：backend 的 Go 与预置 JSON、webui 的 src 同步进 embed 目录，
-// 随二进制分发给 elysia code 命令（agent/MCP 查看引擎实现与预置原文）。
-// 排除 snapshot 自身（防递归嵌套）与 webui 构建产物（dist 不算源码）。
-log('Syncing source snapshot for elysia code')
-const snapshotRoot = join(repoRoot, 'backend', 'server', '_snapshot')
-const snapshotKeep = join(snapshotRoot, 'README.md')
-const snapshotKeepContent = readFileSync(snapshotKeep, 'utf8')
-const snapshotPlan = readSnapshotPlan(repoRoot)
-resetBuildDirectory(snapshotRoot)
-copySnapshotPlan(snapshotPlan, snapshotRoot)
-writeFileSync(snapshotKeep, snapshotKeepContent)
 
 log('Preparing standalone release directory')
 resetBuildDirectory(releaseDir)

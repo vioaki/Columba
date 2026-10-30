@@ -9,10 +9,9 @@ enum ResourceTests {
             try await openPanel(delegate)
             weak var oldWindow = delegate.window
             weak var oldWebView = delegate.webView
-            weak var oldCapsule = delegate.updateCapsule
             delegate.window.close()
-            try NativeTests.expect(await NativeTests.wait { oldWindow == nil && oldWebView == nil && oldCapsule == nil },
-                                   "window, WebView and update capsule release after close cycle \(cycle)")
+            try NativeTests.expect(await NativeTests.wait { oldWindow == nil && oldWebView == nil },
+                                   "window and WebView release after close cycle \(cycle)")
         }
 
         try await openPanel(delegate)
@@ -136,36 +135,19 @@ enum ResourceTests {
         try Data("keep".utf8).write(to: destination)
         delegate.resolvePanelDestinationForTests(destination)
         let temporary = delegate.panelTemporaryDestinationForTests!
-        delegate.downloadForTests(from: URL(string: base + "/slow")!)
         try NativeTests.expect(await NativeTests.wait {
             let size = (try? FileManager.default.attributesOfItem(atPath: temporary.path)[.size] as? Int) ?? 0
-            return size > 0 && (delegate.updateTask?.countOfBytesReceived ?? 0) > 0
-        }, "quit regression starts both real WebKit export and update downloads")
+            return size > 0
+        }, "quit regression starts a real WebKit export")
         try NativeTests.expect(delegate.applicationShouldTerminate(NSApp) == .terminateLater,
                                "quit waits for download cleanup even when no backend is owned")
         try NativeTests.expect(await NativeTests.wait { delegate.terminationRepliesForTests == 1 },
                                "download cancellation replies to AppKit once all owned resources are released")
-        try NativeTests.expect(delegate.panelDownloadCountForTests == 0 && delegate.updateTask == nil
-                               && delegate.updateDownloadDelegate == nil && delegate.updateSession == nil,
-                               "termination releases WebKit and URLSession download ownership together")
+        try NativeTests.expect(delegate.panelDownloadCountForTests == 0,
+                               "termination releases WebKit download ownership")
         try NativeTests.expect(!FileManager.default.fileExists(atPath: temporary.path)
                                && (try Data(contentsOf: destination)) == Data("keep".utf8),
                                "termination removes the partial export before replying and preserves its destination")
 
-        let finished = AppDelegate()
-        finished.config = owner.config
-        var copiedDMG: URL?
-        defer { if let copiedDMG { try? FileManager.default.removeItem(at: copiedDMG) } }
-        var reply: NSApplication.TerminateReply?
-        finished.downloadForTests(from: URL(string: base + "/download")!)
-        finished.updateDownloadDelegate?.onMovedForTests = { [weak finished] file in
-            copiedDMG = file
-            reply = finished?.applicationShouldTerminate(NSApp)
-        }
-        try NativeTests.expect(await NativeTests.wait { finished.terminationRepliesForTests == 1 },
-                               "quit during a real URLSession moved-file callback waits for terminal cleanup")
-        try NativeTests.expect(reply == .terminateLater && copiedDMG != nil
-                               && !FileManager.default.fileExists(atPath: copiedDMG!.path),
-                               "the moved update DMG is reclaimed before the termination reply")
     }
 }

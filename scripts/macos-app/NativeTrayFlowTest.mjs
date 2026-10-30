@@ -125,6 +125,8 @@ export async function runNativeTrayFlow({ app, temp, bundleID, previewOnly }) {
         await wait('persistent localStorage must increment across fresh UI processes', () =>
           Number(read(join(data, 'tray-open-count.txt'))) === persistentOpenCount + 1)
         persistentOpenCount += 1
+        // WebKit batches synthetic localStorage writes; exercise persisted preferences before forced exits.
+        await pause(1500)
       }
       return { uiPID, services }
     }
@@ -196,6 +198,7 @@ export async function runNativeTrayFlow({ app, temp, bundleID, previewOnly }) {
       supervisor: starter.pid, allSupervisors: [...supervisorPIDs], backend: backendPID,
       ui: [...uiPIDs], webKit: [...servicePIDs], duplicateShells: [...duplicatePIDs],
       lastUI: read(join(data, 'tray-ui.pid')), readyUI: read(join(data, 'tray-ui-ready.pid')),
+      stored: read(join(data, 'tray-open-count.txt')), expected: persistentOpenCount + 1, port: JSON.parse(read(join(data, 'config.json'))).port,
     })
     throw error
   } finally {

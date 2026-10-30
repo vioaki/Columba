@@ -1,10 +1,9 @@
 import Cocoa
-import CryptoKit
 import ServiceManagement
 import UserNotifications
 import os
 
-struct UpdateError: LocalizedError {
+struct AppError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
 }
@@ -24,7 +23,7 @@ enum BackendState: String {
     case failed
 }
 
-// Upgrade-time database/protocol initialization runs before HTTP starts listening.
+// Upgrade-time database initialization runs before HTTP starts listening.
 let backendStartupTimeout: TimeInterval = 180
 
 /// 保存窗口位置之外的原生偏好；WebUI 登录态由 WebKit 数据存储管理。
@@ -91,7 +90,7 @@ final class LaunchAtLoginManager {
           /bin/launchctl remove "$3"
         fi
         """
-        return ["Label": label, "ProgramArguments": ["/bin/sh", "-c", script, "elysia-login", bundlePath, plistPath, label],
+        return ["Label": label, "ProgramArguments": ["/bin/sh", "-c", script, "columba-login", bundlePath, plistPath, label],
                 "RunAtLoad": true, "KeepAlive": false, "ProcessType": "Interactive"]
     }
 
@@ -150,7 +149,7 @@ final class LaunchAtLoginManager {
     }
 }
 
-/// 同步工具只用于短小本地命令或更新后台队列；参数不经过 shell 插值。
+/// 同步工具只用于短小本地命令；参数不经过 shell 插值。
 func runSystemTool(_ path: String, _ arguments: [String], timeout: TimeInterval = 30) throws {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: path)
@@ -167,10 +166,10 @@ func runSystemTool(_ path: String, _ arguments: [String], timeout: TimeInterval 
         if process.isRunning { kill(process.processIdentifier, SIGKILL) }
         let killDeadline = ProcessInfo.processInfo.systemUptime + 2
         while process.isRunning && ProcessInfo.processInfo.systemUptime < killDeadline { usleep(100_000) }
-        throw UpdateError(message: "\(URL(fileURLWithPath: path).lastPathComponent) 执行超时")
+        throw AppError(message: "\(URL(fileURLWithPath: path).lastPathComponent) 执行超时")
     }
     guard process.terminationStatus == 0 else {
-        throw UpdateError(message: "\(URL(fileURLWithPath: path).lastPathComponent) 执行失败（\(process.terminationStatus)）")
+        throw AppError(message: "\(URL(fileURLWithPath: path).lastPathComponent) 执行失败（\(process.terminationStatus)）")
     }
 }
 
@@ -254,119 +253,10 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 let appLogger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "local.columba.app", category: "app")
 
 // An explicit HTTP proxy is shared by release checks and downloads; local API sessions stay direct.
-struct UpdateProxy {
-    let url: URLComponents?
-    var host: String? { url?.host?.trimmingCharacters(in: CharacterSet(charactersIn: "[]")) }
-
-    init(_ raw: String?) throws {
-        let raw = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if raw.isEmpty { url = nil; return }
-        guard let parsed = URLComponents(string: raw), parsed.scheme == "http",
-              let host = parsed.host, !host.isEmpty, !host.contains("%"),
-              host.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
-              parsed.path.isEmpty || parsed.path == "/", parsed.query == nil, parsed.fragment == nil,
-              (1...65535).contains(parsed.port ?? 80), parsed.url != nil, !raw.split(separator: "/", omittingEmptySubsequences: true)[1].hasSuffix(":") else {
-            throw UpdateError(message: "代理 URL 无效，请填写 http://127.0.0.1:7890 格式的 HTTP 代理地址。")
-        }
-        url = parsed
-    }
-
-    func configuration() -> URLSessionConfiguration {
-        let configuration = URLSessionConfiguration.ephemeral
-        if let url {
-            configuration.connectionProxyDictionary = [
-                "HTTPEnable": 1, "HTTPProxy": host!, "HTTPPort": url.port ?? 80,
-                "HTTPSEnable": 1, "HTTPSProxy": host!, "HTTPSPort": url.port ?? 80,
-            ]
-        }
-        return configuration
-    }
-
-    func redact(_ text: String) -> String {
-        guard let url else { return text }
-        var text = text
-        for secret in [url.percentEncodedUser, url.percentEncodedPassword, url.user, url.password].compactMap({ $0 }).filter({ !$0.isEmpty }).sorted(by: { $0.count > $1.count }) {
-            text = text.replacingOccurrences(of: secret, with: "***")
-        }
-        return text
-    }
-}
-
-class UpdateProxyDelegate: NSObject, URLSessionTaskDelegate {
-    let proxy: UpdateProxy?
-    init(proxy: UpdateProxy? = nil) { self.proxy = proxy }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge,
-                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        let space = challenge.protectionSpace
-        guard space.isProxy(), let proxy = proxy?.url,
-              space.host == self.proxy?.host, space.port == (proxy.port ?? 80),
-              let user = proxy.user, challenge.previousFailureCount == 0,
-              [NSURLAuthenticationMethodHTTPBasic, NSURLAuthenticationMethodHTTPDigest].contains(space.authenticationMethod) else {
-            completionHandler(.performDefaultHandling, nil)
-            return
-        }
-        completionHandler(.useCredential, URLCredential(user: user, password: proxy.password ?? "", persistence: .forSession))
-    }
-}
-
-final class UpdateDownloadDelegate: UpdateProxyDelegate, URLSessionDownloadDelegate {
-    let onProgress: (Int64, Int64) -> Void
-    let onFinished: (URL?, Error?) -> Void
-    private var downloadedURL: URL?
-    private var fileError: Error?
-    #if NATIVE_TESTS
-    var onMovedForTests: ((URL) -> Void)?
-    #endif
-
-    init(proxy: UpdateProxy? = nil, onProgress: @escaping (Int64, Int64) -> Void,
-         onFinished: @escaping (URL?, Error?) -> Void) {
-        self.onProgress = onProgress
-        self.onFinished = onFinished
-        super.init(proxy: proxy)
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
-                    totalBytesExpectedToWrite: Int64) {
-        onProgress(totalBytesWritten, totalBytesExpectedToWrite)
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didFinishDownloadingTo location: URL) {
-        guard (downloadTask.response as? HTTPURLResponse)?.statusCode == 200 else {
-            fileError = UpdateError(message: "下载服务器未返回有效文件")
-            return
-        }
-        let target = FileManager.default.temporaryDirectory.appendingPathComponent("elysia-update-\(UUID().uuidString).dmg")
-        do {
-            try FileManager.default.moveItem(at: location, to: target)
-            downloadedURL = target
-            #if NATIVE_TESTS
-            onMovedForTests?(target)
-            #endif
-        } catch {
-            fileError = error
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask,
-                    didCompleteWithError error: Error?) {
-        onFinished(downloadedURL, error ?? fileError)
-    }
-
-    /// Final bounded-exit cleanup owns only the file this delegate moved out of URLSession.
-    func discardDownloadedFile() {
-        if let downloadedURL { try? FileManager.default.removeItem(at: downloadedURL) }
-        downloadedURL = nil
-    }
-}
 
 
-enum UpdatePhase: String {
-    case idle, checking, available, downloading, installing, failed, readyToRelaunch
-    var busy: Bool { self == .downloading || self == .installing }
-}
+
+
 
 func panelOrigin(host: String, port: Int) -> String {
     let local = host == "0.0.0.0" ? "127.0.0.1" : (host == "::" || host == "[::]" ? "::1" : host)
@@ -458,299 +348,10 @@ func formatTokenCount(_ tokens: Int) -> String {
 func persistPort(_ port: Int, at url: URL) throws {
     let data = try Data(contentsOf: url)
     guard var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-        throw UpdateError(message: "配置文件必须是 JSON 对象")
+        throw AppError(message: "配置文件必须是 JSON 对象")
     }
     let permissions = try FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] ?? 0o600
     object["port"] = port
     try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]).write(to: url, options: .atomic)
     try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path)
-}
-
-struct UpdateInstaller {
-    static let launchTimeout: TimeInterval = backendStartupTimeout + 30
-    private static let helperFlag = "--update-helper"
-    private static let stagedFlag = "--staged"
-    private static let currentFlag = "--current"
-    private static let parentPIDFlag = "--parent-pid"
-    private static let backgroundFlag = "--background"
-    private static let relaunchFlag = "--relaunch"
-    private static let ackFlag = "--update-ack"
-
-    static func acknowledgementURL(for staged: URL) -> URL {
-        staged.deletingLastPathComponent().appendingPathComponent(".Columba-update-ack")
-    }
-
-    static func helperArguments(staged: URL, current: URL, parentPID: Int32, background: Bool) -> [String] {
-        [helperFlag, stagedFlag, staged.path, currentFlag, current.path,
-         parentPIDFlag, String(parentPID), background ? backgroundFlag : relaunchFlag,
-         ackFlag, acknowledgementURL(for: staged).path]
-    }
-
-    /// Copy outside the app bundle: the helper must survive both the old app's
-    /// exit and the staged bundle's rename. Paths are argv values, never shell code.
-    @discardableResult
-    static func startHelper(staged: URL, current: URL, parentPID: Int32, background: Bool) throws -> Process {
-        let manager = FileManager.default
-        let helper = staged.deletingLastPathComponent().appendingPathComponent(".Columba-update-helper-\(UUID().uuidString)")
-        let source = current.appendingPathComponent("Contents/MacOS/Columba")
-        guard manager.isExecutableFile(atPath: source.path) else {
-            throw UpdateError(message: "当前应用缺少可执行的更新辅助程序")
-        }
-        do {
-            try manager.copyItem(at: source, to: helper)
-            try manager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-            let process = Process()
-            process.executableURL = helper
-            process.arguments = helperArguments(staged: staged, current: current, parentPID: parentPID, background: background)
-            let output = try helperOutput()
-            defer { try? output.close() }
-            process.standardOutput = output
-            process.standardError = output
-            try process.run()
-            return process
-        } catch {
-            try? manager.removeItem(at: helper)
-            throw error
-        }
-    }
-
-    static func acknowledgeLaunch(at url: URL) throws {
-        try Data("\(ProcessInfo.processInfo.processIdentifier)\n".utf8).write(to: url, options: .atomic)
-    }
-
-    static func acknowledgementURL(arguments: [String]) -> URL? {
-        value(arguments, ackFlag).map { URL(fileURLWithPath: $0) }
-    }
-
-    /// The backup belongs to this transaction until the new shell acknowledges
-    /// backend readiness. Failed rollback leaves recoverable bundles on disk.
-    static func runHelper(arguments: [String], parentExitTimeout: TimeInterval = 18,
-                          launchTimeout: TimeInterval = UpdateInstaller.launchTimeout, childExitTimeout: TimeInterval = 18) throws {
-        guard let staged = value(arguments, stagedFlag), staged.hasPrefix("/"),
-              let current = value(arguments, currentFlag), current.hasPrefix("/"),
-              let parent = Int32(value(arguments, parentPIDFlag) ?? ""), parent > 1,
-              let ack = acknowledgementURL(arguments: arguments),
-              arguments.contains(backgroundFlag) || arguments.contains(relaunchFlag) else {
-            throw UpdateError(message: "更新辅助程序参数不完整")
-        }
-        let stagedURL = URL(fileURLWithPath: staged).standardizedFileURL
-        let currentURL = URL(fileURLWithPath: current).standardizedFileURL
-        let staging = stagedURL.deletingLastPathComponent()
-        guard staging.deletingLastPathComponent() == currentURL.deletingLastPathComponent(),
-              staging.lastPathComponent.hasPrefix(".Columba-update-"),
-              stagedURL.lastPathComponent == "Columba.app",
-              ack.standardizedFileURL == acknowledgementURL(for: stagedURL) else {
-            throw UpdateError(message: "更新暂存路径不合法")
-        }
-        let manager = FileManager.default
-        let output = try helperOutput()
-        defer { try? output.close() }
-        let helperURL = URL(fileURLWithPath: CommandLine.arguments.first ?? "").standardizedFileURL
-        defer {
-            try? manager.removeItem(at: ack)
-            if helperURL.deletingLastPathComponent() == staging && helperURL.lastPathComponent.hasPrefix(".Columba-update-helper-") {
-                try? manager.removeItem(at: helperURL)
-            }
-        }
-        // Remove a stale acknowledgement before launching, and still require the
-        // PID inside the acknowledgement to match our exact new child.
-        try? manager.removeItem(at: ack)
-        do { try waitForProcessExit(parent, timeout: parentExitTimeout) }
-        catch {
-            // No rename has happened yet; a failed handoff must not strand the
-            // staged app and helper after the old shell already relinquished them.
-            try? manager.removeItem(at: staging)
-            throw error
-        }
-
-        var backup: URL?
-        var child: Process?
-        let mode = arguments.contains(backgroundFlag) ? backgroundFlag : relaunchFlag
-        do {
-            backup = try replace(staged: stagedURL, current: currentURL)
-            let launch = try launchApp(currentURL, arguments: [mode, ackFlag, ack.path], output: output)
-            child = launch
-            try waitForLaunch(child: launch, ack: ack, timeout: launchTimeout)
-            if let backup { try? manager.removeItem(at: backup) }
-            try? manager.removeItem(at: staging)
-            print("Update committed after readiness acknowledgement from PID \(launch.processIdentifier)")
-        } catch {
-            let failure = error
-            if let child {
-                do { try stopChild(child, timeout: childExitTimeout) }
-                catch { throw UpdateError(message: "\(error.localizedDescription) 旧版本备份：\(backup?.path ?? currentURL.path)") }
-            }
-            if let backup {
-                // Move the failed new app aside before restoring the old one.
-                // Never delete the only current bundle when an earlier rename failed.
-                do {
-                    try manager.moveItem(at: currentURL, to: stagedURL)
-                    do { try manager.moveItem(at: backup, to: currentURL) }
-                    catch {
-                        try? manager.moveItem(at: stagedURL, to: currentURL)
-                        throw error
-                    }
-                } catch {
-                    throw UpdateError(message: "更新失败且无法回滚，旧版本保留在 \(backup.path)：\(error.localizedDescription)")
-                }
-            }
-            do { _ = try launchApp(currentURL, arguments: [mode], output: output) }
-            catch {
-                let recoveryPath = backup.flatMap { manager.fileExists(atPath: $0.path) ? $0.path : nil } ?? currentURL.path
-                throw UpdateError(message: "更新失败，无法重新启动旧版本。应用或可恢复备份位置：\(recoveryPath)。原错误：\(failure.localizedDescription)。启动错误：\(error.localizedDescription)")
-            }
-            try? manager.removeItem(at: staging)
-            throw UpdateError(message: "更新失败，已恢复并启动旧版本：\(failure.localizedDescription)")
-        }
-    }
-
-    private static func helperOutput() throws -> FileHandle {
-        let manager = FileManager.default
-        let directory = URL(fileURLWithPath: dataDirPath)
-        try manager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let log = directory.appendingPathComponent("update.log")
-        if !manager.fileExists(atPath: log.path) { manager.createFile(atPath: log.path, contents: nil) }
-        try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: log.path)
-        let handle = try FileHandle(forWritingTo: log)
-        do { try handle.seekToEnd(); return handle }
-        catch { try? handle.close(); throw error }
-    }
-
-    private static func launchApp(_ app: URL, arguments: [String], output: FileHandle) throws -> Process {
-        let process = Process()
-        process.executableURL = app.appendingPathComponent("Contents/MacOS/Columba")
-        process.arguments = arguments
-        process.standardOutput = output
-        process.standardError = output
-        try process.run()
-        return process
-    }
-
-    private static func value(_ arguments: [String], _ flag: String) -> String? {
-        guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
-        return arguments[index + 1]
-    }
-
-    private static func waitForProcessExit(_ pid: Int32, timeout: TimeInterval) throws {
-        let deadline = ProcessInfo.processInfo.systemUptime + timeout
-        while kill(pid, 0) == 0 && ProcessInfo.processInfo.systemUptime < deadline { usleep(100_000) }
-        guard kill(pid, 0) != 0 else { throw UpdateError(message: "旧版本未能在期限内退出，当前应用未更改。") }
-    }
-
-    private static func stopChild(_ child: Process, timeout: TimeInterval) throws {
-        guard child.isRunning else { return }
-        child.terminate()
-        var deadline = ProcessInfo.processInfo.systemUptime + timeout
-        while child.isRunning && ProcessInfo.processInfo.systemUptime < deadline { usleep(100_000) }
-        if child.isRunning { kill(child.processIdentifier, SIGKILL) }
-        deadline = ProcessInfo.processInfo.systemUptime + 2
-        while child.isRunning && ProcessInfo.processInfo.systemUptime < deadline { usleep(100_000) }
-        guard !child.isRunning else { throw UpdateError(message: "新版进程无法停止，旧版本备份已保留，请查看 update.log。") }
-    }
-
-    private static func waitForLaunch(child: Process, ack: URL, timeout: TimeInterval) throws {
-        let deadline = ProcessInfo.processInfo.systemUptime + timeout
-        while ProcessInfo.processInfo.systemUptime < deadline {
-            guard child.isRunning else { throw UpdateError(message: "新版进程提前退出") }
-            if let text = try? String(contentsOf: ack, encoding: .utf8),
-               Int32(text.trimmingCharacters(in: .whitespacesAndNewlines)) == child.processIdentifier,
-               child.isRunning { return }
-            usleep(100_000)
-        }
-        throw UpdateError(message: "新版服务或面板未在期限内就绪")
-    }
-
-    static func validateArchitectures(at file: URL) throws {
-        // CoreFoundation inspects Mach-O files without invoking Xcode's lipo shim.
-        let architectures = CFBundleCopyExecutableArchitecturesForURL(file as CFURL) as? [Int] ?? []
-        guard architectures.contains(Int(kCFBundleExecutableArchitectureARM64)),
-              architectures.contains(Int(kCFBundleExecutableArchitectureX86_64)) else {
-            throw UpdateError(message: "更新包中的 \(file.lastPathComponent) 必须同时包含 arm64 和 x86_64 架构")
-        }
-    }
-
-    static func validateDigest(_ digest: String) throws -> String {
-        let expected = (digest.hasPrefix("sha256:") ? String(digest.dropFirst(7)) : digest).lowercased()
-        guard expected.count == 64, expected.allSatisfy({ $0.isHexDigit && $0.isASCII }) else {
-            throw UpdateError(message: "发布方未提供有效的 DMG sha256 摘要，已取消更新")
-        }
-        return expected
-    }
-
-    static func verify(_ file: URL, digest: String) throws {
-        let expected = try validateDigest(digest)
-        let handle = try FileHandle(forReadingFrom: file)
-        defer { try? handle.close() }
-        var hasher = SHA256()
-        while let data = try handle.read(upToCount: 1 << 20), !data.isEmpty { hasher.update(data: data) }
-        let actual = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-        guard expected == actual else { throw UpdateError(message: "sha256 校验不一致，当前版本未更改。") }
-    }
-
-    /// The caller keeps this backup until the new app acknowledges readiness.
-    @discardableResult
-    static func replace(staged: URL, current: URL, move: (URL, URL) throws -> Void = { try FileManager.default.moveItem(at: $0, to: $1) }) throws -> URL {
-        let manager = FileManager.default
-        let backup = current.deletingLastPathComponent().appendingPathComponent(".Columba-backup-\(UUID().uuidString)")
-        try move(current, backup)
-        do { try move(staged, current) }
-        catch {
-            do { try manager.moveItem(at: backup, to: current) }
-            catch { throw UpdateError(message: "更新替换与回滚均失败，旧版本保留在 \(backup.path)。") }
-            throw UpdateError(message: "无法替换应用包，已恢复旧版本。请检查应用目录的写入权限。")
-        }
-        return backup
-    }
-
-    static func extractApp(fromDMG dmg: URL, beside current: URL) throws -> URL {
-        let manager = FileManager.default
-        try runSystemTool("/usr/bin/hdiutil", ["verify", dmg.path], timeout: 120)
-        let mount = manager.temporaryDirectory.appendingPathComponent("elysia-dmg-\(UUID().uuidString)")
-        try manager.createDirectory(at: mount, withIntermediateDirectories: false)
-        var mounted = false
-        var attachAttempted = false
-        defer {
-            // attach can mount a volume before reporting an error or timing out.
-            // Always attempt cleanup after an attach attempt, without recursively
-            // deleting anything beneath a possibly still mounted volume.
-            if mounted || attachAttempted {
-                do { try detach(mount) }
-                catch { appLogger.error("Update volume cleanup failed: \(mount.path, privacy: .public); \(error.localizedDescription, privacy: .public)") }
-            }
-            // 挂载卷不递归删除；detach 失败时留给系统清理。
-            if (try? manager.contentsOfDirectory(atPath: mount.path).isEmpty) == true { try? manager.removeItem(at: mount) }
-        }
-        attachAttempted = true
-        try runSystemTool("/usr/bin/hdiutil", ["attach", "-nobrowse", "-readonly", "-mountpoint", mount.path, dmg.path], timeout: 120)
-        mounted = true
-        let app = mount.appendingPathComponent("Columba.app")
-        guard let bundle = Bundle(url: app), bundle.bundleIdentifier == Bundle.main.bundleIdentifier else {
-            throw UpdateError(message: "DMG 中的应用标识不匹配")
-        }
-        for executable in ["Columba", "columba"] {
-            let path = app.appendingPathComponent("Contents/MacOS/\(executable)").path
-            guard manager.isExecutableFile(atPath: path) else { throw UpdateError(message: "更新包缺少 \(executable)") }
-            try validateArchitectures(at: URL(fileURLWithPath: path))
-        }
-        try runSystemTool("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
-        let staging = current.deletingLastPathComponent().appendingPathComponent(".Columba-update-\(UUID().uuidString)")
-        try manager.createDirectory(at: staging, withIntermediateDirectories: false)
-        do {
-            let target = staging.appendingPathComponent("Columba.app")
-            try manager.copyItem(at: app, to: target)
-            try runSystemTool("/usr/bin/codesign", ["--verify", "--deep", "--strict", target.path])
-            try detach(mount)
-            mounted = false
-            attachAttempted = false
-            return target
-        } catch {
-            try? manager.removeItem(at: staging)
-            throw error
-        }
-    }
-
-    private static func detach(_ mount: URL) throws {
-        do { try runSystemTool("/usr/bin/hdiutil", ["detach", mount.path, "-quiet"], timeout: 10) }
-        catch { try runSystemTool("/usr/bin/hdiutil", ["detach", mount.path, "-force", "-quiet"], timeout: 10) }
-    }
 }

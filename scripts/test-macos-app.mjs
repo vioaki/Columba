@@ -5,14 +5,13 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { runNativeUpdateFlow } from './macos-app/NativeUpdateFlowTest.mjs'
 import { runNativeTrayFlow } from './macos-app/NativeTrayFlowTest.mjs'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const sourceRoot = join(repo, 'scripts', 'macos-app')
-const temp = mkdtempSync(join(tmpdir(), 'elysia-native-tests-'))
+const temp = mkdtempSync(join(tmpdir(), 'columba-native-tests-'))
 const source = join(temp, 'source')
-const app = join(temp, 'ElysiaNativeTests.app')
+const app = join(temp, 'ColumbaNativeTests.app')
 const macos = join(app, 'Contents', 'MacOS')
 const data = join(temp, 'data')
 const previewOnly = process.argv.includes('--panel')
@@ -25,33 +24,20 @@ try {
   cpSync(sourceRoot, source, { recursive: true })
   mkdirSync(macos, { recursive: true })
   mkdirSync(data)
-  if (!previewOnly) {
-    writeFileSync(join(data, 'proxy-cert.cnf'), '[req]\ndistinguished_name=dn\nx509_extensions=ext\nprompt=no\n[dn]\nCN=proxy-target.invalid\n[ext]\nsubjectAltName=DNS:proxy-target.invalid\nbasicConstraints=critical,CA:TRUE\nextendedKeyUsage=serverAuth\n')
-    run('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-config', join(data, 'proxy-cert.cnf'), '-keyout', join(data, 'proxy-key.pem'), '-out', join(data, 'proxy-cert.pem')], { stdio: 'ignore' })
-    run('openssl', ['x509', '-in', join(data, 'proxy-cert.pem'), '-outform', 'der', '-out', join(data, 'proxy-cert.der')])
-    for (const arch of ['arm64', 'x86_64']) {
-      run('xcrun', ['--sdk', 'macosx', 'clang', '-target', `${arch}-apple-macos12.0`, '-x', 'c', '-', '-o', join(data, `fixture-${arch}`)], {
-        input: 'int main(void) { return 0; }\n', stdio: ['pipe', 'inherit', 'inherit'],
-      })
-    }
-    run('xcrun', ['lipo', '-create', join(data, 'fixture-arm64'), join(data, 'fixture-x86_64'), '-output', join(data, 'fixture-universal')])
-  }
   writeFileSync(join(app, 'Contents', 'Info.plist'), `<?xml version="1.0"?><plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>${bundleID}</string>
   <key>CFBundleExecutable</key><string>Columba</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/>
-  <key>NSExceptionDomains</key><dict><key>proxy-target.invalid</key><dict><key>NSExceptionAllowsInsecureHTTPLoads</key><true/></dict></dict>
   </dict>
   </dict></plist>`)
   cpSync(previewOnly ? join(repo, 'dist', 'standalone', 'Columba.app', 'Contents', 'MacOS', 'columba-server') : join(source, 'BackendFixture.py'), join(macos, 'columba-server'))
   chmodSync(join(macos, 'columba-server'), 0o755)
   run('xcrun', ['--sdk', 'macosx', 'swiftc', '-D', 'NATIVE_TESTS', '-target', `${process.arch === 'arm64' ? 'arm64' : 'x86_64'}-apple-macos12.0`,
-    '-o', join(macos, 'Columba'), join(source, 'NativeTests.swift'), join(source, 'UpdateTests.swift'), join(source, 'ResourceTests.swift'), join(source, 'LifecycleTests.swift'), ...nativeAppSources(source)])
+    '-o', join(macos, 'Columba'), join(source, 'NativeTests.swift'), join(source, 'ResourceTests.swift'), join(source, 'LifecycleTests.swift'), ...nativeAppSources(source)])
   run('codesign', ['--force', '--sign', '-', '--deep', app])
   if (!process.argv.includes('--flows')) run(join(macos, 'Columba'), previewOnly ? ['--panel'] : [], { timeout: 120000, env: { ...process.env, COLUMBA_NATIVE_TEST_DATA: data, COLUMBA_NATIVE_SCREENSHOT: join(repo, 'dist', 'macos-panel-preview.png') } })
   await runNativeTrayFlow({ app, temp, bundleID, previewOnly })
-  await runNativeUpdateFlow({ app, temp, bundleID, previewOnly })
 } finally {
   // Also clean up an owned fixture if the test process timed out before Swift could run its cleanup.
   try {

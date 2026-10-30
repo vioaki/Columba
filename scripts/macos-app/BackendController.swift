@@ -1,5 +1,4 @@
 import Cocoa
-import CryptoKit
 import WebKit
 import os
 
@@ -40,7 +39,7 @@ extension AppDelegate {
     }
 
     func startBackend() {
-        guard backend == nil, !terminating, updatePhase != .installing, updatePhase != .readyToRelaunch else { return }
+        guard backend == nil, !terminating else { return }
         restartWork?.cancel()
         guard let fresh = loadOrCreateConfig() else {
             setBackendState(.failed, error: "无法读取配置，请修正后重试：\n\(configPath)")
@@ -55,7 +54,7 @@ extension AppDelegate {
             let listenHost = (host?.isEmpty == false ? host : nil) ?? config.host
             if !portIsFree(config.port, host: listenHost) {
                 guard let port = fallbackBackendPorts.first(where: { portIsFree($0, host: listenHost) }) else {
-                    throw UpdateError(message: "没有可用端口，请释放配置端口后重试。")
+                    throw AppError(message: "没有可用端口，请释放配置端口后重试。")
                 }
                 let original = config.port
                 try persistPort(port, at: URL(fileURLWithPath: configPath))
@@ -98,9 +97,6 @@ extension AppDelegate {
             backend = process
             #if NATIVE_TESTS
             try String(process.processIdentifier).write(toFile: dataDirPath + "/owned-backend.pid", atomically: true, encoding: .utf8)
-            if CommandLine.arguments.contains("--update-ack") {
-                try? String(process.processIdentifier).write(toFile: dataDirPath + "/new-backend.pid", atomically: true, encoding: .utf8)
-            }
             #endif
             configureWebScripts()
             appLogger.info("Backend started, pid \(process.processIdentifier), port \(self.backendPort)")
@@ -157,13 +153,6 @@ extension AppDelegate {
         try? backendLogHandle?.close()
         backendLogHandle = nil
         if terminating { finishTerminationIfReady(); return }
-        if updatePhase == .readyToRelaunch {
-            userStopping = false
-            pendingBackendRestart = false
-            setBackendState(.stopped)
-            relaunchAfterUpdate()
-            return
-        }
         if userStopping {
             userStopping = false
             if pendingBackendRestart {
@@ -182,7 +171,7 @@ extension AppDelegate {
     }
 
     private func scheduleRecovery(_ message: String) {
-        guard !terminating, updatePhase != .installing, updatePhase != .readyToRelaunch else { return }
+        guard !terminating else { return }
         if restartCount < backendRestartLimit {
             restartCount += 1
             setBackendState(.restarting, error: message + "，正在尝试恢复。")

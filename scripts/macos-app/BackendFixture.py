@@ -3,7 +3,6 @@
 import json
 import os
 import signal
-import ssl
 import sys
 import threading
 import time
@@ -42,23 +41,6 @@ def request_shutdown(reason):
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
-
-    def do_CONNECT(self):
-        if self.headers.get('Proxy-Authorization') != 'Basic cHJveHktdXNlcjpwcm94eS1zZWNyZXQ=':
-            self.send_response(407)
-            self.send_header('Proxy-Authenticate', 'Basic realm="native-proxy-test"')
-            self.send_header('Content-Length', '0')
-            self.end_headers()
-            return
-        (root / 'proxy-used').write_text(self.path)
-        self.send_response(200)
-        self.end_headers()
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        context.load_cert_chain(root / 'proxy-cert.pem', root / 'proxy-key.pem')
-        self.connection = context.wrap_socket(self.connection, server_side=True)
-        self.rfile = self.connection.makefile('rb', self.rbufsize)
-        self.wfile = self.connection.makefile('wb', 0)
-        self.handle_one_request()
 
     def do_GET(self):
         if self.headers.get('Proxy-Authorization'):
@@ -112,8 +94,8 @@ class Handler(BaseHTTPRequestHandler):
                 data = data.replace(b'</body>', b'''<script>
                 window.trayTestAllocation = new Uint8Array(32 * 1024 * 1024);
                 window.trayTestAllocation.fill(1);
-                const opens = Number(localStorage.getItem('elysia-native-tray-opens') || 0) + 1;
-                localStorage.setItem('elysia-native-tray-opens', String(opens));
+                const opens = Number(localStorage.getItem('columba-native-tray-opens') || 0) + 1;
+                localStorage.setItem('columba-native-tray-opens', String(opens));
                 fetch('/ui/tray-open?count=' + opens).catch(() => {});
                 setInterval(() => fetch('/ui/tray-heartbeat').catch(() => {}), 200);
                 </script></body>''')
@@ -122,26 +104,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Content-Length', str(len(data)))
             self.end_headers()
             self.wfile.write(data)
-        elif self.path == '/download':
-            self.send_response(200)
-            self.send_header('Content-Length', '3')
-            self.end_headers()
-            self.wfile.write(b'abc')
-        elif self.path == '/slow':
-            self.send_response(200)
-            self.send_header('Content-Length', '10485760')
-            self.end_headers()
-            try:
-                for _ in range(10240):
-                    self.wfile.write(b'x' * 1024)
-                    self.wfile.flush()
-                    time.sleep(.01)
-            except (BrokenPipeError, ConnectionResetError):
-                pass
         else:
             self.send_response(404)
             self.end_headers()
-            self.wfile.write(b'not a dmg')
+            self.wfile.write(b'not found')
 
     def do_POST(self):
         self.send_response(200)

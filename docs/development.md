@@ -1,148 +1,26 @@
-# 开发指南
+# 开发与验证
 
-[文档索引](README.md) · **简体中文** · [English](development.en.md)
+使用 backend/go.mod 指定的 Go 版本与 Node.js 22.13+（浏览器测试使用 node:sqlite）。在仓库根目录执行 `npm ci`，并运行 `npx playwright install chromium webkit` 安装测试浏览器。
 
-在本地开发、验证和构建 Columba。命令除特别说明外均在仓库根目录执行。
+开发后端时使用显式配置路径和专用测试目录；不要对个人历史数据库运行测试。前端启动命令为 `npm run dev --workspace @root/webui`，默认仅在 `127.0.0.1:5273` 服务。`COLUMBA_DEV_PROXY` 可指定本机后端。管理接口明确允许同源及 5273/5274 的本地开发来源，不支持公网或跨站面板。
 
-## 环境
-
-| 工具 | 要求 |
-| --- | --- |
-| Node.js | 22+；CI 使用 22 |
-| Go | 1.27.2+；CI 使用 `backend/go.mod` 声明的版本 |
-| npm | 随 Node.js 提供，用于 workspace 安装与构建 |
-| macOS 打包 | macOS 主机，以及能链接 macOS 12 arm64 / x86_64 的 Swift / AppKit 工具链 |
-
-Python 与视觉依赖仅用于重做登录素材，常规前端和发行构建不需要安装它们。
-
-## 项目结构
-
-```text
-backend/
-  config/      # Explicit configuration loading and runtime policies
-  internal/
-    routing/   # Route snapshots, scheduling and quotas
-    outbound/  # Shared proxy and address policy
-    dbpath/    # Database filesystem rules
-    architecture/ # Dependency-boundary tests
-  protocol/    # Protocol definitions, semantics, conversion and validation
-  relay/       # Protocol HTTP/WebSocket transports and timeouts
-  server/      # HTTP routes, auth, CLI, orchestration
-  storage/     # SQLite
-  webui/       # Embedded frontend assets
-packages/webui/ # React + Vite
-scripts/       # Builds, native app, asset tooling
-docs/          # Documentation
-```
-
-包依赖、状态所有权及新增代码的放置约定见[项目架构](architecture.md#依赖方向与职责边界)。
-
-## 本地开发
-
-安装 workspace 依赖：
-
-```bash
-npm install
-```
-
-在独立终端启动后端。以下命令将开发配置写在 `backend/`；仅允许回环地址，无需面板令牌：
-
-```bash
+```sh
 cd backend
-go run . --config ./config.json
-```
-
-另一个终端从仓库根目录启动前端：
-
-```bash
-npm run dev --workspace @root/webui
-```
-
-打开 `http://127.0.0.1:5273/`。Vite 默认代理到 `http://127.0.0.1:8765`，可用 `COLUMBA_DEV_PROXY` 覆盖；`COLUMBA_DEV_HOST` 控制开发服务器监听地址。完整代理与前端说明见 [WebUI 开发](../packages/webui/README.md)。
-
-使用开发配置和测试数据。后台出站策略默认阻止回环、私网和保留段；需要本机模拟上游时仅调整相关 CIDR。
-
-## 验证
-
-后端检查，在 `backend/` 执行：
-
-```bash
 go test ./...
 go vet ./...
-```
-
-后端直接使用 Sonic 编解码。手工运行 `go build`、`go run`、
-Hertz 在支持的平台上默认使用 Sonic；`go build`、`go run`、`go test` 和 `go vet` 均无需额外 JSON build tag。
-构建脚本、Docker 和 CI 已启用此 tag。
-
-前端检查，在仓库根目录执行：
-
-```bash
+go test -race ./internal/routing ./internal/nativeusage ./internal/billing ./storage ./server
+cd ..
 npm run lint --workspace @root/webui
 npm run build:webui
-npm exec --workspace @root/webui playwright install chromium
-npm run test:e2e --workspace @root/webui
-```
-
-浏览器测试使用模拟 API，并自动启动 `127.0.0.1:5274` 的前端。已安装 Chrome 时可设置 `PLAYWRIGHT_CHANNEL=chrome`。真实模型评测需要显式凭证，会产生用量；常规文档验证不运行它。
-
-原生测试使用 `npm run test:macos-app`；真实打包面板检查使用 `npm run test:macos-app -- --panel`，前置条件见 [macOS 验证](macos-testing.md)。
-
-## 发行构建
-
-```bash
+npm run test:webui
 npm run build
+npm run test:standalone
 ```
 
-构建脚本先编译前端，将资源复制至后端嵌入目录，再以 `CGO_ENABLED=0` 交叉编译六种目标。输出目录为 `dist/standalone/`，每次构建会重新创建此目录。
+`test:webui` 启动临时后端和 Vite，对两个浏览器运行全部测试，记录生成的数据库目录供排查。可传文件名缩小范围。测试运行器只停止自己创建的进程。常规 `npm run test:e2e --workspace @root/webui` 使用模拟接口，跳过需要真实后端的用例。
 
-| 平台 | 输出 |
-| --- | --- |
-| Windows | `columba-windows-amd64.exe`、`columba-windows-arm64.exe` |
-| Linux | `columba-linux-amd64`、`columba-linux-arm64` |
-| macOS 命令行 | `columba-darwin-amd64`、`columba-darwin-arm64` |
+`npm run build` 生成 Windows/Linux/macOS × amd64/arm64 的六个二进制，内嵌 WebUI，无运行期 Node 依赖。输出在 `dist/standalone/`。`test:standalone` 运行本机目标，验证无登录面板、来源限制、调用 Key、原生正文、费用账目和内嵌资源。
 
-macOS 命令行产物用于本地运行及 App 组装，Release 对 macOS 发布 DMG。WebUI 单独构建输出至 `packages/webui/dist/`，完整构建才同步到后端嵌入目录。
+`node scripts/update-model-catalog.mjs` 更新内嵌 models.dev 能力与价格快照，可传 `--proxy` 或 `--url`。价格必须精确映射；人工价格不随目录刷新覆盖。
 
-### macOS 打包
-
-```bash
-npm run build:macos-app -- --check-toolchain
-npm run build
-npm run build:macos-app
-```
-
-输出通用 `Columba.app` 和 `columba-macos.dmg`。构建会验证双架构、签名、DMG 完整性及挂载内容。工具链失败时应更换兼容的工具链，不提高最低系统版本或删去 Intel 目标。
-
-### 版本与发布
-
-后端版本由构建脚本从最近 Git tag 解析，经 ldflags 注入 `/health`，无 tag 时为 `dev`。原生 App 的版本解析有自身回退逻辑，见打包脚本。CI 在 `v*` tag 或手动触发时构建平台产物；发布附带 SHA256 校验文件。
-
-## 文档维护
-
-- 先核对源码与测试，再更新中文及对应 `.en.md`；保留相同接口、参数、默认值和操作顺序。
-- 入口和专题各有职责：README 负责首次使用；专题承接配置、限制、恢复和完整参考。避免多处复制长参数表。
-- 页面包含用途、语言切换和文档索引；操作型文档给出前提、可执行示例、验证与故障处理；参考型文档给出契约、字段、示例与限制。
-- 统一使用“模型源 / model source”“模型组 / model group”“面板令牌 / panel token”“推理令牌 / relay token”。字段名、端点和 CLI 标识不翻译。
-- 说明性片段用 `jsonc`、`text` 或明确说明；`json` 代码块应可解析。凭证使用占位符，不提交真实配置、日志或令牌。
-- 保留现行文档路径和被引用的标题锚点；英文页面优先链接英文专题。阶段性设计、审查与验收记录中的有效内容并入现行指南后，删除旧文件并更新引用；历史细节通过 Git 历史追溯。
-- `docs/` 保留当前行为、操作方法、设计取舍和明确限制。任务交接、Review 流水账、每轮测试结果及临时日志留在 PR、CI 或已忽略的 `.tmp-dev/`，不逐轮新增过程文档。
-
-CLI 中文手册来自命令表及帮助渲染器。不要直接编辑生成结果，在 `backend/` 执行：
-
-```bash
-UPDATE_AGENT_CLI_DOCS=1 go test ./server -run '^TestCLIReferenceUpToDate$' -count=1
-```
-
-
-## 提交检查
-
-每个提交完成一项明确职责，并包含所需调用方、测试及说明。未发布分支中的补漏、修正和反复调整应合回对应提交；提交信息描述最终问题与行为，不记录内部工作轮次。已共享的历史不随意重写。
-
-提交前检查 diff、链接、代码块和双语对应。只运行与变更相关的检查并说明实际结果；不要把历史测试记录写成当前验证结果。修改业务行为时同时更新相关文档。
-
-## 数据库升级
-
-启动前自动升级最新 Elysia 业务库版本 2 与日志库版本 1。两个数据库先统一检查，再使用 SQLite `VACUUM INTO` 备份（包含已提交 WAL），逐库事务升级并检查完整性。升级日志记录在业务库旁的 `.upgrade.json`；失败或中断会先恢复成套备份。备份目录权限为 0700，数据库和配置备份为 0600。保留原主密钥；迁移不重加密凭据。未知版本明确拒绝，不尝试迁移未版本化历史库。升级期间必须停止其他使用这两个数据库的进程。
-
-Columba 管理面板无需登录；管理请求检查本地 Host、Origin 与浏览器来源。开发面板使用固定端口 5273/5274。客户端推理仍需要调用 Key。
+提交按单一职责拆分，检查通过后提交。CI 只校验和保存构建产物，不创建发布、不上传镜像。

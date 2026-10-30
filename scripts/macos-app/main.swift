@@ -1,15 +1,13 @@
-// Columba macOS 原生壳:托盘服务管理 + 独立进程承载 WebUI + 应用内更新。
+// Columba macOS 原生壳:托盘服务管理 + 独立进程承载 WebUI。
 // 仅依赖系统框架(Cocoa/WebKit),零第三方依赖,用 swiftc -O 编译。
 //
 // 行为概要:
 // - 托盘拥有内嵌后端；独立窗口进程加载面板，关窗即退出并释放 WebKit
 // - 数据全部放在 ~/Library/Application Support/Columba(配置/数据库/日志)
-// - 首次运行自动生成配置:随机面板令牌 + 空闲端口探测(8765→8799→8800…)
+// - 首次运行自动生成配置:空闲端口探测(8765→8799→8800…)
 // - 状态栏:模板图标 + 端口号/状态,菜单提供快捷操作
-// - 有新版本时窗口左下角浮出更新胶囊,一键完成 下载→sha256 校验→整包替换→自动重启
 
 import Cocoa
-import CryptoKit
 import Security
 import ServiceManagement
 import UserNotifications
@@ -27,7 +25,6 @@ let configPath = dataDirPath + "/config.json"
 let logPath = dataDirPath + "/columba.log"
 let backendPath = Bundle.main.bundlePath + "/Contents/MacOS/columba-server"
 let versionPath = Bundle.main.bundlePath + "/Contents/Resources/version.txt"
-let releasesAPI = "https://api.github.com/repos/PinkElysiaDev/Elysia-Api/releases/latest"
 let initialVersion = "v0.0.0"
 
 // MARK: - 配置模型
@@ -59,12 +56,6 @@ struct PanelConfig: Codable {
     }
 }
 
-/// GitHub release 中与本应用更新相关的信息
-struct ReleaseInfo {
-    let tag: String
-    let dmgURL: String
-    let dmgDigest: String   // "sha256:<hex>";缺失时拒绝自动更新
-}
 
 // MARK: - 工具函数
 
@@ -127,24 +118,7 @@ func readBundledVersion() -> String {
 }
 
 /// "v1.2.3" → [1, 2, 3],用于版本比较;容忍 "4-local" 之类的后缀
-func parseVersion(_ tag: String) -> [Int] {
-    tag.dropFirst(tag.hasPrefix("v") ? 1 : 0)
-        .split(separator: ".")
-        .map { part in
-            let digits = part.prefix { $0.isNumber }
-            return Int(digits) ?? 0
-        }
-}
 
-func isNewer(_ lhs: String, than rhs: String) -> Bool {
-    let a = parseVersion(lhs), b = parseVersion(rhs)
-    for i in 0..<max(a.count, b.count) {
-        let x = i < a.count ? a[i] : 0
-        let y = i < b.count ? b[i] : 0
-        if x != y { return x > y }
-    }
-    return false
-}
 
 /// 由 logo 生成 macOS 风格的单色模板图标(黑色 + alpha,自动适配深浅色菜单栏)
 func templateIcon(from path: String, size: CGFloat) -> NSImage? {
@@ -177,7 +151,7 @@ func javascriptString(_ value: String) -> String {
 
 // MARK: - 注入 WebUI 的脚本
 
-/// 主题上报:把页面背景色与深浅色状态回传给壳,壳据此着色标题栏/更新条等原生区域,
+/// 主题上报:把页面背景色与深浅色状态回传给壳,壳据此着色标题栏等原生区域,
 /// 并在用户切换深浅色时实时跟随。
 func themeReporterScript() -> WKUserScript {
     let source = """
@@ -385,7 +359,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var reopenPanelAfterExit = false
     var panelReady = false
     var panelBackendGeneration = ""
-    var panelUpdateEnabled = false
     private var instanceLock: Int32 = -1
     private var healthTimer: Timer?
     var window: NSWindow!
@@ -394,11 +367,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var overlaySpinner: NSProgressIndicator!
     var overlayLabel: NSTextField!
     var overlayButton: NSButton!
-    // 更新提示：左下角悬浮胶囊。与旧底栏不同，胶囊只改变透明度与位移，
-    // WebUI 排版保持静止——布局不再被顶起。
-    var updateCapsule: UpdateCapsuleView!
-    var updateCapsuleVisible = false
-    var updateCapsuleAnimating = false
     var statusItem: NSStatusItem!
     var restartItem: NSMenuItem!
     var pulseItem: NSMenuItem!
@@ -435,42 +403,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     var notificationSettingsItem: NSMenuItem!
     var loginSettingsItem: NSMenuItem!
     var lastErrorItem: NSMenuItem!
-    var updateCheckItem: NSMenuItem!
-    /// 更新动作项（单一菜单位置）：由 phase 决定标题（安装/重试/重启完成）。
-    /// 空闲时也是唯一的「检查更新…」入口——检查动作挪到此项，视觉上合并更新职能。
-    var updateActionItem: NSMenuItem!
     var overlayHelp: NSStackView!
     var healthFailedSince: Date?
     var recoveryTerminating = false
-    var checkingUpdates = false
-    var updatePhase: UpdatePhase = .idle
-    var updateMessage = ""
-    var updateDetail = ""
-    var updateFraction: Double?
-    var cancellingUpdate = false
     var notificationDenied = false
     var timers: [Timer] = []
     var panelLoaded = false
     var loadedPort = 0
     var currentVersion = readBundledVersion()
-    var latestRelease: ReleaseInfo?
     let windowState = WindowStateStore()
     let launchAtLogin = LaunchAtLoginManager()
     let notifications = NotificationManager()
-    var updateTask: URLSessionDownloadTask?
-    var updateSession: URLSession?
-    var updateCheckSession: URLSession?
-    var updateDownloadDelegate: UpdateDownloadDelegate?
-    var updateDownloadGeneration = UUID()
-    var stagedUpdate: URL?
-    var relaunchHelper: Process?
     var signalSources: [DispatchSourceSignal] = []
-    var updateLaunchAcknowledged = false
     var panelReadinessInFlight = false
-    var resumeBackendAfterUpdateFailure = false
-    #if NATIVE_TESTS
-    var testUpdateHandoffStarted = false
-    #endif
     /// 重启等待旧后端退出，随后由退出回调启动新进程。
     var pendingBackendRestart = false
 
@@ -504,13 +449,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         guard ensureSingleInstance() else { requestTermination(); return }
         #if NATIVE_TESTS
         notifications.enabled = false
-        if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_APP_TEST"] == "1" {
-            if CommandLine.arguments.contains("--update-ack") {
-                try? String(ProcessInfo.processInfo.processIdentifier).write(toFile: dataDirPath + "/new-native.pid", atomically: true, encoding: .utf8)
-            } else if !CommandLine.arguments.contains("--native-update-parent") {
-                try? String(ProcessInfo.processInfo.processIdentifier).write(toFile: dataDirPath + "/rollback-native.pid", atomically: true, encoding: .utf8)
-            }
-        }
         #endif
         config = loadOrCreateConfig() ?? PanelConfig()
         appLogger.info("Launching Columba \(self.currentVersion, privacy: .public), background: \(self.launchedAtLogin)")
@@ -527,9 +465,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         startBackend()
         scheduleTimers()
         installSignalHandlers()
-        #if !NATIVE_TESTS
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.checkForUpdates(silent: true) }
-        #endif
         NotificationCenter.default.addObserver(self, selector: #selector(screenLayoutChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(wakeFromSleep), name: NSWorkspace.didWakeNotification, object: nil)
     }
@@ -542,8 +477,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        // 安装替换阶段不能被中途终止；下载阶段可安全取消。
-        if !isPanelProcess && updatePhase == .installing { return .terminateCancel }
         if terminating { return .terminateLater }
         terminating = true
         restartWork?.cancel()
@@ -552,10 +485,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         timers.forEach { $0.invalidate() }
         timers.removeAll()
         apiSession.invalidateAndCancel()
-        updateCheckSession?.invalidateAndCancel()
-        updateCheckSession = nil
         healthSession.invalidateAndCancel()
-        updateSession?.invalidateAndCancel()
         cancelPanelDownloads(reason: "应用正在退出，未完成的导出已取消。")
         saveWindowState()
         stopPanelProcess()
@@ -585,7 +515,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     private var terminationResourcesReleased: Bool {
         backend == nil && panelProcess == nil && panelDownloads.isEmpty && cancellingPanelDownloads.isEmpty
-            && updateTask == nil && updateDownloadDelegate == nil && updateSession == nil
     }
 
     func finishTerminationIfReady() {
@@ -606,12 +535,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
 
     private func discardTerminationDownloads() {
-        updateDownloadDelegate?.discardDownloadedFile()
-        updateDownloadGeneration = UUID()
-        updateSession?.invalidateAndCancel()
-        updateSession = nil
-        updateDownloadDelegate = nil
-        updateTask = nil
         for pending in cancellingPanelDownloads.values { pending.removeTemporaryFile() }
         cancellingPanelDownloads.removeAll()
     }
@@ -631,9 +554,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         DistributedNotificationCenter.default().removeObserver(self)
         signalSources.forEach { $0.cancel() }
-        if let stagedUpdate, relaunchHelper == nil {
-            try? FileManager.default.removeItem(at: stagedUpdate.deletingLastPathComponent())
-        }
     }
 
     func requestTermination() {
@@ -688,7 +608,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "关于 Columba", action: #selector(showAbout), keyEquivalent: "")
         addAction(appMenu, "偏好设置…", #selector(showPreferences), ",")
-        addAction(appMenu, "检查更新…", #selector(checkForUpdatesFromMenu), "u", [.command, .shift])
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "隐藏 Columba", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(withTitle: "隐藏其他", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "")
@@ -809,17 +728,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         dragStrip.setAccessibilityLabel("窗口标题栏，可拖动以移动窗口")
         content.addSubview(dragStrip)
 
-        // 更新胶囊：悬浮于 WebUI 之上，不挤压布局；初始隐藏；动画只改透明度与位移。
-        updateCapsule = UpdateCapsuleView(frame: .zero)
-        updateCapsule.isHidden = true
-        updateCapsule.onPrimaryAction = { [weak self] in self?.runUpdate() }
-        updateCapsule.onCancelAction = { [weak self] in self?.cancelUpdate() }
-        updateCapsule.onDismiss = { [weak self] in self?.dismissUpdatePrompt() }
-        content.addSubview(updateCapsule)
 
         overlay = NSView()
         overlay.wantsLayer = true
-        content.addSubview(overlay, positioned: .below, relativeTo: updateCapsule)
+        content.addSubview(overlay)
         overlaySpinner = NSProgressIndicator()
         overlaySpinner.style = .spinning
         overlayLabel = NSTextField(wrappingLabelWithString: "正在启动本地后端…")
@@ -840,7 +752,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         overlayStack.alignment = .centerX
         overlayStack.spacing = 18
         overlay.addSubview(overlayStack)
-        for view in [webView!, dragStrip, updateCapsule!, overlay!, overlayStack] {
+        for view in [webView!, dragStrip, overlay!, overlayStack] {
             view.translatesAutoresizingMaskIntoConstraints = false
         }
         NSLayoutConstraint.activate([
@@ -848,16 +760,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             dragStrip.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             dragStrip.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             dragStrip.heightAnchor.constraint(equalToConstant: Self.titleBarHeight),
-            // 面板通铺到窗口底（更新胶囊悬浮其上，webView 布局保持不动）。
             webView.topAnchor.constraint(equalTo: content.topAnchor),
             webView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             webView.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            // 更新胶囊：左下悬浮，固定尺寸位置，宽/高跟 intrinsicContentSize 一致
-            updateCapsule.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            updateCapsule.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16),
-            updateCapsule.widthAnchor.constraint(equalToConstant: UpdateCapsuleView.width),
-            updateCapsule.heightAnchor.constraint(equalToConstant: UpdateCapsuleView.height),
             overlay.leadingAnchor.constraint(equalTo: webView.leadingAnchor),
             overlay.trailingAnchor.constraint(equalTo: webView.trailingAnchor),
             overlay.topAnchor.constraint(equalTo: webView.topAnchor),
@@ -871,8 +777,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         ])
         window.contentView = content
         let dark = windowState.webTheme.map { $0 == "dark" } ?? (window.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
-        applyTheme(dark: dark, background: dark ? NSColor(srgbRed: 0.055, green: 0.065, blue: 0.085, alpha: 1) : .windowBackgroundColor)
-        refreshUpdateUI()
+        applyTheme(dark: dark, background: dark ? NSColor(white: 0.07, alpha: 1) : .windowBackgroundColor)
         renderBackendState()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -916,11 +821,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         overlaySpinner = nil
         overlayButton = nil
         overlayHelp = nil
-        updateCapsule?.configure(phase: .idle, title: "", detail: "", fraction: nil)
-        updateCapsule?.layer?.removeAllAnimations()
-        updateCapsule?.removeFromSuperview()
-        updateCapsule = nil
-        updateCapsuleAnimating = false
         panelLoaded = false
         loadedPort = 0
         refreshStatusUI()
@@ -964,49 +864,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         } else { startBackend() }
     }
 
-    /// 用户点击胶囊的关闭 ×：仅收起提示，状态机保留；菜单可重新触发安装。
-    @objc func dismissUpdatePrompt() {
-        if isPanelProcess { panelBridge?.send(PanelMessage(type: "action", action: "dismissUpdate")); return }
-        updateCapsuleVisible = false
-        // 关闭是单向交互、无层级竞争：直接同步隐藏，不走退场动画的快闪窗口
-        updateCapsuleAnimating = false
-        updateCapsule?.isHidden = true
-        refreshUpdateUI(animated: false)
-    }
-
-    /// 给定 phase 是否值得显示胶囊：检查期/空闲期一律不显示（修报启动闪现）。
-    private func capsuleShouldBeVisible(for phase: UpdatePhase) -> Bool {
-        switch phase {
-        case .checking, .idle: return false
-        case .available, .downloading, .installing, .failed, .readyToRelaunch: return true
-        }
-    }
-
-    /// 同步更新胶囊与菜单状态。
-    func refreshUpdateUI(animated: Bool = false) {
-        refreshStatusUI()
-
-        // 显隐：phase 决定常态可见性，用户手动关 × 在特定 phase 中遮蔽
-        let shouldShow = capsuleShouldBeVisible(for: updatePhase) && updateCapsuleVisible
-        guard updateCapsule != nil else { return }
-        updateCapsule.configure(phase: updatePhase, title: updateMessage,
-                                detail: updateDetail.isEmpty ? updateMessage : updateDetail,
-                                fraction: updateFraction)
-        if shouldShow {
-            guard updateCapsule.isHidden else { return }
-            updateCapsule.isHidden = false
-            if animated { updateCapsule.animateEntrance() }
-        } else {
-            guard !updateCapsule.isHidden, !updateCapsuleAnimating else { return }
-            if animated {
-                updateCapsuleAnimating = true
-                updateCapsule.animateExit { [weak self] in self?.updateCapsuleAnimating = false }
-            } else {
-                updateCapsule.isHidden = true
-            }
-        }
-    }
-
     // MARK: 状态栏
 
     @discardableResult
@@ -1046,10 +903,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         addAction(menu, "复制 API 地址", #selector(copyAPIURL), "c", [.command, .option])
             .image = NSImage(systemSymbolName: "link", accessibilityDescription: nil)
 
-        // —— 更新（单一动作入口，标题随 phase 变化） ——
         menu.addItem(.separator())
-        updateActionItem = addAction(menu, "检查更新…", #selector(performUpdateAction), "u", [.command, .shift])
-        updateCheckItem = updateActionItem // 共用同一 NSMenuItem，避免双份入口
 
         // —— 偏好与诊断 ——
         menu.addItem(.separator())
@@ -1084,9 +938,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     private func stateDotColor(_ state: BackendState) -> NSColor {
         switch state {
-        case .running: .systemGreen
-        case .starting, .stopping, .restarting: .systemYellow
-        case .failed: .systemRed
+        case .running: .labelColor
+        case .starting, .stopping, .restarting: .secondaryLabelColor
+        case .failed: .labelColor
         case .stopped: .systemGray
         }
     }
@@ -1105,52 +959,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         restartItem.title = serviceActionTitle
         restartItem.isEnabled = canRestartBackend
         reloadPanelItem?.isEnabled = webView != nil && backendState == .running
-        // 单一更新动作项的标题/使能由 phase 决定
-        updateActionItem?.title = updateActionMenuTitle
-        updateActionItem?.isEnabled = updateActionMenuIsEnabled()
         renderHeader()
     }
 
-    /// 单一更新动作项的标题（空闲=检查…；可用=安装…；下载中=取消；就绪=重启）
-    private var updateActionMenuTitle: String {
-        switch updatePhase {
-        case .idle: return "检查更新…"
-        case .checking: return "正在检查更新…"
-        case .available: return "安装更新…"
-        case .downloading: return "取消更新下载"
-        case .installing: return "正在安装更新…"
-        case .failed: return "重试更新…"
-        case .readyToRelaunch: return "重新启动以完成更新"
-        }
-    }
 
-    func updateActionMenuIsEnabled() -> Bool {
-        if isPanelProcess { return panelUpdateEnabled && !terminating }
-        if cancellingUpdate || terminating { return false }
-        switch updatePhase {
-        case .idle, .checking:
-            return !checkingUpdates && !updatePhase.busy                // 空闲 & 手动查
-        case .available:
-            return latestRelease != nil
-        case .downloading:
-            return true
-        case .installing:
-            return false
-        case .failed, .readyToRelaunch:
-            return latestRelease != nil || updatePhase == .readyToRelaunch
-        }
-    }
 
-    /// 更新菜单项动作统一入口：.phase 决定下一步是检查、安装、取消还是重启。
-    @objc func performUpdateAction() {
-        if isPanelProcess { panelBridge?.send(PanelMessage(type: "action", action: "update")); return }
-        switch updatePhase {
-        case .idle: checkForUpdates(silent: false)
-        case .downloading: cancelUpdate()
-        case .available, .failed, .readyToRelaunch: runUpdate()
-        case .checking, .installing: break
-        }
-    }
 
     /// 用当前状态与缓存的脉冲数据重绘菜单头部部件。
     private func renderHeader() {
@@ -1168,7 +981,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         (backend != nil || (isPanelProcess && backendPort != 0)) ? "重启服务" : (backendState == .failed ? "重试启动服务" : "启动服务")
     }
 
-    var canRestartBackend: Bool { !terminating && !recoveryTerminating && updatePhase != .installing && updatePhase != .readyToRelaunch && [.running, .stopped, .failed].contains(backendState) }
+    var canRestartBackend: Bool { !terminating && !recoveryTerminating && [.running, .stopped, .failed].contains(backendState) }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if terminating { return false }
@@ -1178,12 +991,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             return canRestartBackend
         case #selector(reloadPanel): return webView != nil && backendState == .running
         case #selector(openPanelInBrowser): return backendState == .running
-        case #selector(checkForUpdatesFromMenu):
-            item.title = checkingUpdates ? "正在检查更新…" : "检查更新…"
-            return !checkingUpdates && !updatePhase.busy && updatePhase != .readyToRelaunch
-        // 状态栏和主菜单共用更新动作与快捷键。
-        case #selector(performUpdateAction): return updateActionMenuIsEnabled()
-        case #selector(quit): return updatePhase != .installing
         default: return item.action != nil
         }
     }
@@ -1211,7 +1018,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let backendID = backendGeneration
         let now = Date()
         guard let url = usagePulseURL(base: apiBaseURL, now: now) else { return }
-        var request = URLRequest(url: url)
+        let request = URLRequest(url: url)
         healthSession.dataTask(with: request) { [weak self] data, response, _ in
             guard (response as? HTTPURLResponse)?.statusCode == 200, let data,
                   let summary = parseUsagePulse(data) else { return }
@@ -1313,10 +1120,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     private func scheduleTimers() {
         rescheduleHealthTimer()
-        let update = Timer(timeInterval: 24 * 3600, repeats: true) { [weak self] _ in self?.checkForUpdates(silent: true) }
-        update.tolerance = 60
-        timers.append(update)
-        RunLoop.main.add(update, forMode: .common)
         #if NATIVE_TESTS
         if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_TRAY_TEST"] == "1" {
             let control = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -1369,7 +1172,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     func pollHealth() {
         if isPanelProcess { panelBridge?.send(PanelMessage(type: "hello")); return }
         guard let process = backend, process.isRunning, !healthInFlight, !userStopping, !terminating, !recoveryTerminating,
-              updatePhase != .installing, updatePhase != .readyToRelaunch,
               let url = URL(string: "\(apiBaseURL)/health") else { return }
         let generation = backendGeneration
         healthInFlight = true
@@ -1377,8 +1179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             DispatchQueue.main.async {
                 guard let self, self.backendGeneration == generation, self.backend === process else { return }
                 self.healthInFlight = false
-                guard !self.userStopping, !self.terminating, !self.recoveryTerminating,
-                      self.updatePhase != .installing, self.updatePhase != .readyToRelaunch else { return }
+                guard !self.userStopping, !self.terminating, !self.recoveryTerminating else { return }
                 let ok = (response as? HTTPURLResponse)?.statusCode == 200
                 if ok {
                     self.backendReachedHealthy = true
@@ -1388,10 +1189,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
                     // 连续健康 60 秒才重置失败预算，避免启动即崩溃无限循环。
                     if Date().timeIntervalSince(self.healthySince!) >= 60 { self.restartCount = 0 }
                     self.setBackendState(.running)
-                    #if NATIVE_TESTS
-                    if self.handoffForNativeAppTest() { return }
-                    #endif
-                    self.acknowledgeUpdateLaunch()
                     if recovering {
                         self.notifications.requestAndSend(title: "Columba 已恢复", body: "服务已恢复，可以继续使用。", identifier: "backend-recovered")
                     }
@@ -1459,16 +1256,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard webView === self.webView else { return }
-        #if NATIVE_TESTS
-        if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_APP_TEST"] == "1", CommandLine.arguments.contains("--update-ack") {
-            try? String(ProcessInfo.processInfo.processIdentifier).write(toFile: dataDirPath + "/new-html-loaded.pid", atomically: true, encoding: .utf8)
-        }
-        #endif
-        if isPanelProcess { panelBridge?.send(PanelMessage(type: "htmlLoaded")) }
         if backendState == .running {
             hideOverlay()
             reportPanelReadiness()
-            acknowledgeUpdateLaunch()
         }
     }
 
@@ -1512,14 +1302,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         applyTheme(dark: dark, background: background)
     }
 
-    /// 用页面主题为窗口背景/遮罩/更新条着色,使原生区域与网页无缝衔接
+    /// 用页面主题为窗口背景/遮罩着色,使原生区域与网页无缝衔接
     private func applyTheme(dark: Bool, background: NSColor) {
         guard window != nil else { return }
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.backgroundColor = background
         overlay.layer?.backgroundColor = background.cgColor
-        // 胶囊自己监听 appearance 并在 updateLayer 里取 window.backgroundColor——无需显式赋值。
-        updateCapsule?.needsDisplay = true
         webView.underPageBackgroundColor = background
     }
 
@@ -1545,7 +1333,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
 
     @objc private func showAbout() {
-        alert("Columba for macOS\n当前版本 \(currentVersion)\n后端与面板来自 Elysia-Api 项目。")
+        alert("Columba for macOS\n当前版本 \(currentVersion)\n本地模型聚合与费用统计。")
     }
 
     func alert(_ text: String) {
@@ -1562,20 +1350,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 // Pipe writes report EPIPE instead of terminating the owner when its peer exits.
 signal(SIGPIPE, SIG_IGN)
 
-if CommandLine.arguments.contains("--update-helper") {
-    do {
-        #if NATIVE_TESTS
-        let launchTimeout = Double(ProcessInfo.processInfo.environment["COLUMBA_NATIVE_UPDATE_LAUNCH_TIMEOUT"] ?? "") ?? UpdateInstaller.launchTimeout
-        try UpdateInstaller.runHelper(arguments: CommandLine.arguments, launchTimeout: launchTimeout)
-        #else
-        try UpdateInstaller.runHelper(arguments: CommandLine.arguments)
-        #endif
-        exit(0)
-    } catch {
-        fputs("Update helper failed: \(error.localizedDescription)\n", stderr)
-        exit(1)
-    }
-}
 
 #if NATIVE_TESTS
 // Test hooks are compiled out of the shipped app. All fixture data/preferences have a unique domain.
@@ -1588,23 +1362,7 @@ extension AppDelegate {
     }
     func pollForTests() { pollHealth() }
     func retryForTests() { retryStartup() }
-    func updateUIForTests() { refreshUpdateUI() }
     func ageHealthFailureForTests() { healthFailedSince = Date().addingTimeInterval(-16) }
-    func downloadForTests(from url: URL) {
-        let release = ReleaseInfo(tag: "v99.0.0", dmgURL: url.absoluteString, dmgDigest: String(repeating: "0", count: 64))
-        latestRelease = release
-        beginUpdateDownload(from: url, release: release)
-    }
-    func cancelUpdateForTests() { cancelUpdate() }
-    func handoffForTests(_ staged: URL) { handoffStagedUpdate(staged) }
-    private func handoffForNativeAppTest() -> Bool {
-        guard !testUpdateHandoffStarted, CommandLine.arguments.contains("--native-update-parent"),
-              let path = ProcessInfo.processInfo.environment["COLUMBA_NATIVE_STAGED_APP"] else { return false }
-        testUpdateHandoffStarted = true
-        try? String(backend!.processIdentifier).write(toFile: dataDirPath + "/old-backend.pid", atomically: true, encoding: .utf8)
-        handoffStagedUpdate(URL(fileURLWithPath: path))
-        return true
-    }
 }
 if ProcessInfo.processInfo.environment["COLUMBA_NATIVE_APP_TEST"] == "1" {
     let app = NSApplication.shared

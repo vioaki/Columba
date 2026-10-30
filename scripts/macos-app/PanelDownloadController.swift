@@ -1,5 +1,4 @@
 import Cocoa
-import CryptoKit
 import WebKit
 import os
 
@@ -27,7 +26,7 @@ extension AppDelegate {
             self.reply = nil
             destination = url
             temporaryURL = url.map {
-                $0.deletingLastPathComponent().appendingPathComponent(".elysia-export-\(UUID().uuidString).partial")
+                $0.deletingLastPathComponent().appendingPathComponent(".columba-export-\(UUID().uuidString).partial")
             }
             reply(temporaryURL)
             return true
@@ -78,7 +77,7 @@ extension AppDelegate {
 
     private func trackPanelDownload(_ download: WKDownload, from source: WKWebView) {
         guard source === webView, window != nil, !terminating,
-              updatePhase != .installing, updatePhase != .readyToRelaunch else {
+              !terminating else {
             download.cancel { _ in }
             return
         }
@@ -86,7 +85,7 @@ extension AppDelegate {
         download.delegate = self
     }
 
-    /// 关窗、退出和安装更新共享清理；先移除所有权，迟到的 delegate 回调不会再次提示。
+    /// 关窗和退出共享清理；先移除所有权，迟到的 delegate 回调不会再次提示。
     func cancelPanelDownloads(reason: String) {
         let downloads = Array(panelDownloads.values)
         panelDownloads.removeAll()
@@ -145,7 +144,7 @@ extension AppDelegate {
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
                   suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
         guard let pending = panelDownloads[ObjectIdentifier(download)], let window,
-              !terminating, updatePhase != .installing, updatePhase != .readyToRelaunch else {
+              !terminating, !terminating else {
             panelDownloads[ObjectIdentifier(download)] = nil
             download.delegate = nil
             completionHandler(nil)
@@ -171,7 +170,7 @@ extension AppDelegate {
         guard let url = pending.destination, let temporary = pending.temporaryURL else { return }
         do {
             guard try pending.destinationIsUnchanged() else {
-                throw UpdateError(message: "保存目标在下载期间发生变化，已保留该文件。请重新导出。")
+                throw AppError(message: "保存目标在下载期间发生变化，已保留该文件。请重新导出。")
             }
             if pending.destinationIdentity != nil {
                 _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary)

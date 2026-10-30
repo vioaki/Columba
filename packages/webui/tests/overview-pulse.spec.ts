@@ -242,12 +242,12 @@ for (const width of [375, 1440]) {
 }
 
 test('real backend minute totals and pulse buckets agree with isolated stored records', async ({ page, request }) => {
-  test.skip(!process.env.PROTOCOL_E2E_URL || !process.env.PROTOCOL_E2E_LOG_DATABASE, 'requires the isolated backend runner')
-  const directory = realpathSync(process.env.PROTOCOL_E2E_RUN_DIRECTORY!)
-  const databasePath = realpathSync(process.env.PROTOCOL_E2E_LOG_DATABASE!)
-  expect(basename(directory)).toMatch(/^elysia-protocol-e2e-/)
+  test.skip(!process.env.COLUMBA_E2E_URL || !process.env.COLUMBA_E2E_LOG_DATABASE, 'requires the isolated backend runner')
+  const directory = realpathSync(process.env.COLUMBA_E2E_RUN_DIRECTORY!)
+  const databasePath = realpathSync(process.env.COLUMBA_E2E_LOG_DATABASE!)
+  expect(basename(directory)).toMatch(/^columba-webui-e2e-/)
   expect(dirname(databasePath)).toBe(directory)
-  const backend = process.env.PROTOCOL_E2E_URL!
+  const backend = process.env.COLUMBA_E2E_URL!
   expect(new URL(backend).hostname).toBe('127.0.0.1')
   const to = Math.floor(Date.parse(NOW) / MINUTE_MS) * MINUTE_MS
   const records = [
@@ -259,19 +259,17 @@ test('real backend minute totals and pulse buckets agree with isolated stored re
   const database = new DatabaseSync(databasePath)
   try {
     database.exec('PRAGMA busy_timeout=5000')
-    const insert = database.prepare('INSERT INTO usage_records (request_id,started_at,started_ms,ended_at,status_code,input_tokens,output_tokens,total_tokens,cache_hit_tokens,duration_ms,record_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+    const insert = database.prepare('INSERT OR REPLACE INTO usage_records (request_id,started_at,started_ms,ended_at,status_code,input_tokens,output_tokens,total_tokens,cache_hit_tokens,duration_ms,record_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
     for (const record of records) {
       const timestamp = new Date(record.at).toISOString()
       insert.run(`synthetic-pulse-${record.suffix}`, timestamp, record.at, timestamp, record.status, record.tokens - 200, 200, record.tokens, 900, 100, '{}')
     }
   } finally { database.close() }
-  const token = process.env.PROTOCOL_E2E_TOKEN!
-  const headers = { Authorization: `Bearer ${token}` }
   const bounds = { from: new Date(to - MINUTE_MS).toISOString(), to: new Date(to).toISOString() }
-  const minute = await request.get(`${backend}/api/admin/usage/stats`, { headers, params: bounds })
+  const minute = await request.get(`${backend}/api/admin/usage/stats`, { params: bounds })
   expect(minute.ok()).toBe(true)
   expect((await minute.json()).data).toMatchObject({ totalTokens: 1200, requests: 1 })
-  const history = await request.get(`${backend}/api/admin/usage/pulse`, { headers, params: { ...bounds, from: new Date(to - 1440 * MINUTE_MS).toISOString(), bucketMinutes: 15, utcOffsetMinutes: 480 } })
+  const history = await request.get(`${backend}/api/admin/usage/pulse`, { params: { ...bounds, from: new Date(to - 1440 * MINUTE_MS).toISOString(), bucketMinutes: 15, utcOffsetMinutes: 480 } })
   expect(history.ok()).toBe(true)
   expect((await history.json()).data.window).toMatchObject({ totalTokens: 91200, requests: 3 })
   await page.clock.install({ time: new Date(NOW) })

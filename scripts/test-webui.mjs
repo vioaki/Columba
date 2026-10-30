@@ -3,27 +3,24 @@ import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { randomBytes } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const web = join(root, 'packages/webui')
-const runDirectory = await mkdtemp(join(tmpdir(), 'elysia-protocol-e2e-'))
-const binary = join(runDirectory, process.platform === 'win32' ? 'elysia.exe' : 'elysia')
-const backendPort = Number(process.env.PROTOCOL_E2E_PORT ?? 18769)
-const webPort = Number(process.env.PLAYWRIGHT_PORT ?? 5279)
+const runDirectory = await mkdtemp(join(tmpdir(), 'columba-webui-e2e-'))
+const binary = join(runDirectory, process.platform === 'win32' ? 'columba.exe' : 'columba')
+const backendPort = Number(process.env.COLUMBA_E2E_PORT ?? 18769)
+const webPort = Number(process.env.PLAYWRIGHT_PORT ?? 5274)
 const backendURL = `http://127.0.0.1:${backendPort}`
 const webURL = `http://127.0.0.1:${webPort}`
-const token = randomBytes(24).toString('hex')
 const config = join(runDirectory, 'config.json')
 const logDatabase = join(runDirectory, 'usage.sqlite3')
 const environment = {
   ...process.env,
   COLUMBA_DEV_PROXY: backendURL,
-  PROTOCOL_E2E_URL: backendURL,
-  PROTOCOL_E2E_TOKEN: token,
-  PROTOCOL_E2E_RUN_DIRECTORY: runDirectory,
-  PROTOCOL_E2E_LOG_DATABASE: logDatabase,
+  COLUMBA_E2E_URL: backendURL,
+  COLUMBA_E2E_RUN_DIRECTORY: runDirectory,
+  COLUMBA_E2E_LOG_DATABASE: logDatabase,
   PLAYWRIGHT_PORT: String(webPort),
   PLAYWRIGHT_EXTERNAL_SERVER: '1',
 }
@@ -61,7 +58,7 @@ async function waitReady(child, url) {
 try {
   await writeFile(config, JSON.stringify({
     databasePath: join(runDirectory, 'gateway.sqlite3'), logDatabasePath: logDatabase, host: '127.0.0.1', port: backendPort,
-    panelAccessToken: token, logLifecycleVersion: 1, openBrowserOnStart: false,
+    logLifecycleVersion: 1, openBrowserOnStart: false,
     modelCatalog: { enabled: false, syncIntervalMinutes: 0 },
     outbound: { deniedIpRanges: [] }, // isolated mock providers listen on loopback
   }), { mode: 0o600 })
@@ -69,12 +66,12 @@ try {
   const backend = start(binary, ['-config', config], runDirectory)
   const vite = start(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(webPort), '--strictPort'], web)
   await Promise.all([waitReady(backend, `${backendURL}/health`), waitReady(vite, webURL)])
-  await run(process.execPath, [join(root, 'node_modules/@playwright/test/cli.js'), 'test', ...(process.argv.length > 2 ? process.argv.slice(2) : ['protocol-v2.spec.ts', 'conversion-policy.spec.ts']), '--project=chromium', '--workers=1'], web)
+  await run(process.execPath, [join(root, 'node_modules/@playwright/test/cli.js'), 'test', ...process.argv.slice(2), '--workers=1'], web)
 } finally {
   // Close only children created by this runner. No port-based or name-based kills.
   for (const child of owned.reverse()) {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM')
     await child.completion.catch(() => {})
   }
-  console.log(`Isolated protocol E2E data retained at ${runDirectory}`)
+  console.log(`Isolated Columba E2E data retained at ${runDirectory}`)
 }

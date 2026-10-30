@@ -13,7 +13,9 @@
     "build:macos-app": "node scripts/build-macos-app.mjs",
     "build:webui": "npm run build --workspace @root/webui",
     "lint": "npm exec eslint -- packages/webui --cache --ext=ts,tsx",
-    "lint-fix": "npm exec eslint -- packages/webui --cache --ext=ts,tsx --fix"
+    "lint-fix": "npm exec eslint -- packages/webui --cache --ext=ts,tsx --fix",
+    "test:webui": "node scripts/test-webui.mjs",
+    "test:standalone": "node scripts/smoke-standalone.mjs"
   },
   "devDependencies": {
     "eslint": "^8.57.1",

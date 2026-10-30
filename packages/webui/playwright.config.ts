@@ -18,6 +18,6 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER ? undefined : {
     command: `npm run dev -- --port ${port} --strictPort`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI && !process.env.PROTOCOL_E2E_URL,
+    reuseExistingServer: !process.env.CI && !process.env.COLUMBA_E2E_URL,
   },
 })

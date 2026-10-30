@@ -1,0 +1,41 @@
+name: Columba checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: go test ./... && go vet ./...
+        working-directory: backend
+      - run: go test -race ./internal/routing ./internal/nativeusage ./internal/billing ./storage ./server
+        working-directory: backend
+      - run: npm run lint --workspace @root/webui
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:webui
+      - run: npm run build && npm run test:standalone
+      - run: git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: columba-binaries
+          path: dist/standalone/columba-*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failures
+          path: packages/webui/test-results

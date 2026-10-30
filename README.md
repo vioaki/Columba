@@ -1,166 +1,40 @@
-<div align="center">
+# Columba
 
-面板仅本机访问且免登录；推理客户端继续使用调用 Key。助手、会话、REST/MCP/A2A 远程管理已移除。
-  <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Columba"></p>
-  <p><strong>轻量、自部署的 AI 网关。</strong><br>
-    统一模型接入、协议转换与 AI 运维。</p>
-  <p>
-    <a href="https://github.com/PinkElysiaDev/Elysia-Api/releases/latest"><img src="https://img.shields.io/github/v/release/PinkElysiaDev/Elysia-Api?style=flat-square&logo=git&logoColor=white&label=release&labelColor=20222b&color=e26d85" alt="最新版本"></a>
-    <a href="https://github.com/PinkElysiaDev/Elysia-Api/stargazers"><img src="https://img.shields.io/github/stars/PinkElysiaDev/Elysia-Api?style=flat-square&logo=github&logoColor=white&label=stars&labelColor=20222b&color=e26d85" alt="GitHub stars"></a>
-    <a href="backend/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/PinkElysiaDev/Elysia-Api?filename=backend%2Fgo.mod&style=flat-square&logo=go&logoColor=white&label=Go&labelColor=20222b&color=e26d85" alt="Go 版本"></a>
-    <a href="#许可"><img src="https://img.shields.io/github/license/PinkElysiaDev/Elysia-Api?style=flat-square&labelColor=20222b&color=e26d85" alt="开源协议"></a>
-  </p>
-  <p><a href="#快速开始"><strong>快速开始</strong></a> · <a href="#界面预览">界面预览</a> · <a href="docs/README.md">完整文档</a> · <a href="CHANGELOG.md">更新日志</a><br>
-    <strong>简体中文</strong> · <a href="README.en.md">English</a></p>
-</div>
+<img src="packages/webui/public/Columba.svg" width="72" alt="Columba">
 
-## 特性
+Columba 是本地模型网关：聚合模型、透传原生协议、调度渠道，并记录用量与参考费用。Go 后端、React 面板和双 SQLite 数据库；提供 macOS 原生 App，以及 Windows/Linux/macOS 单文件构建。
 
-- 多协议兼容：支持 Chat Completions API / Responses API、Anthropic API、Gemini API，流式转换与同协议透传
-- 流量调度：模型组负载均衡、多 Key 调度、并发/配额限制、Key 权限自动探测
-- 声明式扩展：编辑器 编写双向协议，经离线验证后启用；支持 HTTP JSON、SSE、NDJSON、WebSocket 与持久化异步任务
-- AI 运维：内置管控助手，支持协议自动接入、用量分析、故障排查，写操作按会话权限审批
-- 安全加固：主密钥加载成功时加密存储敏感字段、出站 IP 策略、用量与请求日志
+面板免登录，服务只监听回环地址；客户端推理仍需调用 Key。导航只有总览、模型、调用 Key、用量费用、设置。
 
-> 完整能力、实现原理见 [文档目录](docs/README.md)
+## 使用
 
-## 界面预览
+1. 启动 Columba.app，或在专用目录运行本机平台的 `columba-*` 可执行文件。
+2. 打开 `http://127.0.0.1:8765/ui/`，在“模型”添加渠道、原生协议、上游地址与凭据，拉取或手动添加模型。
+3. 启用渠道与模型，在“调用 Key”创建客户端凭据。客户端使用原始模型 ID，不再使用组名。
+4. 在模型价格设置中明确填写 models.dev 供应商/模型 ID，或手动填写价格。“用量费用”查看 USD 费用、未计价数量和调用明细。
 
-| 总览                                     | 协议设计器                                            |
-|:--------------------------------------:|:------------------------------------------------:|
-| ![总览](docs/assets/webui-overview.webp) | ![协议映射](docs/assets/webui-protocol-mapping.webp) |
-| AI 助手                                  | 运行配置                                             |
+支持 Chat Completions、Responses、Anthropic Messages、Gemini 原生调用。同名模型按**精确 ID＋协议**聚合；无别名推测或跨协议转换。调度支持轮询、优先级和加权；默认额外重试最多 3 次、间隔 1 秒。已经输出、客户端取消或发送结果不确定时不会重试。
 
-[登录页动效](packages/webui/public/assets/elysia-login.mp4)
+配置参考 [config.json.example](config.json.example)。默认出站规则禁止私网目标；连接本地模型服务时，可在设置中明确调整 `outbound.deniedIpRanges`。出站代理通过 `outbound.proxyUrl` 设置。
 
-## 快速开始
+## 数据与升级
 
-### 1. 下载
+macOS App 使用 `~/Library/Application Support/Columba`。命令行配置默认位于工作目录，数据库路径相对于配置文件。使用 `-config /path/config.json` 指定配置。密钥由 `secretKeyPath` 或 `COLUMBA_MASTER_KEY` 提供。
 
-从 [GitHub Releases](https://github.com/PinkElysiaDev/Elysia-Api/releases/latest) 下载对应平台预编译产物，附 SHA256 校验文件。
+只支持最新旧结构（业务库 2 / 日志库 1）自动升级至当前结构（业务库 6 / 日志库 3），不搜索旧数据目录。首次升级会创建包含已提交 WAL 的成套备份；中断恢复和未知格式拒绝见 [存储说明](docs/storage-schema.md)。旧用量标记为历史未计价。自定义渠道无法可靠转换时保留连接资料并停用；旧组名不提供兼容层。
 
-| 平台                  | 文件名                             |
-| ------------------- | ------------------------------- |
-| Windows amd64/arm64 | `columba-windows-{arch}.exe` |
-| Linux amd64/arm64   | `columba-linux-{arch}`       |
-| macOS 通用            | `columba-macos.dmg`          |
+费用是 USD 参考估算，覆盖已报告的 Token 和缓存。缺少用量或价格不会显示成免费；工具、图片、音频、按秒等费用不在本版覆盖范围。账目独立于诊断正文留存，清理日志不会删除账目。历史价格快照不会随目录更新重算。
 
-### 2. 启动
+## 开发与构建
 
-首次启动自动生成配置与 SQLite 数据库；默认监听 `127.0.0.1:8765`。端口被占用时需修改配置，macOS App 会自动寻找可用端口。
-
-<details>
-<summary><strong>Windows</strong></summary>
-
-直接双击对应架构 exe 启动，或命令行执行：
-
-```powershell
-.\columba-windows-amd64.exe
+```sh
+npm ci
+npm run build                 # 六个平台/架构二进制，包含 WebUI
+npm run build:macos-app       # 仅 macOS：Universal App 与 DMG
+npm run test:webui            # 生成临时双库，Chromium + WebKit
+npm run test:standalone       # 本机二进制、透传、计费和内嵌界面冒烟
 ```
 
-ARM64 使用 `columba-windows-arm64.exe`。配置默认生成于当前工作目录。
+详细说明：[开发](docs/development.md) · [macOS 检查](docs/macos-testing.md) · [模型调度](docs/model-routing.md) · [原生网关](docs/native-gateway.md) · [计费](docs/billing.md) · [管理 API](docs/webui-api.md)
 
-</details>
-
-<details>
-<summary><strong>Linux</strong></summary>
-
-```bash
-chmod +x ./columba-linux-amd64
-./columba-linux-amd64
-```
-
-ARM64 将两处文件名替换为 `columba-linux-arm64`。
-
-</details>
-
-<details>
-<summary><strong>macOS</strong></summary>
-
-1. 挂载 DMG，将 Columba 拖入应用目录（支持 macOS 12+，双架构通用）
-2. 无需面板令牌，数据存储于 `~/Library/Application Support/Columba/`
-3. 如遇 Gatekeeper 拦截，执行后重试：
-
-   ```bash
-   xattr -d com.apple.quarantine /Applications/Columba.app
-   ```
-
-</details>
-
-<details>
-<summary><strong>Docker</strong></summary>
-
-```bash
-# 在仓库根目录构建本地镜像
-docker build -t columba:local .
-# 启动服务
-docker run -d --name columba \
-  -p 127.0.0.1:8765:8765 \
-  -v elysia-data:/data \
-  -e COLUMBA_HOST=0.0.0.0 \
-  columba:local
-```
-
-执行 `docker logs columba` 获取初始面板令牌；生产环境安全加固、Compose 模板见[部署文档](docs/deployment.md)。
-
-</details>
-
-### 3. 接入模型
-
-1. 访问 `http://127.0.0.1:8765/ui/`，直接进入本地面板，无需登录；macOS App 以菜单栏地址为准，下方调用地址也需使用该端口
-
-2. 添加「模型源」，填写上游地址与 API Key，拉取模型列表
-
-3. 创建名为 `default` 的「模型组」，加入可用模型
-
-4. 创建对应权限的 Relay API Token（推理令牌），发起测试：
-
-   ```bash
-   curl http://127.0.0.1:8765/v1/chat/completions \
-   -H "Authorization: Bearer <RELAY_TOKEN>" \
-   -H "Content-Type: application/json" \
-   -d '{"model":"default","messages":[{"role":"user","content":"hi"}]}'
-   ```
-
-   返回 JSON 中的 `choices[0].message.content` 即为模型回复。401 检查推理令牌；无可用模型时检查源、组成员及启停状态。
-
-
-## 配置
-
-`config.json` 保存监听地址、数据库路径和运行策略；模型源、模型组、访问令牌及用量记录存储于 SQLite。
-通常无需手工创建配置。以下为最小手工配置；省略 `httpTimeout` 表示不限时，首次自动生成的配置写入 120 秒。手工配置必须将 `change-me` 替换为随机面板令牌：
-
-```json
-{
-  "host": "127.0.0.1",
-  "port": 8765,
-    "databasePath": "columba.sqlite3"
-}
-```
-
-> 全量配置项、环境变量、旧版本迁移、备份恢复、安全加固见 [部署文档](docs/deployment.md)。
-
-## 进阶文档
-
-- [自定义协议开发](docs/protocol-definition-reference.md)
-- [协议架构、支持矩阵与迁移](docs/protocol-guide.md)
-- [协议验证与发布检查](docs/protocol-release-readiness.md)
-- [运维与接口参考](docs/webui-api.md)
-
-## 构建
-
-依赖：Node.js 22+、Go 1.27.2+
-
-```bash
-npm install && npm run build
-```
-
-产物输出至 `dist/standalone/`，DMG 打包、交叉编译等完整构建说明见[开发指南](docs/development.md)。
-
-## 贡献
-
-Issue 请附环境、复现步骤与脱敏日志；PR 请说明变更与验证方式，行为变更同步更新文档。
-
-## 许可
-
-本项目基于 [Apache License 2.0](LICENSE) 开源：允许自由使用、修改与分发（含商用），附带显式专利授权；分发时保留本许可证，修改过的文件需作标注，本仓库名称与商标不在授权范围内。除非在 PR 中另行声明，你提交的贡献将按 Apache 2.0 一并授权。
+构建不会推送、发布或自动更新应用。产品版本由现有包版本/标签决定，不由构建脚本递增。

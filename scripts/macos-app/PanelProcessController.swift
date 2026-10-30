@@ -1,5 +1,4 @@
 import Cocoa
-import CryptoKit
 import WebKit
 import os
 
@@ -113,16 +112,10 @@ extension AppDelegate {
         message.config = config
         message.backendState = backendState.rawValue
         message.generation = backendGeneration.uuidString
-        message.updateEnabled = updateActionMenuIsEnabled()
         message.host = backendHost
         message.port = backendPort
         message.restartCount = restartCount
         message.error = lastBackendError
-        message.updatePhase = updatePhase.rawValue
-        message.updateMessage = updateMessage
-        message.updateDetail = updateDetail
-        message.updateFraction = updateFraction
-        message.capsuleVisible = updateCapsuleVisible
         panelBridge?.send(message)
     }
 
@@ -131,12 +124,6 @@ extension AppDelegate {
         switch message.type {
         case "hello": sendPanelState()
         case "closing": stopPanelProcess()
-        case "htmlLoaded":
-            #if NATIVE_TESTS
-            if CommandLine.arguments.contains("--update-ack") {
-                try? String(ProcessInfo.processInfo.processIdentifier).write(toFile: dataDirPath + "/new-html-loaded.pid", atomically: true, encoding: .utf8)
-            }
-            #endif
         case "ready":
             guard message.port == backendPort, message.host == backendHost, message.generation == backendGeneration.uuidString, backendState == .running, !panelClosing else { return }
             panelReady = true
@@ -145,15 +132,10 @@ extension AppDelegate {
                 try? String(process.processIdentifier).write(toFile: dataDirPath + "/tray-ui-ready.pid", atomically: true, encoding: .utf8)
             }
             #endif
-            acknowledgeUpdateLaunch()
         case "action":
             switch message.action {
             case "restart": restartBackend()
             case "retry": retryStartup()
-            case "update": performUpdateAction()
-            case "cancelUpdate": cancelUpdate()
-            case "checkUpdate": checkForUpdates(silent: false)
-            case "dismissUpdate": dismissUpdatePrompt()
             case "preferences": showPreferences()
             case "quit": requestTermination()
             default: break
@@ -167,29 +149,17 @@ extension AppDelegate {
         case "show": showMainWindow()
         case "close": window?.performClose(nil)
         case "state":
-            guard let fresh = message.config, let state = message.backendState.flatMap(BackendState.init(rawValue:)),
-                  let phase = message.updatePhase.flatMap(UpdatePhase.init(rawValue:)) else { return }
+            guard let fresh = message.config, let state = message.backendState.flatMap(BackendState.init(rawValue:)) else { return }
             let originChanged = backendPort != message.port || backendHost != message.host || panelBackendGeneration != message.generation
             panelBackendGeneration = message.generation ?? ""
-            panelUpdateEnabled = message.updateEnabled ?? false
             config = fresh
             backendHost = message.host
             backendPort = message.port ?? 0
             backendState = state
             restartCount = message.restartCount ?? 0
             lastBackendError = message.error
-            if phase == .installing && updatePhase != .installing {
-                cancelPanelDownloads(reason: "应用正在安装更新，未完成的导出已取消。")
-            }
-            updatePhase = phase
-            checkingUpdates = phase == .checking
-            updateMessage = message.updateMessage ?? ""
-            updateDetail = message.updateDetail ?? ""
-            updateFraction = message.updateFraction
-            updateCapsuleVisible = message.capsuleVisible ?? false
             if originChanged || state != .running { panelLoaded = false; panelReady = false }
             renderBackendState()
-            refreshUpdateUI()
             loadPanelWhenHealthy()
         default: break
         }
@@ -200,7 +170,7 @@ extension AppDelegate {
               let webView, !webView.isLoading, let url = webView.url, isPanelOrigin(url) else { return }
         panelReadinessInFlight = true
         let port = backendPort, host = backendHost, generation = panelBackendGeneration
-        webView.evaluateJavaScript("Boolean(document.querySelector('#token')?.closest('form') || document.querySelector('main h1'))") { [weak self, weak webView] result, _ in
+        webView.evaluateJavaScript("Boolean(document.querySelector('main h1'))") { [weak self, weak webView] result, _ in
             guard let self else { return }
             self.panelReadinessInFlight = false
             guard let webView, webView === self.webView, port == self.backendPort, host == self.backendHost,

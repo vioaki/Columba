@@ -1,170 +1,23 @@
-<div align="center">
+# Columba
 
-The local panel requires no login. Inference clients still use API keys. Assistant sessions and REST/MCP/A2A remote management have been removed.
-  <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Columba"></p>
-  <p><strong>A lightweight, self-hosted AI gateway.</strong><br>
-    Model access, protocol conversion, and AI-assisted operations.</p>
-  <p>
-    <a href="https://github.com/PinkElysiaDev/Elysia-Api/releases/latest"><img src="https://img.shields.io/github/v/release/PinkElysiaDev/Elysia-Api?style=flat-square&logo=git&logoColor=white&label=release&labelColor=20222b&color=e26d85" alt="Latest release"></a>
-    <a href="https://github.com/PinkElysiaDev/Elysia-Api/stargazers"><img src="https://img.shields.io/github/stars/PinkElysiaDev/Elysia-Api?style=flat-square&logo=github&logoColor=white&label=stars&labelColor=20222b&color=e26d85" alt="GitHub stars"></a>
-    <a href="backend/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/PinkElysiaDev/Elysia-Api?filename=backend%2Fgo.mod&style=flat-square&logo=go&logoColor=white&label=Go&labelColor=20222b&color=e26d85" alt="Go version"></a>
-    <a href="#license"><img src="https://img.shields.io/github/license/PinkElysiaDev/Elysia-Api?style=flat-square&labelColor=20222b&color=e26d85" alt="License"></a>
-  </p>
-  <p><a href="#quick-start"><strong>Quick start</strong></a> · <a href="#ui-preview">UI preview</a> · <a href="docs/README.en.md">Documentation</a> · <a href="CHANGELOG.md">Changelog</a><br>
-    <a href="README.md">简体中文</a> · <strong>English</strong></p>
-</div>
+<img src="packages/webui/public/Columba.svg" width="72" alt="Columba">
 
-## Features
+A local model gateway for aggregation, native protocol passthrough, channel scheduling, and usage/cost accounting. Go + React + SQLite, with a native macOS App and standalone Windows/Linux/macOS builds.
 
-- Protocols: Chat Completions API / Responses API, Anthropic API, and Gemini API; streaming conversion and same-protocol passthrough
-- Routing: model groups, load balancing, multiple API keys, concurrency and quota limits, per-key model discovery
-- Declarative extensions: author bidirectional protocols with the editor, verify offline, then activate; HTTP JSON, SSE, NDJSON, WebSocket and persistent asynchronous jobs
-- AI operations: protocol onboarding, usage analysis, and troubleshooting; writes follow session approval policies
-- Security: sensitive fields encrypted when the master key loads successfully, outbound IP policies, usage records, and request logs
+The management panel requires no login and listens only on loopback. Model calls require an API Key. Add a channel and enable its models, create a calling Key, then send the original model ID. Channels aggregate by exact model ID and protocol: Chat Completions, Responses, Anthropic Messages, and Gemini. No group aliases or protocol translation. Scheduling supports round robin, priority and weights; defaults allow three extra attempts, one second apart. Output, cancellation and uncertain transport failures stop retries.
 
-See the [documentation index](docs/README.en.md) for capabilities and implementation details.
+Run a platform binary in a dedicated directory, or open Columba.app. Visit `http://127.0.0.1:8765/ui/`. Use `-config /path/config.json` for explicit configuration. macOS App data lives in `~/Library/Application Support/Columba`. Default outbound rules block private networks; adjust `outbound.deniedIpRanges` explicitly for local upstreams. See [config.json.example](config.json.example).
 
-## UI preview
+Pricing uses explicit provider/model mappings from models.dev and manual decimal overrides. USD estimates cover reported tokens/cache only. Missing prices/usage remain incomplete, not free. Tool, image, audio and per-second fees are outside this version's scope. Every attempt freezes prices; log cleanup preserves the independent ledger.
 
-| Overview | Protocol designer |
-| :---: | :---: |
-| ![Overview](docs/assets/webui-overview.webp) | ![Protocol mappings](docs/assets/webui-protocol-mapping.webp) |
-| AI assistant | Runtime configuration |
+Only legacy business schema 2 / log schema 1 upgrades automatically to current 6 / 3. Upgrades use paired backups including committed WAL, recover interrupted migrations, and reject unknown formats. No historical directory discovery. Old usage remains unpriced; unsupported custom channels are retained but disabled. Clients must replace group names with original model IDs.
 
-[Login animation](packages/webui/public/assets/elysia-login.mp4)
-
-## Quick start
-
-### 1. Download
-
-Download a binary for your platform and the SHA256 checksum file from [GitHub Releases](https://github.com/PinkElysiaDev/Elysia-Api/releases/latest).
-
-<details>
-<summary>Release files</summary>
-
-| Platform | File |
-| --- | --- |
-| Windows amd64/arm64 | `columba-windows-{arch}.exe` |
-| Linux amd64/arm64 | `columba-linux-{arch}` |
-| macOS universal | `columba-macos.dmg` |
-
-</details>
-
-### 2. Start
-
-The first launch creates a configuration file and SQLite database. On Windows / Linux, the startup log prints a random panel token. The default address is `127.0.0.1:8765`. Change the configured port if it is occupied; the macOS app selects an available port automatically.
-
-<details>
-<summary><strong>Windows</strong></summary>
-
-Double-click the executable for your architecture, or run:
-
-```powershell
-.\columba-windows-amd64.exe
+```sh
+npm ci
+npm run build
+npm run build:macos-app     # macOS only: Universal App + DMG
+npm run test:webui         # temporary test databases; Chromium + WebKit
+npm run test:standalone
 ```
 
-On ARM64, use `columba-windows-arm64.exe`. The configuration is created in the current working directory.
-
-</details>
-
-<details>
-<summary><strong>Linux</strong></summary>
-
-```bash
-chmod +x ./columba-linux-amd64
-./columba-linux-amd64
-```
-
-On ARM64, replace both filenames with `columba-linux-arm64`.
-
-</details>
-
-<details>
-<summary><strong>macOS</strong></summary>
-
-1. Mount the DMG and drag Columba into Applications. Requires macOS 12+; supports Intel and Apple Silicon.
-2. Copy the panel token from the menu bar. Data is stored in `~/Library/Application Support/Columba/`.
-3. If Gatekeeper blocks the downloaded app, run this command and try again:
-
-   ```bash
-   xattr -d com.apple.quarantine /Applications/Columba.app
-   ```
-
-</details>
-
-<details>
-<summary><strong>Docker</strong></summary>
-
-```bash
-# Build from the repository root
-docker build -t columba:local .
-# Start the service
-docker run -d --name columba \
-  -p 127.0.0.1:8765:8765 \
-  -v elysia-data:/data \
-  -e COLUMBA_HOST=0.0.0.0 \
-  columba:local
-```
-
-Run `docker logs columba` to obtain the initial panel token. See [deployment](docs/deployment.en.md) for a Compose example and production settings.
-
-</details>
-
-### 3. Connect a model
-
-1. Open `http://127.0.0.1:8765/ui/` and sign in with the panel token. For the macOS App, use the menu-bar address and its port in the call below.
-2. Add a model source, enter its upstream URL and API key, and fetch its model list.
-3. Create a model group named `default` and add an available model.
-4. Create a Relay API Token with access to that group, then test it:
-
-   ```bash
-   curl http://127.0.0.1:8765/v1/chat/completions \
-     -H "Authorization: Bearer <RELAY_TOKEN>" \
-     -H "Content-Type: application/json" \
-     -d '{"model":"default","messages":[{"role":"user","content":"hi"}]}'
-   ```
-
-   The reply is in `choices[0].message.content`. For 401, check the relay token; if no model is available, check the source, group members and enabled states.
-
-
-## Configuration
-
-`config.json` stores listener settings, database paths, and runtime policies. Model sources, model groups, API tokens, and usage records are stored in SQLite.
-
-The file is normally created automatically. This minimal manual configuration omits `httpTimeout`, which means unlimited; automatically generated configuration sets 120 seconds. Replace `change-me` with a random panel token:
-
-```json
-{
-  "host": "127.0.0.1",
-  "port": 8765,
-  "panelAccessToken": "change-me",
-  "databasePath": "columba.sqlite3"
-}
-```
-
-See [deployment](docs/deployment.en.md) for configuration fields, environment variables, migration, backup, restore, and security settings.
-
-## Further reading
-
-- [Custom protocols](docs/protocol-definition-reference.en.md)
-- [Protocol architecture, capabilities and migration](docs/protocol-guide.en.md)
-- [Protocol validation and release checks](docs/protocol-release-readiness.en.md)
-- [Management API](docs/webui-api.en.md)
-
-## Build
-
-Requirements: Node.js 22+, Go 1.27.2+.
-
-```bash
-npm install && npm run build
-```
-
-Outputs are written to `dist/standalone/`. See [development](docs/development.en.md) for cross-compilation and DMG packaging.
-
-## Contributing
-
-Include your environment, reproduction steps, and redacted logs in issues. Describe changes and validation in pull requests; update documentation when behavior changes.
-
-## License
-
-This project is open source under the [Apache License 2.0](LICENSE): you are free to use, modify and distribute it (including commercially) with an explicit patent grant. Keep the license when distributing, mark modified files, and note that the project name and trademarks are not licensed. Unless stated otherwise in your pull request, contributions are licensed under Apache 2.0 as well.
+See [development](docs/development.md), [native gateway](docs/native-gateway.md), [billing](docs/billing.md), [storage](docs/storage-schema.md), and [macOS checks](docs/macos-testing.md). Builds do not publish, push, auto-update, or increment the product version.

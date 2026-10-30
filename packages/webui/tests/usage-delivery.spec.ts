@@ -7,11 +7,11 @@ import type { UsageLogDetail } from '../src/lib/types'
 // Only the runner's disposable log database is seeded. Reads and downloads use
 // the real backend so optional historical fields follow the persistence path.
 function seedUsageRecords(records: UsageLogDetail[]) {
-  const directory = realpathSync(process.env.PROTOCOL_E2E_RUN_DIRECTORY!)
-  const databasePath = realpathSync(process.env.PROTOCOL_E2E_LOG_DATABASE!)
-  expect(basename(directory)).toMatch(/^elysia-protocol-e2e-/)
+  const directory = realpathSync(process.env.COLUMBA_E2E_RUN_DIRECTORY!)
+  const databasePath = realpathSync(process.env.COLUMBA_E2E_LOG_DATABASE!)
+  expect(basename(directory)).toMatch(/^columba-webui-e2e-/)
   expect(dirname(databasePath)).toBe(directory)
-  expect(new URL(process.env.PROTOCOL_E2E_URL!).hostname).toBe('127.0.0.1')
+  expect(new URL(process.env.COLUMBA_E2E_URL!).hostname).toBe('127.0.0.1')
   const database = new DatabaseSync(databasePath)
   try {
     database.exec('PRAGMA busy_timeout=5000')
@@ -30,7 +30,8 @@ function seedUsageRecords(records: UsageLogDetail[]) {
 }
 
 test('real usage details and exports preserve independent delivery evidence and old records', async ({ page, request }) => {
-  test.skip(!process.env.PROTOCOL_E2E_URL || !process.env.PROTOCOL_E2E_LOG_DATABASE, 'requires the isolated backend runner and its disposable log database')
+  test.skip(!process.env.COLUMBA_E2E_URL || !process.env.COLUMBA_E2E_LOG_DATABASE, 'requires the isolated backend runner and its disposable log database')
+  expect((await request.post(`${process.env.COLUMBA_E2E_URL}/api/admin/usage/reset`)).ok()).toBe(true)
   const suffix = Date.now()
   const timestamp = new Date().toISOString()
   const emptyBody = { content: '', truncated: false }
@@ -71,12 +72,10 @@ test('real usage details and exports preserve independent delivery evidence and 
     },
   ]
   seedUsageRecords(records)
-  const token = process.env.PROTOCOL_E2E_TOKEN!
-  const headers = { Authorization: `Bearer ${token}` }
   await page.goto('/#/usage-logs')
 
   for (const record of records) {
-    const persisted = await request.get(`${process.env.PROTOCOL_E2E_URL}/api/admin/usage/logs/${record.requestId}`, { headers })
+    const persisted = await request.get(`${process.env.COLUMBA_E2E_URL}/api/admin/usage/logs/${record.requestId}`)
     expect(persisted.status()).toBe(200)
     const persistedRecord: UsageLogDetail = (await persisted.json()).data
     expect(persistedRecord).toMatchObject(record)
@@ -88,14 +87,8 @@ test('real usage details and exports preserve independent delivery evidence and 
     await expect(dialog.getByTestId('upstream-http-status')).toHaveText(record.upstreamHttpStatus ? '200' : '未记录')
     await expect(dialog.getByTestId('downstream-http-status')).toHaveText(record.delivery ? '200' : '未记录')
     await expect(dialog.getByTestId('delivery-outcome')).toHaveText(!record.delivery ? '未记录交付结果' : record.delivery.outcome === 'failed' ? '交付失败' : '服务端交付完成')
-    if (record.conversionIssues) {
-      await expect(dialog.getByText('上游事件解码失败（502）', { exact: false })).toBeVisible()
-      await expect(dialog.getByText('协议能力不支持', { exact: false }).first()).toBeVisible()
-      await dialog.getByLabel('转换诊断').locator('summary').click()
-      await expect(dialog.getByText('阶段：decode_event', { exact: false })).toBeVisible()
-    }
     if (record.delivery?.cause === 'request_canceled') {
-      await expect(dialog.getByText('请求取消（来源未明）（503）', { exact: false })).toBeVisible()
+      await expect(dialog.getByText('请求取消（来源未明）（request_canceled）', { exact: false })).toBeVisible()
       await expect(dialog.getByText('客户端取消', { exact: false })).toHaveCount(0)
     }
     if (record.providerResponse.truncated) {
@@ -110,21 +103,15 @@ test('real usage details and exports preserve independent delivery evidence and 
       await expect(dialog.getByText('upstream_idle_timeout / reading_body', { exact: true })).toBeVisible()
     }
     const download = page.waitForEvent('download')
-    await dialog.getByRole('button', { name: '导出完整日志' }).click()
+    await dialog.getByRole('button', { name: '导出记录' }).click()
     const stream = await (await download).createReadStream()
     let text = ''
     for await (const chunk of stream!) text += chunk.toString()
     const exported = JSON.parse(text)
-    expect(exported.raw).toMatchObject(record)
-    expect(exported.overview.statusCode).toBe(record.statusCode)
-    expect(exported.overview.upstreamHttpStatus).toBe(record.upstreamHttpStatus)
-    expect(exported.overview.delivery).toEqual(record.delivery)
-    expect(exported.overview.transportFailure).toEqual(record.transportFailure)
-    expect(exported.overview.conversionIssues).toEqual(record.conversionIssues)
-    expect(exported.chain.upstreamResponse.truncated).toBe(record.providerResponse.truncated)
+    expect(exported).toMatchObject(record)
+    expect(exported.providerResponse).toEqual(record.providerResponse)
     if (record.providerResponse.truncated) {
-      expect(exported.raw.providerResponse).toEqual(record.providerResponse)
-      expect(exported.chain.upstreamResponse.content).toEqual(retainedTail)
+      expect(JSON.parse(exported.providerResponse.content)).toEqual(retainedTail)
     }
     await dialog.getByRole('button', { name: '关闭', exact: true }).last().click()
   }

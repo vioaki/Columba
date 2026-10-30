@@ -6,14 +6,14 @@ import WebKit
 enum NativeTests {
     static var checks = 0
     static func expect(_ value: Bool, _ message: String) throws {
-        guard value else { throw UpdateError(message: "FAIL: " + message) }
+        guard value else { throw AppError(message: "FAIL: " + message) }
         checks += 1
         print("PASS: " + message)
     }
     static func rejects(_ message: String, _ action: () throws -> Void) throws {
         do { try action() }
         catch { checks += 1; print("PASS: " + message); return }
-        throw UpdateError(message: "FAIL: " + message)
+        throw AppError(message: "FAIL: " + message)
     }
     static func wait(_ timeout: TimeInterval = 8, _ condition: () -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
@@ -67,7 +67,6 @@ enum NativeTests {
                 try await lifecycle(delegate)
                 try await LifecycleTests.run(delegate)
                 try await ResourceTests.run(delegate)
-                try await UpdateTests.run()
             }
             if delegate.backend != nil { delegate.stopBackend(); _ = await wait { delegate.backend == nil } }
             delegate.window?.close()
@@ -86,42 +85,9 @@ enum NativeTests {
         }
     }
 
-    private static func proxyTests(_ delegate: AppDelegate) async throws {
-        let raw = "http://proxy-user:proxy-secret@127.0.0.1:\(delegate.backendPort)"
-        let proxy = try UpdateProxy(raw)
-        let configuration = proxy.configuration()
-        configuration.timeoutIntervalForRequest = 3
-        try expect(configuration.connectionProxyDictionary?["HTTPSPort"] as? Int == delegate.backendPort,
-                   "HTTP proxy also configures HTTPS update tunnels")
-        try expect(try UpdateProxy("http://[::1]:7890").configuration().connectionProxyDictionary?["HTTPProxy"] as? String == "::1", "IPv6 proxy uses an unbracketed network host")
-        try expect(!proxy.redact("failed: " + raw).contains("proxy-secret"), "proxy error descriptions hide credentials")
-        for invalid in ["socks5://localhost:1080", "http://localhost:0", "http://localhost:", "http://localhost:65536", "http://user:secret@localhost/path"] {
-            try rejects("invalid update proxy is rejected") { _ = try UpdateProxy(invalid) }
-        }
-        let session = URLSession(configuration: configuration, delegate: NativeProxyDelegate(proxy: proxy), delegateQueue: .main)
-        defer { session.invalidateAndCancel() }
-        let remote = URL(string: "https://proxy-target.invalid/download")!
-        let (data, response) = try await session.data(from: remote)
-        try expect((response as? HTTPURLResponse)?.statusCode == 200 && data == Data("abc".utf8),
-                   "release-check session uses the authenticated HTTP proxy")
-        let used = try String(contentsOfFile: dataDirPath + "/proxy-used", encoding: .utf8)
-        try expect(used == "proxy-target.invalid:443", "proxy receives the remote target without a direct DNS connection")
-        var downloaded: URL?, downloadError: Error?, done = false
-        let downloadDelegate = UpdateDownloadDelegate(proxy: proxy, onProgress: { _, _ in }, onFinished: { url, error in downloaded = url; downloadError = error; done = true })
-        let downloadSession = URLSession(configuration: configuration, delegate: NativeProxyDelegate(proxy: proxy, download: downloadDelegate), delegateQueue: .main)
-        defer { downloadSession.invalidateAndCancel(); if let downloaded { try? FileManager.default.removeItem(at: downloaded) } }
-        downloadSession.downloadTask(with: remote).resume()
-        try expect(await wait { done }, "proxied update download completes")
-        try expect(downloadError == nil && downloaded != nil && (try Data(contentsOf: downloaded!)) == Data("abc".utf8),
-                   "update download retains authentication and downloaded bytes")
-        try expect(delegate.healthSession.configuration.connectionProxyDictionary?.isEmpty == true
-                   && delegate.apiSession.configuration.connectionProxyDictionary?.isEmpty == true,
-                   "local health and API sessions explicitly bypass proxies")
-    }
 
     static func support() throws {
         let fm = FileManager.default
-        let root = URL(fileURLWithPath: dataDirPath)
         let defaults = UserDefaults.standard
         defaults.set("#/logs", forKey: "Columba.lastRoute")
         let store = WindowStateStore(defaults: defaults)
@@ -144,33 +110,6 @@ enum NativeTests {
         try expect((payload["KeepAlive"] as? Bool) == false && args[2].contains("--login") && args[2].contains("/bin/rm"), "legacy login stays in background and cleans missing app registration")
         let repeated = LaunchAtLoginManager.legacyPayload(bundlePath: args[4], plistPath: args[5], label: args[6])
         try expect(NSDictionary(dictionary: payload).isEqual(to: repeated), "identical login configuration has stable payload")
-        try architectureValidation(root: root)
-        let file = root.appendingPathComponent("checksum.dmg")
-        try Data("abc".utf8).write(to: file)
-        let digest = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        try UpdateInstaller.verify(file, digest: "sha256:" + digest)
-        try expect(true, "streamed SHA256 accepts known digest")
-        try rejects("missing SHA256 is rejected") { _ = try UpdateInstaller.validateDigest("") }
-        try rejects("wrong SHA256 leaves artifact untouched") { try UpdateInstaller.verify(file, digest: String(repeating: "0", count: 64)) }
-        try rejects("invalid DMG is rejected before extraction") { _ = try UpdateInstaller.extractApp(fromDMG: file, beside: root.appendingPathComponent("current.app")) }
-        let current = root.appendingPathComponent("current.app"), staged = root.appendingPathComponent("staged.app")
-        try fm.createDirectory(at: current, withIntermediateDirectories: false)
-        try fm.createDirectory(at: staged, withIntermediateDirectories: false)
-        try Data("old".utf8).write(to: current.appendingPathComponent("version"))
-        try Data("new".utf8).write(to: staged.appendingPathComponent("version"))
-        try rejects("replacement failure rolls back old bundle") {
-            try UpdateInstaller.replace(staged: staged, current: current) { from, to in
-                if from == staged { throw UpdateError(message: "injected write failure") }
-                try fm.moveItem(at: from, to: to)
-            }
-        }
-        let restored = try String(contentsOf: current.appendingPathComponent("version"))
-        try expect(restored == "old" && fm.fileExists(atPath: staged.path), "rollback preserves old app and staged update")
-        try UpdateInstaller.replace(staged: staged, current: current)
-        let updated = try String(contentsOf: current.appendingPathComponent("version"))
-        try expect(updated == "new" && !fm.fileExists(atPath: staged.path), "successful replacement installs staged bundle")
-        try expect(isNewer("v1.2.0", than: "v1.1.9") && !isNewer("v1.2", than: "v1.2.0"), "version comparisons handle missing patch component")
-        try expect(AppDelegate.releaseForTests(Data("{\"tag_name\":\"v2\",\"assets\":[]}".utf8)) == nil, "release with missing DMG is rejected")
         let fresh = loadOrCreateConfig()
         try expect(fresh?.port == 8765 && fresh?.host == "127.0.0.1", "missing configuration creates secure first-run defaults")
         let configURL = URL(fileURLWithPath: configPath)
@@ -210,27 +149,6 @@ enum NativeTests {
         try expect(formatRequestCount(12_345).contains("12") && formatRequestCount(0) == "0", "request counts format with grouping")
     }
 
-    static func architectureValidation(root: URL) throws {
-        let previous = ProcessInfo.processInfo.environment["DEVELOPER_DIR"]
-        setenv("DEVELOPER_DIR", root.appendingPathComponent("no-developer-tools").path, 1)
-        defer {
-            if let previous { setenv("DEVELOPER_DIR", previous, 1) }
-            else { unsetenv("DEVELOPER_DIR") }
-        }
-        try UpdateInstaller.validateArchitectures(at: root.appendingPathComponent("fixture-universal"))
-        try expect(true, "universal update validates without a developer toolchain")
-        for name in ["fixture-arm64", "fixture-x86_64"] {
-            try rejects("single-architecture update is rejected: " + name) {
-                try UpdateInstaller.validateArchitectures(at: root.appendingPathComponent(name))
-            }
-        }
-        let invalid = root.appendingPathComponent("invalid-executable")
-        try Data("not Mach-O".utf8).write(to: invalid)
-        try rejects("non-Mach-O update is rejected") { try UpdateInstaller.validateArchitectures(at: invalid) }
-        try rejects("missing update executable is rejected") {
-            try UpdateInstaller.validateArchitectures(at: root.appendingPathComponent("missing"))
-        }
-    }
 
     static func lifecycle(_ delegate: AppDelegate) async throws {
         let root = URL(fileURLWithPath: dataDirPath)
@@ -269,8 +187,6 @@ enum NativeTests {
         try expect(browserAction?.action == NSSelectorFromString("openPanelInBrowser") && delegate.validateMenuItem(browserAction!), "manual browser action remains available")
         let copyToken = delegate.statusItem.menu?.item(withTitle: "复制面板访问令牌")
         try expect(copyToken == nil, "panel token menu is removed")
-        try await downloadTests(port: delegate.backendPort)
-        try await proxyTests(delegate)
         UserDefaults.standard.set("#/logs", forKey: "Columba.lastRoute")
         delegate.windowState.save(theme: "dark")
         weak var releasedWebView: WKWebView?
@@ -282,7 +198,6 @@ enum NativeTests {
         let jsState = try await delegate.webView.evaluateJavaScript("localStorage.getItem('columba-webui.theme') === 'dark' && localStorage.getItem('columba-webui.panel-token') === null && !document.cookie.includes('panel_access_token=')") as? Bool
         try expect(jsState == true, "theme is restored without injecting a token or authentication cookie")
         try expect(delegate.webView.configuration.websiteDataStore.isPersistent, "WebKit persists UI preferences")
-        try await updateCapsuleTests(delegate)
         _ = try await delegate.webView.evaluateJavaScript("location.hash = '#/protocols'")
         try expect(await wait { delegate.webView.url?.fragment == "/protocols" }, "panel can navigate away from overview")
         delegate.showMainWindow()
@@ -342,86 +257,10 @@ enum NativeTests {
 
     /// 同一相位状态机的两个 UI 投影（胶囊 / 状态栏动态更新项）：
     /// 每个相位只刻画各自的控件语义，是平台级的「快照组」。
-    static func updateCapsuleTests(_ delegate: AppDelegate) async throws {
-        // (1) idle：启动即无胶囊，webView 全幅（不再预留 27pt 更新条区）。
-        delegate.updatePhase = .idle
-        delegate.updateUIForTests()
-        delegate.window.contentView?.layoutSubtreeIfNeeded()
-        try expect(delegate.updateCapsule.isHidden && !delegate.updateCapsuleVisible, "idle phase keeps the update capsule hidden from launch")
-        let content = delegate.window.contentView!
-        try expect(delegate.webView.frame.maxY == content.bounds.maxY && delegate.webView.frame.minY == 0,
-                   "panel remains full-bleed after dropping the bottom update bar")
-        try expect(delegate.updateCapsule.superview === content
-                   && content.subviews.firstIndex(of: delegate.updateCapsule)! > content.subviews.firstIndex(of: delegate.webView)!,
-                   "capsule floats above the WebView as a sibling overlay")
-        try expect(delegate.updateCapsule.frame.origin == NSPoint(x: 16, y: 16), "capsule anchors bottom-left inside the window")
-        // (2) checking：相位不应弹出胶囊（估 24ms 离手动检查 menuItem 仍变体）。
-        delegate.checkingUpdates = true
-        delegate.updatePhase = .checking
-        delegate.updateUIForTests()
-        try expect(delegate.updateCapsule.isHidden && !delegate.updateCheckItem.isEnabled
-                   && delegate.updateCheckItem.title == "正在检查更新…",
-                   "checking leaves the capsule hidden and the menu item disabled until it settles")
-        delegate.checkingUpdates = false
-        // (3) available：胶囊出现、行动按钮+关闭共存。
-        delegate.latestRelease = ReleaseInfo(tag: "v99.0.0", dmgURL: "https://example.com/unused.dmg", dmgDigest: "sha256:00")
-        delegate.updatePhase = .available
-        delegate.updateMessage = "发现新版本 v99.0.0"
-        delegate.updateDetail = "1.0.0 → v99.0.0 · 安装需要重启"
-        delegate.updateCapsuleVisible = true
-        delegate.updateUIForTests()
-        let capsule = delegate.updateCapsule!
-        try expect(!capsule.isHidden && capsule.titleField.stringValue == "发现新版本 v99.0.0"
-                   && capsule.detailField.stringValue.contains("安装需要重启"),
-                   "available phase surfaces the capsule with version detail")
-        try expect(!capsule.primaryButton.isHidden && capsule.primaryButton.title == "立即更新"
-                   && !capsule.dismissButton.isHidden && capsule.cancelButton.isHidden,
-                   "available phase offers update-and-dismiss actions")
-        try expect(delegate.updateCheckItem.title == "安装更新…" && delegate.validateMenuItem(delegate.updateCheckItem),
-                   "menu bar updates to the install action")
-        // 关闭 × 钉在胶囊右上角，且与主操作按钮互不交叠（回防截图里的按钮重叠）。
-        capsule.layoutSubtreeIfNeeded()
-        let closeBox = capsule.dismissButton.frame
-        try expect(closeBox.maxY > capsule.bounds.height - 30 && !closeBox.intersects(capsule.primaryButton.frame),
-                   "dismiss control pins to the capsule top-right clear of the action buttons")
-        // (4) downloading：环形进度条取代图标，主按钮隐去，只剩取消。
-        delegate.updatePhase = .downloading
-        delegate.updateMessage = "下载 v99.0.0"
-        delegate.updateDetail = "已接收 9.2 MB · 50%"
-        delegate.updateFraction = 0.5
-        delegate.updateUIForTests()
-        try expect(!capsule.isHidden && !capsule.ringView.isHidden && abs(capsule.ringView.fraction - 0.5) < 0.001
-                   && capsule.primaryButton.isHidden && !capsule.cancelButton.isHidden,
-                   "downloading switches the icon slot to determinate ring progress")
-        try expect(delegate.updateCheckItem.title == "取消更新下载" && delegate.validateMenuItem(delegate.updateCheckItem),
-                   "menu item turns into the download cancel action")
-        // (5) failed：相位复用胶囊、提供重试。
-        delegate.updatePhase = .failed
-        delegate.updateMessage = "更新失败"
-        delegate.updateDetail = "下载已取消"
-        delegate.updateUIForTests()
-        try expect(!capsule.isHidden && capsule.primaryButton.title == "重试" && !capsule.primaryButton.isHidden,
-                   "failed phase re-exposes the retry action in place")
-        // (6) dismiss：关闭只是视觉遮蔽，状态机不变，菜单仍可从同一相位进入下一步。
-        delegate.dismissUpdatePrompt()
-        try expect(delegate.updateCapsule.isHidden && !delegate.updateCapsuleVisible && delegate.updatePhase == .failed
-                   && delegate.updateCheckItem.title == "重试更新…",
-                   "dismissing the capsule is visual only and never disturbs the phase machine")
-        // (7) readyToRelaunch：不可关闭，唯一出路是重启。
-        delegate.updatePhase = .readyToRelaunch
-        delegate.updateMessage = "更新已就绪"
-        delegate.updateDetail = "即将自动重启…"
-        delegate.updateCapsuleVisible = true
-        delegate.updateUIForTests()
-        try expect(!delegate.updateCapsule.isHidden && delegate.updateCapsule.primaryButton.title == "重新启动"
-                   && delegate.updateCapsule.dismissButton.isHidden,
-                   "ready-to-relaunch phase only offers the final restart")
-        delegate.updatePhase = .idle
-        delegate.updateUIForTests()
-    }
 
     /// Use the actual universal Go binary + embedded React UI against a temporary data directory.
     static func realPanel(_ delegate: AppDelegate) async throws {
+        let root = URL(fileURLWithPath: dataDirPath)
         delegate.windowState.save(theme: "dark")
         UserDefaults.standard.set("#/runtime", forKey: "Columba.lastRoute")
         delegate.startBackend()
@@ -435,12 +274,6 @@ enum NativeTests {
         delegate.showMainWindow()
         try expect(await wait { delegate.pollForTests(); return delegate.panelLoaded && !delegate.webView.isLoading }, "reopened window loads the real panel")
         try expect(await webMatches(delegate, overviewReady), "reopening the window requires no login")
-        delegate.latestRelease = ReleaseInfo(tag: "v99.0.0", dmgURL: "https://example.com/unused.dmg", dmgDigest: "sha256:00")
-        delegate.updatePhase = .available
-        delegate.updateMessage = "发现新版本 v99.0.0 · 原生更新胶囊预览"
-        delegate.updateDetail = "1.0.0 → v99.0.0 · 安装需要重启"
-        delegate.updateCapsuleVisible = true
-        delegate.updateUIForTests()
         delegate.window.contentView?.layoutSubtreeIfNeeded()
         // Locked/headless Macs pause the document timeline. Finish finite entrance animations
         // only in this isolated test page to capture its final layout, not animation behavior.
@@ -462,7 +295,6 @@ enum NativeTests {
             }
         }
         let configBefore = try Data(contentsOf: URL(fileURLWithPath: configPath))
-        let root = URL(fileURLWithPath: dataDirPath)
         let keyBefore = try Data(contentsOf: root.appendingPathComponent(".master-key"))
         let oldPort = delegate.backendPort
         let oldBackend = delegate.backend!
@@ -485,7 +317,7 @@ enum NativeTests {
     /// 仅在 `--panel` 模式调用——替身后端不实现 admin API。
     static func pulseEndpointTest(port: Int) async throws {
         guard let url = usagePulseURL(base: panelOrigin(host: "127.0.0.1", port: port)) else {
-            throw UpdateError(message: "usage pulse URL could not be built")
+            throw AppError(message: "usage pulse URL could not be built")
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 5
@@ -500,55 +332,6 @@ enum NativeTests {
         try expect(await wait { done } && summary != nil, "real backend serves a parsable usage pulse for the menu bar")
     }
 
-    static func downloadTests(port: Int) async throws {
-        for path in ["/download", "/missing", "/slow"] {
-            var done = false, local: URL?, error: Error?
-            var task: URLSessionDownloadTask!
-            let delegate = UpdateDownloadDelegate(onProgress: { _, _ in if path == "/slow" { task.cancel() } }, onFinished: { url, failure in local = url; error = failure; done = true })
-            let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: .main)
-            defer { session.invalidateAndCancel(); if let local { try? FileManager.default.removeItem(at: local) } }
-            task = session.downloadTask(with: URL(string: "http://127.0.0.1:\(port)\(path)")!)
-            task.resume()
-            try expect(await wait { done }, "download callback finishes for \(path)")
-            if path == "/download" {
-                let data = try local.map { try Data(contentsOf: $0) }
-                try expect(error == nil && data == Data("abc".utf8), "download file survives URLSession temporary-file cleanup")
-            } else if path == "/missing" {
-                try expect(error != nil && local == nil, "HTTP 404 never becomes an update artifact")
-            } else {
-                try expect((error as NSError?)?.code == NSURLErrorCancelled, "download cancellation reports a recoverable cancellation")
-            }
-        }
-    }
 }
 
 // Trust only this run's generated certificate; production delegates retain system TLS validation.
-private final class NativeProxyDelegate: UpdateProxyDelegate, URLSessionDownloadDelegate {
-    let download: UpdateDownloadDelegate?
-    init(proxy: UpdateProxy, download: UpdateDownloadDelegate? = nil) {
-        self.download = download
-        super.init(proxy: proxy)
-    }
-    override func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge,
-                             completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-           challenge.protectionSpace.host == "proxy-target.invalid",
-           let trust = challenge.protectionSpace.serverTrust,
-           let data = try? Data(contentsOf: URL(fileURLWithPath: dataDirPath + "/proxy-cert.der")),
-           let cert = SecCertificateCreateWithData(nil, data as CFData) {
-            SecTrustSetAnchorCertificates(trust, [cert] as CFArray)
-            SecTrustSetAnchorCertificatesOnly(trust, true)
-            if SecTrustEvaluateWithError(trust, nil) {
-                completionHandler(.useCredential, URLCredential(trust: trust))
-                return
-            }
-        }
-        super.urlSession(session, task: task, didReceive: challenge, completionHandler: completionHandler)
-    }
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        download?.urlSession(session, downloadTask: downloadTask, didFinishDownloadingTo: location)
-    }
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        download?.urlSession(session, task: task, didCompleteWithError: error)
-    }
-}

@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createWriteStream } from 'node:fs'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
+import { createServer as createHTTPServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -19,7 +20,7 @@ const executable = `columba-${platform}-${architecture}${platform === 'windows' 
 const binary = join(root, 'dist', 'standalone', executable)
 const binaryBytes = await readFile(binary)
 const expectedCommit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim()
-const directory = await mkdtemp(join(tmpdir(), 'elysia-standalone-smoke-'))
+const directory = await mkdtemp(join(tmpdir(), 'columba-standalone-smoke-'))
 const token = randomBytes(24).toString('hex')
 const startupTimeoutMillis = 30000
 const requestTimeoutMillis = 2000
@@ -35,7 +36,7 @@ const baseURL = `http://127.0.0.1:${port}`
 const config = join(directory, 'config.json')
 await writeFile(config, JSON.stringify({
   host: '127.0.0.1', port, databasePath: join(directory, 'gateway.sqlite3'),
-  panelAccessToken: token, openBrowserOnStart: false, logLifecycleVersion: 1,
+  openBrowserOnStart: false, logLifecycleVersion: 1, outbound: { deniedIpRanges: [] },
   modelCatalog: { enabled: false, syncIntervalMinutes: 0 },
 }), { mode: 0o600 })
 const log = createWriteStream(join(directory, 'server.log'))
@@ -51,7 +52,7 @@ completion.catch(() => {})
 async function readJSON(path, isAdmin = false) {
   const response = await fetch(`${baseURL}${path}`, {
     signal: AbortSignal.timeout(requestTimeoutMillis),
-    headers: isAdmin ? { Authorization: `Bearer ${token}` } : {},
+    headers: {},
   })
   assert.equal(response.status, 200, path)
   const result = await response.json()
@@ -76,15 +77,59 @@ try {
   assert.equal(health.database, true)
   assert.equal(health.status, 'ok')
   assert.equal(health.commit, expectedCommit)
-  const schema = await readJSON('/api/admin/protocols/schema', true)
-  assert.equal(schema.schemaVersion, 2)
-  const compilerSource = await readFile(join(root, 'backend/protocol/definition.go'), 'utf8')
-  const compilerVersion = compilerSource.match(/CompilerVersion\s*=\s*"([^"]+)"/)?.[1]
-  assert(compilerVersion, 'Compiler version declaration missing')
-  assert.equal(schema.compilerVersion, compilerVersion)
-  const enabled = await readJSON('/api/admin/protocols/enabled', true)
-  assert.deepEqual(enabled.items.map(item => item.id).sort(), ['anthropic-messages', 'google-generate-content', 'openai-chat-completions', 'openai-responses'])
-  assert(enabled.items.every(item => item.revision && item.canGenerate && item.hasAgentPolicy))
+  for (const path of ['/api/admin/protocols/schema', '/api/admin/model-groups', '/api/admin/agent/status']) {
+    const response = await fetch(baseURL + path)
+    await response.arrayBuffer()
+    assert.equal(response.status, 404, path)
+  }
+  const malicious = await fetch(baseURL + '/api/admin/api-tokens', { headers: { Origin: 'https://example.com' } })
+  assert.equal(malicious.status, 403)
+  await malicious.arrayBuffer()
+  const unauthorized = await fetch(baseURL + '/v1/models')
+  assert.equal(unauthorized.status, 401)
+  await unauthorized.arrayBuffer()
+  const admin = async (path, method, body) => {
+    const response = await fetch(baseURL + '/api/admin' + path, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(requestTimeoutMillis),
+    })
+    assert.equal(response.status, 200, path + ': ' + await response.text())
+  }
+  await admin('/api-tokens', 'POST', { name: 'smoke', token, enabled: true })
+  const wire = '{"id":"synthetic","choices":[],"unknown":{"preserved":true},"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}'
+  const requestBody = '{"model":"synthetic-model","messages":[],"unknown":1.00}'
+  const upstream = createHTTPServer(async (request, response) => {
+    let body = ''
+    for await (const chunk of request) body += chunk
+    assert.equal(body, requestBody)
+    assert.equal(request.headers.authorization, 'Bearer synthetic-upstream')
+    response.writeHead(200, { 'Content-Type': 'application/json' })
+    response.end(wire)
+  })
+  await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve))
+  try {
+    await admin('/model-sources', 'POST', {
+      id: 'smoke', name: 'smoke', platform: 'openai', enabled: true, autoFetchModels: false,
+      baseUrl: `http://127.0.0.1:${upstream.address().port}`, apiKey: 'synthetic-upstream',
+      manualModels: [{ id: 'synthetic-model', name: 'synthetic-model', enabled: true, available: true }],
+    })
+    await admin('/model-prices', 'PUT', { sourceId: 'smoke', modelId: 'synthetic-model', override: { input: '1', output: '2' } })
+    const models = await fetch(baseURL + '/v1/models', { headers: { Authorization: `Bearer ${token}` } })
+    assert.deepEqual((await models.json()).data.map(item => item.id), ['synthetic-model'])
+    const response = await fetch(baseURL + '/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: requestBody })
+    assert.equal(response.status, 200)
+    assert.equal(await response.text(), wire)
+    let costs
+    for (let i = 0; i < 40; i++) {
+      costs = await readJSON('/api/admin/usage/costs', true)
+      if (costs.amount === '0.000020000000' && costs.unpriced === 0) break
+      await delay(50)
+    }
+    assert.equal(costs.amount, '0.000020000000')
+    assert.equal(costs.unpriced, 0)
+    await admin('/usage/reset', 'POST', {})
+    assert.equal((await readJSON('/api/admin/usage/costs', true)).amount, costs.amount)
+  } finally { await new Promise(resolve => upstream.close(resolve)) }
   const ui = await fetch(`${baseURL}/ui/`, { signal: AbortSignal.timeout(requestTimeoutMillis) })
   assert.equal(ui.status, 200)
   const html = await ui.text()
@@ -95,8 +140,7 @@ try {
   assert((await asset.arrayBuffer()).byteLength > 0)
   const evidence = {
     executable, sha256: createHash('sha256').update(binaryBytes).digest('hex'),
-    platform, architecture, health, compilerVersion: schema.compilerVersion,
-    protocols: enabled.items.map(({ id, revision }) => ({ id, revision })),
+    platform, architecture, health, nativePassthrough: true, persistentCosts: true, localPanel: true,
     embeddedUI: true, passed: true, timestamp: new Date().toISOString(),
   }
   await writeFile(join(directory, 'evidence.json'), JSON.stringify(evidence, null, 2))

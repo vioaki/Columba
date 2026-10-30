@@ -1,54 +1,13 @@
-# 文档
+# Columba 文档
 
-[项目首页](../README.md) · **简体中文** · [English](README.en.md)
+- [本地使用](../README.md)
+- [开发和验证](development.md)
+- [架构](architecture.md)
+- [数据库与升级](storage-schema.md)
+- [模型调度](model-routing.md)
+- [原生透传](native-gateway.md)
+- [价格与费用](billing.md)
+- [管理 API](webui-api.md)
+- [macOS 构建与测试](macos-testing.md)
 
-Columba 的部署、协议、接口和开发参考。首次使用从[快速开始](../README.md#快速开始)进入。
-
-## 部署与运维
-
-| 文档 | 内容 |
-| --- | --- |
-| [部署指南](deployment.md) | 二进制、macOS App、Docker、配置、日志、升级与恢复 |
-
-## 协议与接入
-
-| 文档 | 内容 |
-| --- | --- |
-| [Protocol v2](protocol-guide.md) | 统一引擎、编辑器、支持矩阵与迁移 |
-| [协议历史与诊断](protocol-history-and-diagnostics.md) | 归档恢复、引用替换、取消绑定、Claude Code 能力诊断 |
-| [自定义协议](protocol-definition-reference.md) | JSON 定义、字段映射、条件、流式帧和模型发现 |
-| [可配置转换](conversion-implementation.md) | 规则继承、诊断、客户端输出与签名恢复 |
-| [转换能力与边界](protocol-pair-guarantees.md) | 四协议主要能力、已知降级与拒绝条件 |
-| [思考与存储意图](protocol-reasoning.md) | 模型能力、预算、输出上限、候选隔离与 store 决策 |
-| [缓存契约](cache-usage-contracts.md) | 缓存意图、断点合成、用量字段及验证方法 |
-| [预置恢复](protocol-preset-recovery.md) | 启动恢复、自定义数据保留与故障诊断 |
-
-## 管理接口
-
-| 文档 | 内容 |
-| --- | --- |
-| [管理 API](webui-api.md) | 配置、模型源、模型组、令牌、用量与日志 |
-| [数据模型](webui-data-model.md) | 字段语义、标识、秘密字段、分页和类型来源 |
-
-## 开发与验证
-
-| 文档 | 内容 |
-| --- | --- |
-| [项目架构](architecture.md) | 模块职责、转发路径、会话和任务 |
-| [数据库参考](storage-schema.md) | 表结构、加密、迁移与统计约束 |
-| [协议验证与发布](protocol-release-readiness.md) | 测试层次、命令、真实渠道、性能与升级检查 |
-| [开发指南](development.md) | 环境、本地开发、测试、交叉编译与发布产物 |
-| [后端性能基准](backend-performance.md) | 分配次数、资源复用、突发内存峰值与空闲恢复的隔离测量 |
-| [metadata 与交付修复记录](metadata-delivery-fix-2026-10-23.md) | dev.77 兼容边界、最终交付归因、回归与性能实测 |
-| [WebUI 开发](../packages/webui/README.md) | 前端命令、代理、构建与交互约定 |
-| [macOS 验证](macos-testing.md) | 原生工具链、自动检查与真机验收 |
-| [登录素材制作](../scripts/login-trace/README.md) | 提取、审图、资产校验与性能复现 |
-
-各发布版本的变更见[更新日志](../CHANGELOG.md)。
-
-## 阅读约定
-
-- 文档描述当前检出版本；旧版本请切换到对应 Git tag。
-- 原路径为中文，`.en.md` 为英文；字段名、命令、端点和协议标识保持原样。
-- `<RELAY_TOKEN>` 等尖括号内容是需要替换的占位符；带省略号的结构标为说明性片段。
-- 发现差异时以路由、类型、配置加载器和测试核对；文档维护方式见[开发指南](development.md#文档维护)。
+已退役功能的实现与说明可在 Git 历史中查询。当前产品只提供本地模型聚合、原生透传和用量费用记录。

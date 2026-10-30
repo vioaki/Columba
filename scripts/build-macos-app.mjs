@@ -51,7 +51,7 @@ function checkToolchain() {
   log('Checking Swift toolchain for macOS 12 (arm64 + x86_64)')
   console.log(`Compiler: ${capture('xcrun', ['--sdk', 'macosx', '--find', 'swiftc'])}`)
   console.log(`SDK:      ${capture('xcrun', ['--sdk', 'macosx', '--show-sdk-path'])}`)
-  const probeDir = mkdtempSync(join(tmpdir(), 'elysia-toolchain-check-'))
+  const probeDir = mkdtempSync(join(tmpdir(), 'columba-toolchain-check-'))
   try {
     for (const arch of ['arm64', 'x86_64']) {
       const result = spawnSync('xcrun', ['--sdk', 'macosx', 'swiftc', '-target', `${arch}-apple-macos12.0`, '-o', join(probeDir, arch), '-'], {
@@ -76,7 +76,7 @@ function checkToolchain() {
 
 function verifyApp(bundle) {
   run('plutil', ['-lint', join(bundle, 'Contents', 'Info.plist')])
-  for (const name of ['Columba', 'columba']) {
+  for (const name of ['Columba', 'columba-server']) {
     const executable = join(bundle, 'Contents', 'MacOS', name)
     if (!(statSync(executable).mode & 0o111)) throw new Error(`Not executable: ${executable}`)
     const architectures = capture('lipo', ['-archs', executable]).split(/\s+/)
@@ -130,7 +130,7 @@ mkdirSync(macosDir, { recursive: true })
 mkdirSync(resourcesDir, { recursive: true })
 
 log('Creating universal backend binary (lipo)')
-run('lipo', ['-create', '-output', join(macosDir, 'columba'), armBinary, amdBinary])
+run('lipo', ['-create', '-output', join(macosDir, 'columba-server'), armBinary, amdBinary])
 
 log('Generating AppIcon.icns (white background) from WebUI logo')
 const iconsetDir = join(releaseDir, 'AppIcon.iconset')
@@ -166,7 +166,7 @@ const plist = readFileSync(join(sourceDir, 'Info.plist'), 'utf8')
 writeFileSync(join(contentsDir, 'Info.plist'), plist)
 writeFileSync(join(resourcesDir, 'version.txt'), `${version}\n`)
 chmodSync(join(macosDir, 'Columba'), 0o755)
-chmodSync(join(macosDir, 'columba'), 0o755)
+chmodSync(join(macosDir, 'columba-server'), 0o755)
 
 log('Ad-hoc code signing')
 run('codesign', ['--force', '--sign', '-', '--deep', appDir])
@@ -179,11 +179,13 @@ rmSync(dmgPath, { force: true })
 mkdirSync(stagingDir, { recursive: true })
 cpSync(appDir, join(stagingDir, 'Columba.app'), { recursive: true })
 run('ln', ['-s', '/Applications', join(stagingDir, 'Applications')])
-run('hdiutil', ['create', '-volname', 'Columba', '-format', 'UDZO', '-srcfolder', stagingDir, '-o', dmgPath])
+// Reserve filesystem metadata headroom; automatic image sizing can under-allocate on APFS hosts.
+const imageMB = Math.ceil(Number(capture('du', ['-sk', stagingDir]).split(/\s+/)[0]) / 1024 * 1.2) + 32
+run('hdiutil', ['create', '-volname', 'Columba', '-fs', 'HFS+', '-size', `${imageMB}m`, '-format', 'UDZO', '-srcfolder', stagingDir, '-o', dmgPath])
 rmSync(stagingDir, { recursive: true, force: true })
 log('Verifying DMG and mounted contents')
 run('hdiutil', ['verify', dmgPath])
-const mountDir = mkdtempSync(join(tmpdir(), 'elysia-dmg-check-'))
+const mountDir = mkdtempSync(join(tmpdir(), 'columba-dmg-check-'))
 let mounted = false
 try {
   run('hdiutil', ['attach', '-readonly', '-nobrowse', '-mountpoint', mountDir, dmgPath])
