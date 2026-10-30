@@ -147,3 +147,7 @@ The generation template in `agent_cli_contract_test.go` controls the introductio
 Each commit should complete one responsibility with its callers, tests and documentation. Fold corrections and intermediate revisions on unpublished branches into the relevant commit. Describe the final problem and behavior, not internal work rounds. Do not casually rewrite shared history.
 
 Review the diff, links, code blocks, and language parity. Run checks relevant to the change and report actual results; historical test records are not current validation. Update affected documentation with behavior changes.
+
+## Database upgrades
+
+Startup accepts the latest Elysia business schema 2 and log schema 1. Both files are validated before SQLite `VACUUM INTO` snapshots include committed WAL pages. Each database upgrades transactionally and passes an integrity check. A `.upgrade.json` journal beside the business database restores the complete backup pair after failure or interruption. Backup directories use mode 0700; database and configuration copies use 0600. Keep the original master key; credentials are not re-encrypted. Unknown and unversioned historical schemas are rejected. Stop other processes using either database during an upgrade.

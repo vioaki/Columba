@@ -11,6 +11,7 @@ import (
 	"github.com/elysia-api/backend/config"
 	"github.com/elysia-api/backend/logging"
 	"github.com/elysia-api/backend/server"
+	"github.com/elysia-api/backend/storage"
 )
 
 func main() {
@@ -33,6 +34,9 @@ func run() error {
 		return err
 	}
 	logging.Default().Configure(cfg.GetLoggingOptions())
+	if err := storage.UpgradeDatabases(cfg.GetDatabasePath(), cfg.GetLogDatabasePath(), *configPath); err != nil {
+		return err
+	}
 	if created {
 		logging.Info().Str("path", *configPath).Msg("created default config with a generated panelAccessToken")
 		logging.Info().Msgf("Generated panelAccessToken: %s", cfg.GetPanelAccessToken())

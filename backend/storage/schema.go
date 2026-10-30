@@ -1,4 +1,4 @@
-// Current SQLite schema. Historical schemas and data migrations are not supported.
+// Current SQLite schema. upgrade.go owns supported version transitions.
 package storage
 
 import (

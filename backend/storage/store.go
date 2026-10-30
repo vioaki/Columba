@@ -17,7 +17,7 @@ import (
 )
 
 const sqliteBusyTimeout = 5 * time.Second
-const currentSchemaVersion = 2
+const currentSchemaVersion = 3
 
 func Open(path string) (*Store, error) {
 	return OpenWithKey(path, nil)
@@ -35,6 +35,9 @@ func OpenWithLogPath(path, logPath string, key []byte) (*Store, error) {
 		return nil, errors.New("database path is required")
 	}
 	if err := dbpath.Validate(path, logPath); err != nil {
+		return nil, err
+	}
+	if err := UpgradeDatabases(path, logPath, ""); err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -74,8 +77,7 @@ func OpenWithLogPath(path, logPath string, key []byte) (*Store, error) {
 	return store, nil
 }
 
-// Only a new database or this exact schema can be opened. No historical data is
-// rewritten and unsupported databases are rejected before any schema writes.
+// Pair upgrades finish before opening the current live schema.
 func (s *Store) checkSchema(ctx context.Context) error {
 	var version int
 	if err := s.db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
@@ -93,7 +95,7 @@ func (s *Store) checkSchema(ctx context.Context) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unsupported database schema %d: use a new database with the current schema; automatic migrations are not supported", version)
+	return fmt.Errorf("unsupported database schema %d: only the latest Elysia schema and current Columba schema are supported", version)
 }
 
 func (s *Store) Close() error {

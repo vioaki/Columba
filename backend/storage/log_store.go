@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const logSchemaVersion = 1
+const logSchemaVersion = 2
 
 func OpenLogStore(path string) (*LogStore, error) {
 	if strings.TrimSpace(path) == "" || path == ":memory:" || strings.HasPrefix(path, "file:") {
