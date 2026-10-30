@@ -488,7 +488,6 @@ export function OverviewPage() {
         </section>
 
         <PulseSection minuteTick={minuteTick} lastMinute={{
-          ...lastMinuteParams,
           totalTokens: lastMinute?.totalTokens,
           isLoading: lastMinuteLoading,
           hasError: Boolean(lastMinuteError),

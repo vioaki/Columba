@@ -117,8 +117,6 @@ function PulseStat({
 }
 
 interface MinuteUsage {
-  from: string
-  to: string
   totalTokens: number | undefined
   isLoading: boolean
   hasError: boolean
@@ -159,7 +157,7 @@ export function PulseSection({ minuteTick, lastMinute }: { minuteTick: number; l
     const bucketMs = query.bucketMinutes * MINUTE_MS
     const byT = new Map((result.points ?? []).map((p) => [p.t, p]))
     let t = Math.floor((fromMs + offsetMs) / bucketMs) * bucketMs - offsetMs
-    const out: { t: number; fromMs: number; toMs: number; minutes: number; rpm: number; avgMs: number; p95Ms: number; requests: number; tpm: number }[] = []
+    const out: { t: number; fromMs: number; toMs: number; rpm: number; avgMs: number; p95Ms: number; requests: number; tpm: number }[] = []
     while (t < toMs) {
       const p = byT.get(t)
       const requests = p?.requests ?? 0
@@ -171,7 +169,6 @@ export function PulseSection({ minuteTick, lastMinute }: { minuteTick: number; l
         t,
         fromMs: startMs,
         toMs: endMs,
-        minutes,
         rpm: requests / minutes,
         avgMs: p?.avgDurationMs ?? 0,
         p95Ms: p?.p95DurationMs ?? 0,
@@ -232,10 +229,6 @@ export function PulseSection({ minuteTick, lastMinute }: { minuteTick: number; l
     : windowStats
   const minuteTokens = lastMinute.hasError || lastMinute.isLoading ? undefined : lastMinute.totalTokens
   const tpm = hoverPoint?.tpm ?? minuteTokens
-  const tpmInterval = hoverPoint
-    ? formatPulseInterval(hoverPoint.fromMs, hoverPoint.toMs, nowMs)
-    : formatPulseInterval(Date.parse(lastMinute.from), Date.parse(lastMinute.to), nowMs)
-  const tpmMinutes = hoverPoint?.minutes ?? 1
   const historyCaption = shown ? shown.caption ?? `${rangeLabel}内` : error ? '加载失败' : '加载中'
 
   const firstT = xTicks[0]
@@ -297,13 +290,11 @@ export function PulseSection({ minuteTick, lastMinute }: { minuteTick: number; l
                 dotClass="bg-amber"
                 valueClass="text-amber"
               />
-              <p aria-label="吞吐时间范围" className="mt-1 text-xs text-muted-foreground">
-                {tpmInterval} · {tpmMinutes}分钟平均
-                {!hoverPoint && lastMinute.isLoading && ' · 加载中'}
-                {!hoverPoint && lastMinute.hasError && (
-                  <> · 加载失败 <button type="button" className="underline underline-offset-2" aria-label="重试上一分钟统计" onClick={lastMinute.onRetry}>重试</button></>
-                )}
-              </p>
+              {!hoverPoint && (lastMinute.isLoading || lastMinute.hasError) && (
+                <p role="status" className="mt-1 text-xs text-muted-foreground">
+                  {lastMinute.hasError ? <>加载失败 <button type="button" className="underline underline-offset-2" aria-label="重试上一分钟统计" onClick={lastMinute.onRetry}>重试</button></> : '加载中'}
+                </p>
+              )}
             </div>
           </div>
         </div>
