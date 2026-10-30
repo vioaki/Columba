@@ -270,3 +270,55 @@ func previousDatabases(t *testing.T) (string, string, []byte) {
 	}
 	return path, logs, key
 }
+
+func TestUpgradeBacksUpAndRestoresConfigurationAndSecret(t *testing.T) {
+	path, logs, key := previousDatabases(t)
+	config := filepath.Join(filepath.Dir(path), "config.json")
+	secret := filepath.Join(filepath.Dir(path), ".master-key")
+	original := []byte(`{"secretKeyPath":".master-key"}`)
+	for file, data := range map[string][]byte{config: original, secret: key} {
+		if err := os.WriteFile(file, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	failure := errors.New("injected failure")
+	err := upgradeDatabases(path, logs, config, func(ctx context.Context, db *sql.DB, version int, isLogs bool) error {
+		if isLogs {
+			if err := os.WriteFile(secret, []byte("changed"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(config, []byte("changed"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			return failure
+		}
+		return migrateDatabase(ctx, db, version, isLogs)
+	}, secret)
+	if !errors.Is(err, failure) {
+		t.Fatal(err)
+	}
+	for file, data := range map[string][]byte{config: original, secret: key} {
+		restored, err := os.ReadFile(file)
+		if err != nil || string(restored) != string(data) {
+			t.Fatalf("restore %s: %v", file, err)
+		}
+	}
+	if err := UpgradeDatabases(path, logs, config, secret); err != nil {
+		t.Fatal(err)
+	}
+	var journal upgradeJournal
+	raw, err := os.ReadFile(path + ".upgrade.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &journal); err != nil {
+		t.Fatal(err)
+	}
+	if !journal.Complete || len(journal.Files) != 4 {
+		t.Fatal(journal)
+	}
+	backup, err := os.ReadFile(journal.Files[3].Backup)
+	if err != nil || string(backup) != string(key) {
+		t.Fatal("missing backup of encryption key", err)
+	}
+}

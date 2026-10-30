@@ -34,7 +34,11 @@ func run() error {
 		return err
 	}
 	logging.Default().Configure(cfg.GetLoggingOptions())
-	if err := storage.UpgradeDatabases(cfg.GetDatabasePath(), cfg.GetLogDatabasePath(), *configPath); err != nil {
+	keyPath := cfg.SecretKeyPath
+	if os.Getenv("COLUMBA_MASTER_KEY") != "" {
+		keyPath = ""
+	}
+	if err := storage.UpgradeDatabases(cfg.GetDatabasePath(), cfg.GetLogDatabasePath(), *configPath, keyPath); err != nil {
 		return err
 	}
 	if created {
@@ -43,7 +47,7 @@ func run() error {
 	logging.Info().Str("component", "config").Msg("config loaded successfully")
 
 	// Capture termination even while startup is opening stores and preparing
-	// protocols. All shutdown sources use the server's RequestShutdown entry point.
+	// model catalogs. All shutdown sources use the server's RequestShutdown entry point.
 	signalContext, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stopSignals()
 	srv := server.New(cfg)

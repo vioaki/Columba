@@ -27,11 +27,11 @@ type upgradeJournal struct {
 
 // UpgradeDatabases runs before any request producers or store writers start.
 // Only the last Elysia schema (business 2, logs 1) and Columba schemas are accepted.
-func UpgradeDatabases(path, logPath, configPath string) error {
-	return upgradeDatabases(path, logPath, configPath, migrateDatabase)
+func UpgradeDatabases(path, logPath, configPath string, extraFiles ...string) error {
+	return upgradeDatabases(path, logPath, configPath, migrateDatabase, extraFiles...)
 }
 
-func upgradeDatabases(path, logPath, configPath string, migrate func(context.Context, *sql.DB, int, bool) error) error {
+func upgradeDatabases(path, logPath, configPath string, migrate func(context.Context, *sql.DB, int, bool) error, extraFiles ...string) error {
 	if err := dbpath.Validate(path, logPath); err != nil {
 		return err
 	}
@@ -107,13 +107,20 @@ func upgradeDatabases(path, logPath, configPath string, migrate func(context.Con
 		}
 		journal.Files = append(journal.Files, upgradeFile{p, backup})
 	}
-	if configPath != "" {
-		if _, err := os.Stat(configPath); err == nil {
-			backup := filepath.Join(backupDir, "config.json")
-			if err := copyUpgradeFile(configPath, backup); err != nil {
+	for i, file := range append([]string{configPath}, extraFiles...) {
+		if file == "" {
+			continue
+		}
+		if _, err := os.Stat(file); err == nil {
+			name := "config.json"
+			if i > 0 {
+				name = fmt.Sprintf("secret-%d", i)
+			}
+			backup := filepath.Join(backupDir, name)
+			if err := copyUpgradeFile(file, backup); err != nil {
 				return err
 			}
-			journal.Files = append(journal.Files, upgradeFile{configPath, backup})
+			journal.Files = append(journal.Files, upgradeFile{file, backup})
 		} else if !os.IsNotExist(err) {
 			return err
 		}
@@ -186,7 +193,7 @@ func inspectDatabase(ctx context.Context, path string, logs bool) (int, error) {
 		minimum, current, required = 1, logSchemaVersion, "usage_records"
 	}
 	if version != minimum && version != current {
-		return 0, fmt.Errorf("unsupported database schema %d at %s (supported %d..%d)", version, path, minimum, current)
+		return 0, fmt.Errorf("unsupported database schema %d at %s (supported %d or %d)", version, path, minimum, current)
 	}
 	var found int
 	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name=?", required).Scan(&found); err != nil {

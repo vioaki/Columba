@@ -39,6 +39,7 @@ func respondFail(ctx context.Context, c *app.RequestContext, status int, code, m
 
 func (s *Server) setupAdminRoutes(admin *route.RouterGroup) {
 	admin.GET("/runtime-config", s.adminRuntimeConfig)
+	admin.GET("/migration-report", s.adminMigrationReport)
 	admin.PUT("/runtime-config", s.adminUpdateRuntimeConfig)
 	admin.POST("/reload", s.adminReload)
 	admin.POST("/restart-required/check", s.adminRestartRequired)
@@ -1083,4 +1084,13 @@ func (s *Server) adminLogMaintenance(ctx context.Context, c *app.RequestContext)
 		return
 	}
 	respondOK(ctx, c, s.usageRetention.snapshotStats())
+}
+
+func (s *Server) adminMigrationReport(ctx context.Context, c *app.RequestContext) {
+	items := []string{}
+	if _, err := s.store.GetSetting(ctx, "migration-report", &items); err != nil {
+		respondFail(ctx, c, 500, "migration_report_failed", err.Error())
+		return
+	}
+	respondOK(ctx, c, utils.H{"items": items})
 }

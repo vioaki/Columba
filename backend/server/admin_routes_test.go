@@ -17,3 +17,17 @@ func TestAdminRoutesExcludeRetiredFeatures(t *testing.T) {
 		}
 	}
 }
+
+func TestMigrationReportIncludesDisabledChannelReasons(t *testing.T) {
+	s, _ := newAdminTestServer(t)
+	report := []string{"Channel custom disabled: unsupported native protocol"}
+	if err := s.store.SetSetting(t.Context(), "migration-report", report); err != nil {
+		t.Fatal(err)
+	}
+	c, rec := adminTestContext("GET", "/api/admin/migration-report", "")
+	s.adminMigrationReport(t.Context(), c)
+	flushTestResponse(c)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), report[0]) {
+		t.Fatal(rec.Code, rec.Body.String())
+	}
+}

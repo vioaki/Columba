@@ -15,7 +15,7 @@
 | 明细 | GET `/usage/logs`、`/usage/logs/:id`、`/usage/seq` |
 | 留存 | GET `/usage/storage`、`/usage/maintenance`；POST `/usage/cleanup`、`/usage/reset`（保留账目） |
 | 设置 | GET/PUT `/runtime-config`；POST `/reload`、`/restart-required/check` |
-| 诊断 | GET `/health`、`/logs` |
+| 诊断 | GET `/health`、`/logs`、`/migration-report` |
 
 公共 `/health` 是无凭据健康接口。推理与模型发现接口必须传调用 Key：`Authorization: Bearer ...`、Anthropic `x-api-key` 或 Gemini `x-goog-api-key`/`key`。支持 `/v1/models`、`/v1/chat/completions`、`/v1/responses`、`/v1/messages`、`/v1/messages/count_tokens` 和 `/v1beta/models` 下原生生成/流式/countTokens 动作。
 

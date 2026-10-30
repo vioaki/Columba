@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import useSWR from 'swr'
 import {
   Activity,
   Cpu,
@@ -16,10 +17,11 @@ import { SettingSection, SettingRow } from '@/components/ui/setting-card'
 import { ErrorState } from '@/components/ui/states'
 import { useHealth, useRuntimeConfig, revalidate, POLL } from '@/lib/hooks'
 import { useToast } from '@/components/ui/use-toast'
-import { api } from '@/lib/api'
+import { api, request } from '@/lib/api'
 import { formatBytes, formatNumber } from '@/lib/utils'
 
 export function DiagnosticsPage() {
+  const { data: migration, error: migrationError } = useSWR('migration-report', () => request<{ items: string[] }>('/migration-report'))
   const toast = useToast()
   const { data: health, isLoading, error, mutate } = useHealth(POLL.HEALTH_SLOW)
   const { data: runtimeConfig } = useRuntimeConfig()
@@ -60,6 +62,8 @@ export function DiagnosticsPage() {
           }
         />
 
+        {migrationError && <p role="alert">迁移报告读取失败：{migrationError.message}</p>}
+        {!!migration?.items?.length && <section aria-label="数据库迁移报告" className="rounded-lg border bg-card p-5"><h2 className="mb-3 font-semibold">数据库迁移报告</h2><ul className="list-disc space-y-2 pl-5 text-sm">{migration.items.map((item, i) => <li key={i} className="break-words">{item}</li>)}</ul></section>}
         {error ? (
           <ErrorState message={(error as Error).message} onRetry={() => mutate()} />
         ) : (
