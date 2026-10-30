@@ -1,6 +1,4 @@
-# Columba
-
-<img src="packages/webui/brand/Columba.svg" width="64" alt="Columba">
+<h1><img src="packages/webui/brand/Columba.svg" width="40" height="40" align="top" alt=""> Columba</h1>
 
 本地优先的 LLM 网关。模型聚合 · 原生透传 · 渠道调度 · 用量计费。
 
