@@ -52,7 +52,7 @@ func AssembleNative(models []storage.Model, sources []storage.ModelSource, polic
 	indexes := map[string]int{}
 	for _, m := range models {
 		s, exists := sourceIndex[m.SourceID]
-		if !exists || !m.Enabled || !storage.NativeProtocol(m.Platform) {
+		if !exists || !m.Enabled || !storage.NativeProtocol(s.Platform) {
 			continue
 		}
 		keys := []string{}
@@ -69,6 +69,7 @@ func AssembleNative(models []storage.Model, sources []storage.ModelSource, polic
 			}
 			keys = []string{""}
 		}
+		m.Platform = s.Platform
 		key := storage.ModelRoutingKey(m.ID, m.Platform)
 		index, exists := indexes[key]
 		if !exists {
@@ -163,3 +164,5 @@ func (s *NativeScheduler) Attempts(model NativeModel) []NativeAttempt {
 	}
 	return attempts
 }
+
+func MaxAttempts(maxRetries, candidates int) int { return min(max(0, maxRetries)+1, candidates) }

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"columba.local/backend/logging"
+	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/rs/zerolog"
 )
 

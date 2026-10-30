@@ -1,6 +1,6 @@
 // 类型合同：与 backend storage 类型 + docs/webui-data-model.md 严格对齐。
 
-import type { ConversionIssue } from './protocol-v2'
+
 
 export interface ApiEnvelope<T> {
   ok: true
@@ -19,18 +19,8 @@ export type ApiResult<T> = ApiEnvelope<T> | ApiErrorEnvelope
 
 // API 协议（线路 API），与上游 wire API 一一对应。旧值 openai/openai-compatible/claude
 // 仍可能出现在存量数据里，后端读取时会归一化；类型保留它们避免存量源在下拉里显示空。
-export type Platform =
-  | ''
-  | 'responses'
-  | 'chat_completions'
-  | 'anthropic'
-  | 'gemini'
-  | 'openai'
-  | 'openai-compatible'
-  | 'claude'
-  | `custom:${string}`
+export type Platform = 'openai' | 'responses' | 'claude' | 'gemini'
 export type ModelType = 'llm' | 'embedding' | 'reranker'
-export type GroupStrategy = 'round-robin' | 'sequential' | 'random'
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 export type ThinkingMode = 'both' | 'non-thinking-only' | 'thinking-only'
 /** 源级多 key 调度策略：single（单 key）/ round-robin / random / priority（按列表顺序）。 */
@@ -253,30 +243,11 @@ export interface Model {
   lastCheckedAt: string
 }
 
-export interface ModelGroup {
-  id: string
-  name: string
-  enabled: boolean
-  models: string[]
-  strategy: GroupStrategy
-  maxRetries: number
-  retryInterval: number
-  maxConcurrency?: number
-  dailyLimitMaxRequests?: number
-  dailyLimitMaxTokens?: number
-  type: ModelType
-  maxTokens?: number
-  visionCapable: boolean
-  toolsCapable: boolean
-}
 
 export interface ApiToken {
   name: string
   token?: string
   enabled: boolean
-  allowedGroups?: string[]
-  /** 端点作用域：agent=远程访问 Key（AI 助手专用，不参与推理）；空=仅推理。 */
-  scopes?: string[]
   /** 仅重命名请求携带：非空且 ≠ name 时服务端执行改名（请求专用字段）。 */
   newName?: string
   createdAt?: string
@@ -471,7 +442,6 @@ export interface UsageLogDetail {
   usageDetail?: Record<string, unknown>
   builtinToolUsage?: Record<string, number>
   /** 转换诊断：信息级规范化、兼容降级及失败，保留规则与阶段归属。 */
-  conversionIssues?: ConversionIssue[]
   retryCount: number
   retryEvents?: UsageRetryEvent[]
   incomingBody: UsageBody
@@ -524,21 +494,12 @@ export interface UsageQueryParams {
 
 /** 协议任务类型：llm 为默认；reranker/embedding 为声明式预留；x- 前缀自定义扩展。 */
 /** 新建模型组的默认值：建组表单与快捷建组对话框共用，防两处漂移。 */
-export function defaultGroup(): ModelGroup {
-  return {
-    id: '',
-    name: '',
-    enabled: true,
-    models: [],
-    strategy: 'round-robin',
-    maxRetries: 3,
-    retryInterval: 1000,
-    maxConcurrency: 0,
-    dailyLimitMaxRequests: 0,
-    dailyLimitMaxTokens: 0,
-    type: 'llm',
-    maxTokens: 0,
-    visionCapable: false,
-    toolsCapable: false,
-  }
+
+export interface ModelRouting {
+ modelId: string
+ protocol: string
+ strategy: 'round-robin' | 'priority' | 'weighted'
+ maxRetries: number
+ retryInterval: number
+ channels: Record<string, {priority: number; weight: number}>
 }

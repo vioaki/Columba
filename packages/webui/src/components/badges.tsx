@@ -1,5 +1,5 @@
 import { Zap, type LucideIcon } from 'lucide-react'
-import type { Platform, GroupStrategy } from '@/lib/types'
+import type { Platform } from '@/lib/types'
 import { protocolLabel } from '@/lib/protocol'
 import { cn, isSuccessStatus } from '@/lib/utils'
 
@@ -98,14 +98,4 @@ export function StreamIcon({
       <Zap className="h-[11px] w-[11px]" aria-hidden strokeWidth={2} />
     </span>
   )
-}
-
-const STRATEGY_LABEL: Record<GroupStrategy, string> = {
-  'round-robin': '轮询',
-  sequential: '顺序',
-  random: '随机',
-}
-
-export function StrategyBadge({ strategy }: { strategy: GroupStrategy | string }) {
-  return <CapChip>{STRATEGY_LABEL[strategy as GroupStrategy] ?? strategy}</CapChip>
 }

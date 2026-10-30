@@ -3,8 +3,6 @@ package server
 import (
 	"regexp"
 	"strings"
-
-	"columba.local/backend/protocol"
 )
 
 // A bounded capture can end inside a state value, including an escaped JSON
@@ -16,7 +14,7 @@ func redactUsageTurnState(text string) string {
 }
 
 func redactTurnStateText(text string, depth int) string {
-	if depth >= protocol.DefaultLimits().Depth {
+	if depth >= 128 {
 		return "[REDACTED: nested log limit]"
 	}
 

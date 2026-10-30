@@ -1,11 +1,8 @@
 package server
 
 import (
-	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/cloudwego/hertz/pkg/app"
 )
 
 // 回归 #1/#7：纯中文/纯符号名称清洗后为空时，slugID 必须回退到非空 id，
@@ -25,34 +22,5 @@ func TestSlugIDChineseAndSymbols(t *testing.T) {
 	// 中英混合：保留英文数字部分。
 	if got := slugID("源gpt4"); got != "gpt4" {
 		t.Fatalf("slugID(\"源gpt4\") = %q, want gpt4", got)
-	}
-}
-
-func newGroupAccessContext(allowed []string, set bool) *app.RequestContext {
-	c := newTestContext(httptest.NewRecorder())
-	if set {
-		c.Set("elysiaAllowedGroups", allowed)
-	}
-	return c
-}
-
-// 模型组级访问权限（#9）：空/未设置 = 放行；非空 = 仅白名单内放行。
-// 未设置 AllowedGroups（上下文无此键）→ 放行
-// 空切片 → 不限制，放行
-// 白名单命中 → 放行
-// 白名单未命中 → 拒绝
-func TestTokenAllowsGroup(t *testing.T) {
-	s := &Server{}
-	if !s.tokenAllowsGroup(contextForTest(newGroupAccessContext(nil, false)), newGroupAccessContext(nil, false), "any-group") {
-		t.Fatalf("missing AllowedGroups should allow all")
-	}
-	if !s.tokenAllowsGroup(contextForTest(newGroupAccessContext([]string{}, true)), newGroupAccessContext([]string{}, true), "any-group") {
-		t.Fatalf("empty AllowedGroups should allow all")
-	}
-	if !s.tokenAllowsGroup(contextForTest(newGroupAccessContext([]string{"g1", "g2"}, true)), newGroupAccessContext([]string{"g1", "g2"}, true), "g2") {
-		t.Fatalf("group in allowlist should be allowed")
-	}
-	if s.tokenAllowsGroup(contextForTest(newGroupAccessContext([]string{"g1", "g2"}, true)), newGroupAccessContext([]string{"g1", "g2"}, true), "g3") {
-		t.Fatalf("group not in allowlist should be denied")
 	}
 }

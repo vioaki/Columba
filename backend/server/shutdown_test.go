@@ -71,9 +71,9 @@ func TestShutdownCancelsRunningAndQueuedSourceRefreshes(t *testing.T) {
 		}
 	}))
 	defer upstream.Close()
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	for i := 0; i <= sourceRefreshConcurrency; i++ {
-		source := storage.ModelSource{ID: string(rune('a' + i)), BaseURL: upstream.URL, Platform: "custom:openai-chat-completions", AutoFetchModels: true}
+		source := storage.ModelSource{ID: string(rune('a' + i)), BaseURL: upstream.URL, Platform: "openai", AutoFetchModels: true}
 		if err := s.store.UpsertSource(t.Context(), source); err != nil {
 			t.Fatal(err)
 		}
@@ -102,7 +102,7 @@ func TestShutdownCancelsRunningAndQueuedSourceRefreshes(t *testing.T) {
 }
 
 func TestShutdownCancelsActiveHTTPHandlerBeforeClosingStore(t *testing.T) {
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	s.initLifecycle()
 	s.startUsageWriter()
 	s.engine = newTestEngine(t)
@@ -155,7 +155,7 @@ func TestRequestedShutdownBeforeListenClosesAllResources(t *testing.T) {
 }
 
 func TestStartupFailureDrainsStartedServices(t *testing.T) {
-	for _, stage := range []string{"hook", "jobs", "bind"} {
+	for _, stage := range []string{"hook", "bind"} {
 		t.Run(stage, func(t *testing.T) {
 			// Keep the address occupied: if startup hooks succeed, binding fails.
 			listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -173,8 +173,6 @@ func TestStartupFailureDrainsStartedServices(t *testing.T) {
 			switch stage {
 			case "hook":
 				s.engine.OnRun = append(s.engine.OnRun, func(context.Context) error { return failure })
-			case "jobs":
-				s.gatewayJobs.stop()
 			}
 			err = s.ListenAndServe()
 			if err == nil {
@@ -183,12 +181,12 @@ func TestStartupFailureDrainsStartedServices(t *testing.T) {
 			if stage == "hook" && !errors.Is(err, failure) {
 				t.Fatal("lost startup error", err)
 			}
-			if (s.healthChecker != nil) != (stage == "bind") {
+			if (s.usageRetention != nil) != (stage == "bind") {
 				t.Fatal("services started out of hook order")
 			}
-			if s.healthChecker != nil {
+			if s.usageRetention != nil {
 				select {
-				case <-s.healthChecker.done:
+				case <-s.usageRetention.done:
 				default:
 					t.Fatal("health worker survived startup failure")
 				}
@@ -317,7 +315,7 @@ func TestHTTPCompletionPanicStillReleasesRequest(t *testing.T) {
 func TestShutdownForceClosesStuckHTTPConnection(t *testing.T) {
 	for _, stage := range []string{"handler", "response_body"} {
 		t.Run(stage, func(t *testing.T) {
-			s := newKeyPermissionTestServer(t)
+			s, _ := newAdminTestServer(t)
 			s.initLifecycle()
 			s.engine = newTestEngine(t)
 			s.engine.Use(s.requestLifecycle())

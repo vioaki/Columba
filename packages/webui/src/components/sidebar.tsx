@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Activity, BarChart3, Database, KeyRound, Layers, Puzzle, ScrollText, Settings, Stethoscope, Terminal, type LucideIcon } from 'lucide-react'
+import { Activity, BarChart3, Database, KeyRound, ScrollText, Settings, Stethoscope, Terminal, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from './theme-toggle'
 import { BrandMark } from './brand-mark'
@@ -14,11 +14,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/overview', label: '总览', icon: Activity, group: '监控' },
   { to: '/usage-logs', label: '调用日志', icon: ScrollText, group: '监控' },
-  { to: '/sources', label: '模型源', icon: Database, group: '网关配置' },
-  { to: '/groups', label: '模型组', icon: Layers, group: '网关配置' },
-  { to: '/tokens', label: '访问令牌', icon: KeyRound, group: '网关配置' },
+  { to: '/sources', label: '模型', icon: Database, group: '网关配置' },
+  { to: '/tokens', label: '调用 Key', icon: KeyRound, group: '网关配置' },
   { to: '/usage', label: 'Usage 统计', icon: BarChart3, group: '观测' },
-  { to: '/protocols', label: '协议设计器', icon: Puzzle, group: '系统' },
   { to: '/logs', label: '系统日志', icon: Terminal, group: '系统' },
   { to: '/runtime', label: '运行配置', icon: Settings, group: '系统' },
   { to: '/diagnostics', label: '诊断', icon: Stethoscope, group: '系统' },

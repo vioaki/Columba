@@ -4,14 +4,11 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"columba.local/backend/config"
 	"columba.local/backend/internal/admission"
-	"columba.local/backend/protocol"
-	"columba.local/backend/protocol/builtin"
 )
 
 const preparationLeaseKey = "elysiaPreparationLease"
@@ -55,16 +52,4 @@ func preparationStatus(err error) int {
 
 func isPreparationFailure(err error) bool {
 	return errors.Is(err, admission.ErrFull) || errors.Is(err, admission.ErrTimeout) || errors.Is(err, admission.ErrClosed) || errors.Is(err, admission.ErrCapacity)
-}
-
-func (s *Server) rejectPreparation(ctx context.Context, c *app.RequestContext, compiled *protocol.Compiled, err error) {
-	status := preparationStatus(err)
-	if status == http.StatusServiceUnavailable {
-		c.Header("Retry-After", "1")
-	}
-	record := s.initUsageRecord(ctx, c, time.Now(), nil, builtin.FormatType(compiled.Identity().Family))
-	record.IngressRevision, record.SourceFormat, record.RelayMode = compiled.Hash(), compiled.Identity().DefinitionID, "protocol_v2"
-	installDownstreamCapture(c, record, downstreamCaptureLimit(s.usageLogConfig()))
-	s.failGateway(ctx, c, record, status, err)
-	s.recordHTTPUsage(c, record)
 }

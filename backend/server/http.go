@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -11,31 +10,17 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
 
-	"columba.local/backend/config"
-	"columba.local/backend/protocol"
-	"columba.local/backend/protocol/builtin"
 	"columba.local/backend/webui"
 )
 
 func (s *Server) setupRoutes() {
-	if s.config.GetMaxBodyBytes() > 0 {
-		s.engine.Use(func(ctx context.Context, c *app.RequestContext) {
-			var budgetOK bool
-			ctx, budgetOK = s.pinProtocolRequest(ctx, c)
-			if !budgetOK {
-				c.Abort()
-				return
-			}
-			c.Next(ctx)
-		})
-	}
 	v1 := s.engine.Group("/v1")
 	v1.Use(s.authMiddleware())
 	{
-		v1.POST("/chat/completions", s.chatCompletions)
-		v1.POST("/responses", s.responses)               // OpenAI Responses API 入口
-		v1.POST("/messages", s.chatCompletions)          // Claude 原生格式入口
-		v1.POST("/messages/count_tokens", s.countTokens) // Claude 兼容 token 统计端点
+		v1.POST("/chat/completions", s.serveNative)
+		v1.POST("/responses", s.serveNative)             // OpenAI Responses API 入口
+		v1.POST("/messages", s.serveNative)              // Claude 原生格式入口
+		v1.POST("/messages/count_tokens", s.serveNative) // Claude 兼容 token 统计端点
 		v1.GET("/models", s.listModels)
 	}
 
@@ -46,9 +31,8 @@ func (s *Server) setupRoutes() {
 	v1beta.Use(s.authMiddleware())
 	{
 		v1beta.GET("/models", s.listGeminiModels)
-		v1beta.POST("/models/*action", s.chatCompletions)
+		v1beta.POST("/models/*action", s.serveNative)
 	}
-	s.engine.Any("/gateway/:protocolId/*path", s.authMiddleware(), s.gatewayProtocol)
 
 	s.mountWebUI()
 	if s.config.EnablePprof {
@@ -137,8 +121,6 @@ func (s *Server) reloadConfig(ctx context.Context, c *app.RequestContext) {
 	//(此前只有管理端 PUT 会 SetTimeout,文件路径改超时静默不生效直到重启)。
 	if timeout := s.config.GetHTTPTimeout(); timeout != oldHTTPTimeout {
 		s.logEvent("info").Int("old_timeout", oldHTTPTimeout).Int("timeout", timeout).Msg("HTTP timeout hot-reloaded")
-		duration := time.Duration(timeout) * time.Second
-		s.protocolTransport.SetTimeout(duration)
 	}
 	// 配置热更新后失效路由缓存，下次请求按新配置重建（借鉴 SyncOptions）。
 	s.invalidateRouteCache()
@@ -170,124 +152,6 @@ func (s *Server) reloadConfig(ctx context.Context, c *app.RequestContext) {
 			"newPort": newServer.Port,
 		},
 	})
-}
-
-func (s *Server) chatCompletions(ctx context.Context, c *app.RequestContext) {
-	s.serveVersionedPublicIngress(ctx, c)
-}
-func (s *Server) responses(ctx context.Context, c *app.RequestContext) {
-	s.serveVersionedPublicIngress(ctx, c)
-}
-
-// validateModelGroup 验证模型组配置,失败返回按稳定错误分类组织的核心错误
-// (各线制的状态码/type/code 由分类派生;消息不暴露内部「组」概念)。
-func (s *Server) validateModelGroup(groupName string) (*config.ModelGroupConfig, *builtin.GatewayError) {
-	if groupName == "" {
-		return nil, &builtin.GatewayError{Class: builtin.ErrorClassInvalidRequest, Message: "model name is required"}
-	}
-	group := s.findGroupByName(groupName)
-	if group == nil || len(group.Models) == 0 {
-		// 组不存在与组内无可用模型对客户端同义:该模型不可用。
-		// 4xx 让 SDK/Codex 停止自动重试并正确提示。
-		return nil, &builtin.GatewayError{
-			Class:   builtin.ErrorClassModelNotFound,
-			Message: fmt.Sprintf("The model '%s' does not exist or is not available", groupName),
-		}
-	}
-	if !group.Enabled {
-		return nil, &builtin.GatewayError{
-			Class:   builtin.ErrorClassPermission,
-			Message: fmt.Sprintf("The model '%s' is disabled by the administrator", groupName),
-		}
-	}
-	return group, nil
-}
-
-func (s *Server) listModels(ctx context.Context, c *app.RequestContext) {
-	groups := s.getGroups()
-
-	// 返回模型组名称作为模型 ID
-	// 客户端看到的是模型组名称，请求时使用模型组名称
-	// 后端根据配置的轮询策略将请求转发给组内的具体模型
-	var models []utils.H
-	for _, group := range groups {
-		if !group.Enabled {
-			continue
-		}
-		models = append(models, utils.H{
-			"id":       group.Name, // 使用模型组名称
-			"object":   "model",
-			"created":  0,
-			"owned_by": "columba",
-		})
-	}
-
-	c.JSON(200, utils.H{
-		"object": "list",
-		"data":   models,
-	})
-}
-
-func (s *Server) listGeminiModels(ctx context.Context, c *app.RequestContext) {
-	groups := s.getGroups()
-
-	// 返回 Gemini 原生格式：{ models: [{ name: "models/GROUP_NAME", ... }] }
-	type geminiModel struct {
-		Name                       string   `json:"name"`
-		DisplayName                string   `json:"displayName"`
-		Description                string   `json:"description"`
-		InputTokenLimit            int      `json:"inputTokenLimit"`
-		OutputTokenLimit           int      `json:"outputTokenLimit"`
-		SupportedGenerationMethods []string `json:"supportedGenerationMethods"`
-	}
-
-	var models []geminiModel
-	for _, group := range groups {
-		if !group.Enabled {
-			continue
-		}
-		inputLimit := group.MaxTokens
-		if inputLimit == 0 {
-			inputLimit = geminiDefaultInputTokenLimit
-		}
-		models = append(models, geminiModel{
-			Name:                       "models/" + group.Name,
-			DisplayName:                group.Name,
-			Description:                "columba model group",
-			InputTokenLimit:            inputLimit,
-			OutputTokenLimit:           geminiDefaultOutputTokenLimit,
-			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent"},
-		})
-	}
-
-	c.JSON(200, utils.H{"models": models})
-}
-
-func (s *Server) countTokens(ctx context.Context, c *app.RequestContext) {
-	if !s.requireProtocolRuntime(ctx, c) {
-		return
-	}
-	service, err := s.protocolService()
-	if err != nil {
-		respondProtocolError(ctx, c, err)
-		return
-	}
-	compiled, exists := service.View().Pin(publicProtocolIDs[builtin.FormatClaude])
-	if !exists {
-		respondFail(ctx, c, http.StatusServiceUnavailable, "inactive_protocol", "Anthropic protocol is not enabled")
-		return
-	}
-	body, err := protocol.ReadBoundedBody(requestBody(c), compiled.RequestLimits(ctx).BufferBytes)
-	if err != nil {
-		writeProtocolError(ctx, c, builtin.FormatClaude, &builtin.GatewayError{Class: builtin.ErrorClassInvalidRequest, Message: err.Error()})
-		return
-	}
-	request, err := compiled.DecodeRequest(ctx, body, protocol.EvaluationContext{})
-	if err != nil {
-		writeProtocolError(ctx, c, builtin.FormatClaude, &builtin.GatewayError{Class: builtin.ErrorClassInvalidRequest, Message: err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, utils.H{"input_tokens": s.estimateProtocolInputTokens(request)})
 }
 
 func (s *Server) healthCheck(ctx context.Context, c *app.RequestContext) {

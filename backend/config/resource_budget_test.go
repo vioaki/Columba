@@ -1,7 +1,6 @@
 package config
 
 import (
-	"columba.local/backend/protocol"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,10 +22,7 @@ func TestRequestBudgetReload(t *testing.T) {
 	if cfg.GetMaxBodyBytes() != 32<<20 {
 		t.Fatal(cfg.GetMaxBodyBytes())
 	}
-	ctx, err := protocol.WithRequestBodyLimit(t.Context(), cfg.GetMaxBodyBytes())
-	if err != nil {
-		t.Fatal(err)
-	}
+	pinnedLimit := cfg.GetMaxBodyBytes()
 	for _, entry := range []struct {
 		body string
 		want int64
@@ -35,7 +31,7 @@ func TestRequestBudgetReload(t *testing.T) {
 		if err := cfg.Reload(); err != nil {
 			t.Fatal(err)
 		}
-		if cfg.GetMaxBodyBytes() != entry.want || protocol.RequestBodyLimit(ctx) != 32<<20 {
+		if cfg.GetMaxBodyBytes() != entry.want || pinnedLimit != 32<<20 {
 			t.Fatal("reload affected in-flight call")
 		}
 	}

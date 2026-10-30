@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"time"
-
-	"columba.local/backend/protocol"
 )
 
 // PreparationConfig is a startup policy. Changing it requires a server restart;
@@ -33,7 +31,7 @@ func (c *Config) validatePreparation() error {
 		return fmt.Errorf("preparation body reservation must not be negative")
 	}
 	if p.MaxReservedBodyBytes > 0 {
-		return protocol.ValidateRequestBodyLimit(p.MaxReservedBodyBytes)
+		return ValidateRequestBodyLimit(p.MaxReservedBodyBytes)
 	}
 	return nil
 }

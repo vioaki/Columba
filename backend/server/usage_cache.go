@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	otter "github.com/maypok86/otter/v2"
 	"net/http"
 	"net/url"
 	"slices"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"github.com/maypok86/otter/v2"
 	"golang.org/x/sync/singleflight"
 )
 

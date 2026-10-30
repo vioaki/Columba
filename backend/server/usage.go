@@ -16,10 +16,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
 
-	"columba.local/backend/config"
 	"columba.local/backend/internal/jsonutil"
-	"columba.local/backend/protocol"
-	"columba.local/backend/protocol/builtin"
 	"columba.local/backend/storage"
 )
 
@@ -73,46 +70,41 @@ type retryEvent struct {
 
 type usageRecord struct {
 	NativeAttempts       []nativeAttemptRecord `json:"attempts,omitempty"`
-	hostedTools          *builtin.ToolAccounting
-	IngressRevision      string                     `json:"ingressRevision,omitempty"`
-	UpstreamRevision     string                     `json:"upstreamRevision,omitempty"`
-	ConversionPolicyHash string                     `json:"conversionPolicyHash,omitempty"`
-	CacheSynthesis       bool                       `json:"cacheSynthesis"`
-	SystemStructure      *systemStructureDiagnostic `json:"systemStructure,omitempty"`
-	ProtocolUsage        *protocol.Usage            `json:"protocolUsage,omitempty"`
-	ProtocolResponseID   string                     `json:"protocolResponseId,omitempty"`
-	ConversionIssues     []protocol.ConversionIssue `json:"conversionIssues,omitempty"`
-	RequestID            string                     `json:"requestId"`
-	StartedAt            time.Time                  `json:"startedAt"`
-	EndedAt              time.Time                  `json:"endedAt"`
-	KeyName              string                     `json:"keyName"`
-	KeyHash              string                     `json:"keyHash"`
-	RequestedModelGroup  string                     `json:"requestedModelGroup"`
-	GroupID              string                     `json:"groupId"`
-	GroupName            string                     `json:"groupName"`
-	ModelID              string                     `json:"modelId"`
-	ModelName            string                     `json:"modelName"`
-	SourceID             string                     `json:"sourceId,omitempty"`
-	Platform             string                     `json:"platform"`
-	InputFormat          string                     `json:"inputFormat"`
-	TargetPlatform       string                     `json:"targetPlatform"`
-	SourceFormat         string                     `json:"sourceFormat,omitempty"`
-	TargetFormat         string                     `json:"targetFormat,omitempty"`
-	SourceEndpoint       string                     `json:"sourceEndpoint,omitempty"`
-	TargetEndpoint       string                     `json:"targetEndpoint,omitempty"`
-	RelayMode            string                     `json:"relayMode,omitempty"`
-	ResponsesMode        string                     `json:"responsesMode,omitempty"`
-	ConversionChain      []string                   `json:"conversionChain,omitempty"`
-	UsageSource          string                     `json:"usageSource,omitempty"`
-	RequestWarnings      []string                   `json:"requestWarnings,omitempty"`
-	Stream               bool                       `json:"stream"`
-	StatusCode           int                        `json:"statusCode"`
+	IngressRevision      string                `json:"ingressRevision,omitempty"`
+	UpstreamRevision     string                `json:"upstreamRevision,omitempty"`
+	ConversionPolicyHash string                `json:"conversionPolicyHash,omitempty"`
+	CacheSynthesis       bool                  `json:"cacheSynthesis"`
+	ProtocolResponseID   string                `json:"protocolResponseId,omitempty"`
+	RequestID            string                `json:"requestId"`
+	StartedAt            time.Time             `json:"startedAt"`
+	EndedAt              time.Time             `json:"endedAt"`
+	KeyName              string                `json:"keyName"`
+	KeyHash              string                `json:"keyHash"`
+	RequestedModelGroup  string                `json:"requestedModelGroup"`
+	GroupID              string                `json:"groupId"`
+	GroupName            string                `json:"groupName"`
+	ModelID              string                `json:"modelId"`
+	ModelName            string                `json:"modelName"`
+	SourceID             string                `json:"sourceId,omitempty"`
+	Platform             string                `json:"platform"`
+	InputFormat          string                `json:"inputFormat"`
+	TargetPlatform       string                `json:"targetPlatform"`
+	SourceFormat         string                `json:"sourceFormat,omitempty"`
+	TargetFormat         string                `json:"targetFormat,omitempty"`
+	SourceEndpoint       string                `json:"sourceEndpoint,omitempty"`
+	TargetEndpoint       string                `json:"targetEndpoint,omitempty"`
+	RelayMode            string                `json:"relayMode,omitempty"`
+	ResponsesMode        string                `json:"responsesMode,omitempty"`
+	ConversionChain      []string              `json:"conversionChain,omitempty"`
+	UsageSource          string                `json:"usageSource,omitempty"`
+	RequestWarnings      []string              `json:"requestWarnings,omitempty"`
+	Stream               bool                  `json:"stream"`
+	StatusCode           int                   `json:"statusCode"`
 	// UpstreamHTTPStatus is the observed status of the final attempt, independent
 	// of a logical generation failure carried inside a successful HTTP stream.
-	UpstreamHTTPStatus int               `json:"upstreamHttpStatus,omitempty"`
-	TransportFailure   *transportFailure `json:"transportFailure,omitempty"`
-	Delivery           *httpDelivery     `json:"delivery,omitempty"`
-	Error              string            `json:"error,omitempty"`
+	UpstreamHTTPStatus int           `json:"upstreamHttpStatus,omitempty"`
+	Delivery           *httpDelivery `json:"delivery,omitempty"`
+	Error              string        `json:"error,omitempty"`
 	// ErrorKind 是错误归类（ErrorKind* 常量），供面板筛选/展示；空表示未归类。
 	ErrorKind          string           `json:"errorKind,omitempty"`
 	FirstByteMs        int64            `json:"firstByteMs"`
@@ -155,7 +147,7 @@ func shortTokenHash(token string) string {
 	return hex.EncodeToString(sum[:])[:8]
 }
 
-func (s *Server) initUsageRecord(ctx context.Context, c *app.RequestContext, start time.Time, body []byte, inputFormat builtin.FormatType) *usageRecord {
+func (s *Server) initUsageRecord(ctx context.Context, c *app.RequestContext, start time.Time, body []byte, inputFormat string) *usageRecord {
 	cfg := s.usageLogConfig()
 	requestID := c.GetString("requestID")
 	if requestID == "" {
@@ -163,7 +155,7 @@ func (s *Server) initUsageRecord(ctx context.Context, c *app.RequestContext, sta
 	}
 	// Correlate the delivered response with its persisted call, including local
 	// conversion failures and SSE. Never reuse an untrusted client request ID.
-	c.Header("X-Elysia-Request-Id", requestID)
+	c.Header("X-Columba-Request-Id", requestID)
 	record := &usageRecord{
 		RequestID:   requestID,
 		StartedAt:   start,
@@ -335,7 +327,6 @@ func derefInt(v *int) int {
 
 // reportMask 把「上游是否上报了该计数」编码为 storage.UsageReport* 位。指针
 // 语义在此兑现：nil（上游未上报）不置位，非 nil（含显式零）置位。record.Usage
-// 的 Input/CacheHit/CacheCreation 只会被 updateRecordProtocolUsage 从协议观测
 // 结果赋值（估算路径只写 EstimatedTokens，不碰这些指针），且 MergeUsage 唯一
 // 合成的 Inferred 计数是 Total（不参与掩码），因此「非 nil」等价于「上游确实
 // 上报」。命中率的可比性依赖此位：未上报不得当作零参与聚合。
@@ -471,17 +462,4 @@ func parsePositiveInt(raw string, fallback int) int {
 		return fallback
 	}
 	return value
-}
-
-func setRecordGroup(record *usageRecord, group *config.ModelGroupConfig) {
-	record.GroupID = group.ID
-	record.GroupName = group.Name
-}
-
-func setRecordModel(record *usageRecord, model config.ModelRef, platform builtin.Platform) {
-	record.ModelID = model.ID
-	record.ModelName = model.Name
-	record.SourceID = model.SourceID
-	record.Platform = model.Platform
-	record.TargetPlatform = string(platform)
 }

@@ -5,6 +5,7 @@ package logging
 
 import (
 	"context"
+	isatty "github.com/mattn/go-isatty"
 	"io"
 	stdlog "log"
 	"log/slog"
@@ -14,7 +15,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/mattn/go-isatty"
+
 	"github.com/rs/zerolog"
 )
 

@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/bytedance/sonic"
 	"math"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/bytedance/sonic"
-	"columba.local/backend/protocol"
 )
 
 func assertUsageEncodingResult(t testing.TB, actual, expected []byte, actualErr, expectedErr error) {
@@ -65,7 +63,6 @@ func TestUsageJSONEncodingParity(t *testing.T) {
 			ProviderResponse:   usageBody{Content: `{"answer":"<>&","decimal":1.00}`},
 			DownstreamResponse: usageBody{Content: "data: {\"delta\":\"\u2028\u2029\"}\n\n"},
 			Delivery:           &httpDelivery{Outcome: deliveryFailed, Cause: "synthetic", Error: "delivery <>&\xff"},
-			ConversionIssues:   []protocol.ConversionIssue{{Code: protocol.ConversionDegraded, Severity: protocol.SeverityWarning, Path: "/synthetic", Reason: "detail <>&\u2028\xff"}},
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) { assertUsageEncodingParity(t, test.value) })

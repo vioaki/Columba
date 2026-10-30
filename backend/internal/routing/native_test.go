@@ -18,7 +18,8 @@ func nativeFixture() ([]storage.Model, []storage.ModelSource) {
 
 func TestNativeAggregationUsesExactIDProtocolAndEnabledState(t *testing.T) {
 	models, sources := nativeFixture()
-	models = append(models, storage.Model{ID: "exact-model", SourceID: "a", Platform: "claude", Enabled: true}, storage.Model{ID: "exact-model-preview", SourceID: "a", Platform: "openai", Enabled: true}, storage.Model{ID: "disabled", SourceID: "a", Platform: "openai", Enabled: false})
+	sources = append(sources, storage.ModelSource{ID: "d", BaseURL: "https://d.invalid", Platform: "claude", Enabled: true})
+	models = append(models, storage.Model{ID: "exact-model", SourceID: "d", Platform: "claude", Enabled: true}, storage.Model{ID: "exact-model-preview", SourceID: "a", Platform: "openai", Enabled: true}, storage.Model{ID: "disabled", SourceID: "a", Platform: "openai", Enabled: false})
 	sources[2].Enabled = false
 	routes := AssembleNative(models, sources, nil)
 	if len(routes) != 3 {
@@ -35,6 +36,7 @@ func TestNativeAggregationUsesExactIDProtocolAndEnabledState(t *testing.T) {
 			t.Fatal("defaults", r)
 		}
 	}
+	sources[3].Enabled = false
 	sources[0].APIKeys = []storage.SourceAPIKey{{Value: "disabled", Disabled: true}}
 	models[1].Enabled = false
 	if got := AssembleNative(models, sources, nil); len(got) != 0 {

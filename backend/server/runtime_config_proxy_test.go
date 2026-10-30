@@ -27,7 +27,7 @@ func TestRuntimeProxyPatchPreservesDenylistAndPersists(t *testing.T) {
 	})
 	save := func(body string, status int) {
 		t.Helper()
-		c, w := adminProtocolContext(http.MethodPut, "/runtime-config", body)
+		c, w := adminTestContext(http.MethodPut, "/runtime-config", body)
 		s.adminUpdateRuntimeConfig(contextForTest(c), c)
 		flushTestResponse(c)
 		if w.Code != status {

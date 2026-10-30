@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"columba.local/backend/config"
 	"columba.local/backend/logging"
-	"columba.local/backend/relay"
 	"columba.local/backend/storage"
 )
 
@@ -18,8 +16,6 @@ func New(cfg *config.Config) *Server {
 	engine := newHTTPEngine(cfg)
 	server := &Server{
 		config: cfg, engine: engine,
-		protocolTransport: relay.NewProtocolTransport(time.Duration(cfg.GetHTTPTimeout()) * time.Second),
-		affinity:          newAffinityCache(),
 		catalog: newModelCatalog(cfg.GetModelCatalog, func() string {
 			dbPath := cfg.GetDatabasePath()
 			if strings.TrimSpace(dbPath) == "" {
@@ -47,25 +43,12 @@ func New(cfg *config.Config) *Server {
 	} else if hasEncrypted && !decryptOK {
 		server.logEvent("error").Msg("encrypted secrets cannot be decrypted; restore the original .master-key or COLUMBA_MASTER_KEY. Routing and token/source administration are unavailable until repaired; rows are retained")
 	}
-	protocolErr := server.initializeProtocolRuntime(context.Background())
 	server.syncOutboundPolicy()
-	if protocolErr != nil {
-		server.logEvent("error").Err(protocolErr).Msg("protocol runtime requires repair; generation is disabled")
-	}
 	listen := cfg.GetServer()
 	server.logSystemEvent("info", "server started", map[string]any{
 		"version": AppVersion, "host": listen.Host, "port": listen.Port,
 	})
 	return server
-}
-
-func newHealthChecker(s *Server) *healthChecker {
-	ctx, cancel := context.WithCancel(context.Background())
-	return &healthChecker{
-		store: s.store, settings: s.config.GetHealthCheckConfig,
-		logEvent: s.logEvent, probe: s.probeModelHealth, invalidate: s.invalidateRouteCache,
-		failures: make(map[string]int), ctx: ctx, cancel: cancel, done: make(chan struct{}),
-	}
 }
 
 func newUsageRetention(s *Server) *usageRetention {

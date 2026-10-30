@@ -19,14 +19,10 @@ func TestSourceRefreshCommitRollsBackAllChanges(t *testing.T) {
 	if _, err := s.MergeSourceModels(ctx, source, []Model{{ID: "old"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.UpsertGroup(ctx, enabledGroup("g", "g", []string{source.ID + ":old"})); err != nil {
-		t.Fatal(err)
-	}
 	beforeSources, _ := s.ListSources(ctx)
 	beforeModels, _ := s.ListModels(ctx)
-	beforeGroups, _ := s.ListGroups(ctx)
 	// Fail after the key update, model insertion and model deletion have executed.
-	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_refresh BEFORE DELETE ON model_group_models BEGIN SELECT RAISE(ABORT, 'injected group deletion failure'); END`); err != nil {
+	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_refresh BEFORE DELETE ON models BEGIN SELECT RAISE(ABORT, 'injected model deletion failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	result, err := s.CommitSourceRefresh(ctx, beforeSources[0], []Model{{ID: "new"}}, map[int][]string{0: {"new"}})
@@ -35,8 +31,7 @@ func TestSourceRefreshCommitRollsBackAllChanges(t *testing.T) {
 	}
 	afterSources, _ := s.ListSources(ctx)
 	afterModels, _ := s.ListModels(ctx)
-	afterGroups, _ := s.ListGroups(ctx)
-	if !reflect.DeepEqual(beforeSources, afterSources) || !reflect.DeepEqual(beforeModels, afterModels) || !reflect.DeepEqual(beforeGroups, afterGroups) {
+	if !reflect.DeepEqual(beforeSources, afterSources) || !reflect.DeepEqual(beforeModels, afterModels) {
 		t.Fatal("failed refresh changed source, model or group data")
 	}
 	if _, err := s.db.ExecContext(ctx, `DROP TRIGGER fail_refresh`); err != nil {

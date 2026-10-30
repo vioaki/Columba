@@ -60,11 +60,10 @@ func (s *Store) UpsertSource(ctx context.Context, item ModelSource) error {
 	return s.upsertSource(ctx, s.db, item)
 }
 
-// BoundSourceUpdate keeps source settings, the authoritative manual catalog,
+// SourceUpdate keeps source settings, the authoritative manual catalog,
 // and verified binding evidence in the same write transaction.
-type BoundSourceUpdate struct {
+type SourceUpdate struct {
 	Source           ModelSource
-	Bindings         []ProtocolBinding
 	SyncManualModels bool
 	IsCreate         bool
 }
@@ -72,17 +71,14 @@ type BoundSourceUpdate struct {
 // ErrSourceExists reports an insert-only creation that conflicts with an existing source.
 var ErrSourceExists = errors.New("model source already exists")
 
-// SaveBoundSource commits a prepared source update against its verified generation.
-func (s *Store) SaveBoundSource(ctx context.Context, update BoundSourceUpdate, expectedGeneration ...int64) error {
+// SaveSource commits a prepared source update against its verified generation.
+func (s *Store) SaveSource(ctx context.Context, update SourceUpdate) error {
 	item := update.Source
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if err := checkConversionGeneration(ctx, tx, expectedGeneration); err != nil {
-		return err
-	}
 	if update.IsCreate {
 		var exists int
 		if err := tx.QueryRowContext(ctx, `SELECT 1 FROM model_sources WHERE id=?`, item.ID).Scan(&exists); err == nil {
@@ -94,10 +90,15 @@ func (s *Store) SaveBoundSource(ctx context.Context, update BoundSourceUpdate, e
 	if err := s.saveSourceRecord(ctx, tx, item, update.IsCreate); err != nil {
 		return err
 	}
-	if _, err := saveBindingUpdates(ctx, tx, BindingKey{Kind: "source", SourceID: item.ID}, update.Bindings); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE models SET platform=?,source_name=?,base_url=? WHERE source_id=?`, item.Platform, item.Name, item.BaseURL, item.ID); err != nil {
 		return err
 	}
 	if update.SyncManualModels {
+		item.ManualModels = append([]Model(nil), item.ManualModels...)
+		for i := range item.ManualModels {
+			item.ManualModels[i].Origin = "manual"
+		}
+
 		if _, err := s.mergeSourceModelsTx(ctx, tx, item, item.ManualModels, true); err != nil {
 			return err
 		}
@@ -105,11 +106,11 @@ func (s *Store) SaveBoundSource(ctx context.Context, update BoundSourceUpdate, e
 	return tx.Commit()
 }
 
-func (s *Store) upsertSource(ctx context.Context, executor protocolSQLExecutor, item ModelSource) error {
+func (s *Store) upsertSource(ctx context.Context, executor sqlExecutor, item ModelSource) error {
 	return s.saveSourceRecord(ctx, executor, item, false)
 }
 
-func (s *Store) saveSourceRecord(ctx context.Context, executor protocolSQLExecutor, item ModelSource, isCreate bool) error {
+func (s *Store) saveSourceRecord(ctx context.Context, executor sqlExecutor, item ModelSource, isCreate bool) error {
 	if strings.TrimSpace(item.ID) == "" {
 		return errors.New("source id is required")
 	}
@@ -195,12 +196,6 @@ func (s *Store) DeleteSource(ctx context.Context, id string) error {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM models WHERE source_id = ?`, id); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM model_group_models WHERE source_id = ?`, id); err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM protocol_bindings WHERE json_extract(binding, '$.sourceId') = ? AND json_extract(binding, '$.kind') IN ('source', 'model')`, id); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -387,14 +382,11 @@ func (m *modelMerge) sweepMissing(ctx context.Context, existing map[string]exist
 	for id, prev := range existing {
 		_, stillPresent := incomingIDs[id]
 		isManual := prev.origin == "manual"
-		if stillPresent || (isManual && !deleteMissingManual) {
+		if stillPresent || (isManual && !deleteMissingManual) || (deleteMissingManual && m.source.AutoFetchModels && !isManual) {
 			continue
 		}
 		removed = append(removed, id)
 		if _, err := m.tx.ExecContext(ctx, `DELETE FROM models WHERE id = ? AND source_id = ?`, id, m.source.ID); err != nil {
-			return removed, err
-		}
-		if _, err := m.tx.ExecContext(ctx, `DELETE FROM model_group_models WHERE model_id = ? AND source_id = ?`, id, m.source.ID); err != nil {
 			return removed, err
 		}
 	}

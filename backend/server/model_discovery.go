@@ -1,128 +1,122 @@
 package server
 
 import (
+	"columba.local/backend/storage"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"columba.local/backend/protocol"
-	"columba.local/backend/storage"
+	"net/url"
+	"strings"
 )
 
 const maxModelDiscoveryPages = 100
 
-func (s *Server) sourceProtocol(source storage.ModelSource) (*protocol.Compiled, error) {
-	if source.Platform == "" {
-		return nil, gatewayIssue(protocol.Identity{}, protocol.VerificationRequired, "/binding", "模型源未绑定协议，请先选择协议")
-	}
-	id, err := protocolIDForPlatform(source.Platform)
-	if err != nil {
-		return nil, err
-	}
-	service, err := s.protocolService()
-	if err != nil {
-		return nil, err
-	}
-	compiled, isActive := service.Pin(id)
-	if !isActive {
-		return nil, gatewayIssue(protocol.Identity{}, protocol.VerificationRequired, "/platform", "model source requires an active verified protocol: "+id)
-	}
-	return compiled, nil
-}
-
-func selectModelDiscovery(compiled *protocol.Compiled) (string, protocol.Operation, error) {
-	var name string
-	var selected protocol.Operation
-	for key, operation := range compiled.Operations() {
-		if operation.Kind != "models" {
-			continue
-		}
-		if name != "" {
-			return "", selected, fmt.Errorf("model discovery requires one unambiguous models operation")
-		}
-		name, selected = key, operation
-	}
-	if name == "" {
-		return "", selected, fmt.Errorf("protocol %q does not define model discovery; declare a models operation or use manual models", compiled.Identity().DefinitionID)
-	}
-	return name, selected, nil
-}
-
 func (s *Server) fetchModelsFromSource(ctx context.Context, source storage.ModelSource, apiKey string) ([]storage.Model, error) {
-	compiled, err := s.sourceProtocol(source)
-	if err != nil {
-		return nil, err
-	}
-	entries, err := s.discoverProtocolModels(ctx, compiled, sourceFetchBase(source), apiKey)
-	if err != nil {
-		return nil, err
-	}
-	models := make([]storage.Model, 0, len(entries))
-	for _, entry := range entries {
-		model := inferredModel(source, entry.ID, entry.ID)
-		model.MaxTokens = entry.MaxTokens
-		s.enrichModelFromCatalog(&model)
-		models = append(models, model)
-	}
-	return models, nil
-}
-
-func (s *Server) discoverProtocolModels(ctx context.Context, compiled *protocol.Compiled, baseURL, apiKey string) ([]protocol.DiscoveredModel, error) {
-	if err := s.validateOutbound(baseURL); err != nil {
-		return nil, err
-	}
-	name, operation, err := selectModelDiscovery(compiled)
-	if err != nil {
-		return nil, err
+	if !storage.NativeProtocol(source.Platform) {
+		return nil, fmt.Errorf("unsupported native protocol %q", source.Platform)
 	}
 	ctx, cancel := context.WithTimeout(ctx, modelFetchTimeout)
 	defer cancel()
-	models := []protocol.DiscoveredModel{}
+	path := "/v1/models"
+	if source.Platform == "gemini" {
+		path = "/v1beta/models"
+	}
+	models := []storage.Model{}
 	seenIDs, seenCursors := map[string]bool{}, map[string]bool{}
-	limits := compiled.ResourceLimits()
+	query := url.Values{}
 	for range maxModelDiscoveryPages {
-		response, err := s.protocolTransport.SendProtocolRequest(ctx, baseURL, apiKey, operation, nil, nil)
+		target, err := nativeTarget(sourceFetchBase(source), path, query.Encode())
 		if err != nil {
 			return nil, err
 		}
-		body, err := protocol.ReadBoundedBody(response.Body, limits.BufferBytes)
+		if err := s.validateOutbound(target); err != nil {
+			return nil, err
+		}
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+		if err != nil {
+			return nil, err
+		}
+		switch source.Platform {
+		case "claude":
+			request.Header.Set("x-api-key", apiKey)
+			request.Header.Set("anthropic-version", "2023-06-01")
+		case "gemini":
+			request.Header.Set("x-goog-api-key", apiKey)
+		default:
+			request.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		response, err := s.nativeHTTPClient().Do(request)
+		if err != nil {
+			return nil, fmt.Errorf("model discovery connection failed")
+		}
+		body, err := readBoundedBody(response.Body, 8<<20)
 		response.Body.Close()
 		if err != nil {
 			return nil, err
 		}
-		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-			// Provider bodies may echo credentials; keep them out of refresh logs.
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
 			return nil, fmt.Errorf("model discovery failed: HTTP %d", response.StatusCode)
 		}
-		value, err := protocol.ParseValue(body)
-		if err != nil {
-			return nil, err
+		var page struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+			Models []struct {
+				Name            string `json:"name"`
+				DisplayName     string `json:"displayName"`
+				InputTokenLimit int    `json:"inputTokenLimit"`
+			} `json:"models"`
+			HasMore       bool   `json:"has_more"`
+			LastID        string `json:"last_id"`
+			NextPageToken string `json:"nextPageToken"`
 		}
-		page, err := compiled.DecodeModelPage(ctx, name, value)
-		if err != nil {
-			return nil, err
+		if err := json.Unmarshal(body, &page); err != nil {
+			return nil, fmt.Errorf("invalid model discovery JSON")
 		}
-		if len(models)+len(page.Models) > limits.StateItems {
-			return nil, fmt.Errorf("model discovery exceeded catalog item limit")
-		}
-		for _, entry := range page.Models {
-			if seenIDs[entry.ID] {
-				return nil, fmt.Errorf("model discovery returned a duplicate identity across pages")
+		add := func(id, name string, limit int) error {
+			if id == "" || seenIDs[id] {
+				return fmt.Errorf("missing or repeated model identity")
 			}
-			seenIDs[entry.ID] = true
-			models = append(models, entry)
+			seenIDs[id] = true
+			m := inferredModel(source, id, name)
+			m.MaxTokens = limit
+			models = append(models, m)
+			if len(models) > 100000 {
+				return fmt.Errorf("model discovery item limit exceeded")
+			}
+			return nil
 		}
-		if page.Next == "" {
+		next := ""
+		if source.Platform == "gemini" {
+			for _, m := range page.Models {
+				if err := add(strings.TrimPrefix(m.Name, "models/"), m.DisplayName, m.InputTokenLimit); err != nil {
+					return nil, err
+				}
+			}
+			next = page.NextPageToken
+			query.Set("pageToken", next)
+		} else {
+			for _, m := range page.Data {
+				if err := add(m.ID, m.ID, 0); err != nil {
+					return nil, err
+				}
+			}
+			if source.Platform == "claude" && page.HasMore {
+				next = page.LastID
+				if next == "" {
+					return nil, fmt.Errorf("missing model pagination cursor")
+				}
+				query.Set("after_id", next)
+			}
+		}
+		if next == "" {
 			return models, nil
 		}
-		if seenCursors[page.Next] {
-			return nil, fmt.Errorf("model discovery repeated a pagination cursor")
+		if seenCursors[next] {
+			return nil, fmt.Errorf("repeated model pagination cursor")
 		}
-		seenCursors[page.Next] = true
-		if operation.Query == nil {
-			operation.Query = map[string]string{}
-		}
-		operation.Query[operation.Models.CursorParameter] = page.Next
+		seenCursors[next] = true
 	}
-	return nil, fmt.Errorf("model discovery exceeded pagination limit")
+	return nil, fmt.Errorf("model discovery page limit exceeded")
 }

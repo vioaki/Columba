@@ -6,12 +6,6 @@ import { AppLayout } from './components/app-layout'
 // 登录页与首屏外壳保持轻量。
 const OverviewPage = lazy(() => import('./pages/overview').then((m) => ({ default: m.OverviewPage })))
 const SourcesPage = lazy(() => import('./pages/sources').then((m) => ({ default: m.SourcesPage })))
-const ProtocolDesignerPage = lazy(() =>
-  import('./pages/protocol-designer').then((m) => ({ default: m.ProtocolDesignerPage })),
-)
-const GroupsPage = lazy(() => import('./pages/groups').then((m) => ({ default: m.GroupsPage })))
-const ConversionPolicyPage = lazy(() => import('./pages/protocol-designer/conversion-page').then((m) => ({ default: m.ConversionPolicyPage })))
-const ProtocolHistoryPage = lazy(() => import('./pages/protocol-designer/history-page').then((m) => ({ default: m.ProtocolHistoryPage })))
 const TokensPage = lazy(() => import('./pages/tokens').then((m) => ({ default: m.TokensPage })))
 const UsageStatsPage = lazy(() => import('./pages/usage-stats').then((m) => ({ default: m.UsageStatsPage })))
 const UsageLogsPage = lazy(() => import('./pages/usage-logs').then((m) => ({ default: m.UsageLogsPage })))
@@ -70,11 +64,6 @@ export function App() {
             <Route element={<AppLayout />}>
               <Route path="/overview" element={<OverviewPage />} />
               <Route path="/sources" element={<SourcesPage />} />
-              <Route path="/protocols" element={<ProtocolDesignerPage />} />
-              <Route path="/protocols/conversions" element={<ConversionPolicyPage />} />
-              <Route path="/protocols/history" element={<ProtocolHistoryPage />} />
-              <Route path="/protocols/legacy" element={<Navigate to="/protocols/history" replace />} />
-              <Route path="/groups" element={<GroupsPage />} />
               <Route path="/tokens" element={<TokensPage />} />
               <Route path="/usage" element={<UsageStatsPage />} />
               <Route path="/usage-logs" element={<UsageLogsPage />} />

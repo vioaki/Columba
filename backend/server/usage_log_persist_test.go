@@ -10,10 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/config"
-	"columba.local/backend/protocol"
-	"columba.local/backend/protocol/builtin"
 	"columba.local/backend/storage"
 )
 
@@ -67,7 +64,7 @@ func TestBodyOnErrorOnlyKeepsFailedBodiesAndWritesAssets(t *testing.T) {
 	failed := newExternalizeRecord("onerr-failed")
 	failed.StatusCode = 400
 	failed.Error = "boom"
-	failed.ErrorKind = string(builtin.ErrorClassInvalidRequest)
+	failed.ErrorKind = "invalid_request"
 	payload := strings.Repeat("A", 600)
 	failed.IncomingBody = failed.sanitizeBody([]byte(`{"url":"data:image/png;base64,` + payload + `"}`))
 	if failed.assets.count() != 1 {
@@ -129,49 +126,6 @@ func TestPersistDisabledDropsRecord(t *testing.T) {
 	}
 }
 
-// 回归：/v1/chat/completions 请求转换失败必须落 usage 记录（bodyOnErrorOnly
-// 模式下这是唯一保留请求体的排查样本），而不是像旧版那样静默 400。
-// 与 chatCompletions 内一致的失败路径。
-func TestConversionFailureIsRecorded(t *testing.T) {
-	store, err := storage.Open(filepath.Join(t.TempDir(), "convert-fail.sqlite3"))
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
-	defer store.Close()
-	cfg := &config.Config{}
-	cfg.SetDatabasePath(filepath.Join(t.TempDir(), "convert-fail-config.sqlite3"))
-	s := &Server{store: store, config: cfg}
-	s.startUsageWriter()
-	defer s.stopUsageWriter()
-	rec := httptest.NewRecorder()
-	c := newTestContext(rec)
-	setTestRequest(c, httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{invalid json`)))
-	start := time.Now()
-	record := s.initUsageRecord(contextForTest(c), c, start, []byte(`{invalid json`), "openai")
-	record.appendConversionIssues([]protocol.ConversionIssue{{Code: protocol.ConversionNormalized, Stage: "request", Path: "/include", Severity: protocol.SeverityInfo}})
-	s.failGateway(contextForTest(c), c, record, http.StatusBadRequest, gatewayIssue(protocol.Identity{}, protocol.InvalidInput, "/", "bad json"))
-	flushTestResponse(c)
-	s.recordUsage(record)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status=%d", rec.Code)
-	}
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		payload, found, err := store.GetUsageRecordJSON(context.Background(), record.RequestID)
-		if err == nil && found {
-			if !strings.Contains(string(payload), `"errorKind":"invalid_input"`) {
-				t.Fatalf("errorKind=conversion must be persisted: %s", payload)
-			}
-			if !strings.Contains(string(payload), `"code":"conversion_normalized"`) || !strings.Contains(string(payload), `"code":"invalid_input"`) {
-				t.Fatalf("request diagnostics were lost when persisting the failure: %s", payload)
-			}
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatal("conversion failure record must be persisted")
-}
-
 // 管理端资产路由：鉴权由 admin 组中间件负责，这里覆盖文件名校验与正常下发。
 // 准备一条记录 + 一个真实资产文件。
 // 正常获取：请求拥有资产引用时可下发，Content-Type 按 ext。
@@ -210,37 +164,4 @@ func TestAdminUsageAssetServesFileAndRejectsTraversal(t *testing.T) {
 	}
 	_ = cfg
 	_ = store
-}
-
-func TestMissingModelKeepsRequestMetadataWithoutBodies(t *testing.T) {
-	for _, endpoint := range []string{"chat", "responses"} {
-		t.Run(endpoint, func(t *testing.T) {
-			s := newTestServerWithStore(t, nil)
-			zero := 0
-			s.config.SetUsageLogConfig(config.UsageLogConfig{BodyMaxKB: &zero})
-			c, rec := chatRequestContext(`{"model":"missing-model","stream":true,"messages":[{"role":"user","content":"hi"}]}`)
-			if endpoint == "responses" {
-				rec = httptest.NewRecorder()
-				c, _ = newResponsesContext(rec, `{"model":"missing-model","stream":true,"input":"hi"}`)
-			}
-			if endpoint == "responses" {
-				s.responses(contextForTest(c), c)
-				flushTestResponse(c)
-			} else {
-				s.chatCompletions(contextForTest(c), c)
-				flushTestResponse(c)
-			}
-			logs := latestUsageRecords(t, s)
-			if rec.Code != 404 || len(logs) != 1 || logs[0].RequestedModelGroup != "missing-model" || !logs[0].Stream || logs[0].ModelName != "" {
-				t.Fatalf("status=%d logs=%+v", rec.Code, logs)
-			}
-			var record usageRecord
-			if err := sonic.ConfigStd.Unmarshal([]byte(storedRecordJSON(t, s.store, logs[0].RequestID)), &record); err != nil {
-				t.Fatal(err)
-			}
-			if record.RequestedModelGroup != "missing-model" || !record.Stream || record.IncomingBody.Content != "" {
-				t.Fatalf("record=%+v", record)
-			}
-		})
-	}
 }

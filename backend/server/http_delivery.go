@@ -7,8 +7,6 @@ import (
 	"net/http"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"columba.local/backend/protocol"
-	"columba.local/backend/relay"
 )
 
 const (
@@ -191,49 +189,4 @@ func deliveryFailureStatus(cause string) (int, string) {
 	default:
 		return http.StatusBadGateway, deliveryTransport
 	}
-}
-
-func hasObservedPrimaryFailure(record *usageRecord, err error) bool {
-	var httpFailure *upstreamHTTPFailure
-	var generation *protocol.GenerationFailure
-	var resource *protocol.ResourceLimitError
-	var idle *relay.StreamIdleError
-	return record.UpstreamHTTPStatus >= http.StatusBadRequest || record.TransportFailure != nil || errors.As(err, &idle) ||
-		errors.As(err, &httpFailure) || errors.As(err, &generation) ||
-		independentConversionIssue(err) != nil || errors.As(err, &resource)
-}
-
-func independentConversionIssue(err error) *protocol.ConversionIssue {
-	if failure, ok := err.(*protocol.ConversionError); ok {
-		for index := range failure.Issues {
-			issue := &failure.Issues[index]
-			if issue.Severity == protocol.SeverityError && issue.Code != protocol.ExecutionCancelled && issue.Code != protocol.ExecutionTimeout {
-				return issue
-			}
-		}
-	}
-	switch wrapped := err.(type) {
-	case interface{ Unwrap() []error }:
-		for _, child := range wrapped.Unwrap() {
-			if issue := independentConversionIssue(child); issue != nil {
-				return issue
-			}
-		}
-	case interface{ Unwrap() error }:
-		return independentConversionIssue(wrapped.Unwrap())
-	}
-	return nil
-}
-
-// Request cancellation and downstream delivery must not replace an already
-// observed provider, HTTP or protocol failure.
-func classifyRequestInterruption(record *usageRecord, ctx context.Context, err error) {
-	if hasObservedPrimaryFailure(record, err) {
-		return
-	}
-	var downstream *downstreamWriteError
-	if ctx.Err() == nil && !errors.As(err, &downstream) && !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) {
-		return
-	}
-	record.StatusCode, record.ErrorKind = deliveryFailureStatus(deliveryFailureCause(context.Cause(ctx), err))
 }

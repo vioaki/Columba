@@ -4,26 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
-	"testing"
 
-	"columba.local/backend/protocol"
-	"columba.local/backend/protocol/builtin"
 	"columba.local/backend/storage"
+	"testing"
 )
-
-func newRefreshTestServer(t *testing.T) *Server {
-	t.Helper()
-	store, err := storage.Open(filepath.Join(t.TempDir(), "refresh.sqlite3"))
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-	t.Cleanup(func() { store.Close() })
-	s := newUnboundTestServer(t, nil)
-	s.store = store
-	activateDiscoveryPresets(t, s)
-	return s
-}
 
 // #1: Claude 源走 /v1/models 拉取（OpenAI 风格响应），x-api-key 鉴权命中。
 func TestFetchClaudeModelsViaV1Models(t *testing.T) {
@@ -41,7 +25,7 @@ func TestFetchClaudeModelsViaV1Models(t *testing.T) {
 
 	s := newRefreshTestServer(t)
 	models, err := s.fetchModelsFromSource(context.Background(), storage.ModelSource{
-		Name: "claude-relay", BaseURL: srv.URL, Platform: "custom:anthropic-messages", Enabled: true,
+		Name: "claude-relay", BaseURL: srv.URL, Platform: "claude", Enabled: true,
 	}, "sk-ant-xxx")
 	if err != nil {
 		t.Fatalf("fetchClaudeModels error: %v", err)
@@ -52,7 +36,7 @@ func TestFetchClaudeModelsViaV1Models(t *testing.T) {
 	if gotAuth != "sk-ant-xxx" {
 		t.Fatalf("expected x-api-key auth, got %q", gotAuth)
 	}
-	if models[0].Platform != "custom:anthropic-messages" {
+	if models[0].Platform != "claude" {
 		t.Fatalf("expected Anthropic protocol, got %q", models[0].Platform)
 	}
 }
@@ -69,7 +53,7 @@ func TestModelDiscoveryDoesNotGuessAuthentication(t *testing.T) {
 	}))
 	defer upstream.Close()
 	s := newRefreshTestServer(t)
-	_, err := s.fetchModelsFromSource(t.Context(), storage.ModelSource{Platform: "custom:anthropic-messages", BaseURL: upstream.URL}, "secret")
+	_, err := s.fetchModelsFromSource(t.Context(), storage.ModelSource{Platform: "claude", BaseURL: upstream.URL}, "secret")
 	if err == nil || calls != 1 {
 		t.Fatalf("expected one failed declared-auth attempt: %d %v", calls, err)
 	}
@@ -92,7 +76,7 @@ func TestFetchGeminiModelsViaV1BetaModels(t *testing.T) {
 
 	s := newRefreshTestServer(t)
 	models, err := s.fetchModelsFromSource(context.Background(), storage.ModelSource{
-		Name: "gemini-relay", BaseURL: srv.URL, Platform: "custom:google-generate-content", Enabled: true,
+		Name: "gemini-relay", BaseURL: srv.URL, Platform: "gemini", Enabled: true,
 	}, "gem-key")
 	if err != nil {
 		t.Fatalf("fetchGeminiModels error: %v", err)
@@ -112,7 +96,7 @@ func TestFetchGeminiModelsViaV1BetaModels(t *testing.T) {
 	if models[0].ID != "gemini-1.5-flash" {
 		t.Fatalf("expected id gemini-1.5-flash (models/ prefix stripped), got %q", models[0].ID)
 	}
-	if models[0].Platform != "custom:google-generate-content" {
+	if models[0].Platform != "gemini" {
 		t.Fatalf("expected Gemini protocol, got %q", models[0].Platform)
 	}
 	if models[0].MaxTokens != 1048576 {
@@ -136,10 +120,10 @@ func TestRefreshAllSourcesFaultTolerant(t *testing.T) {
 
 	s := newRefreshTestServer(t)
 	// 一个能拉取的 openai 源 + 一个总是 500 的源。
-	if err := s.store.UpsertSource(ctx, storage.ModelSource{ID: "good", Name: "good", BaseURL: good.URL, Platform: "custom:openai-chat-completions", Enabled: true, AutoFetchModels: true}); err != nil {
+	if err := s.store.UpsertSource(ctx, storage.ModelSource{ID: "good", Name: "good", BaseURL: good.URL, Platform: "openai", Enabled: true, AutoFetchModels: true}); err != nil {
 		t.Fatalf("upsert good: %v", err)
 	}
-	if err := s.store.UpsertSource(ctx, storage.ModelSource{ID: "bad", Name: "bad", BaseURL: bad.URL, Platform: "custom:openai-chat-completions", Enabled: true, AutoFetchModels: true}); err != nil {
+	if err := s.store.UpsertSource(ctx, storage.ModelSource{ID: "bad", Name: "bad", BaseURL: bad.URL, Platform: "openai", Enabled: true, AutoFetchModels: true}); err != nil {
 		t.Fatalf("upsert bad: %v", err)
 	}
 
@@ -176,7 +160,7 @@ func TestRefreshEmptyModelListKeepsExistingModels(t *testing.T) {
 	defer empty.Close()
 
 	s := newRefreshTestServer(t)
-	source := storage.ModelSource{ID: "s-empty", Name: "empty", BaseURL: empty.URL, Platform: "custom:openai-chat-completions", Enabled: true, AutoFetchModels: true}
+	source := storage.ModelSource{ID: "s-empty", Name: "empty", BaseURL: empty.URL, Platform: "openai", Enabled: true, AutoFetchModels: true}
 	if err := s.store.UpsertSource(ctx, source); err != nil {
 		t.Fatalf("upsert source: %v", err)
 	}
@@ -196,26 +180,4 @@ func TestRefreshEmptyModelListKeepsExistingModels(t *testing.T) {
 	}
 }
 
-func activateDiscoveryPresets(t *testing.T, s *Server) {
-	t.Helper()
-	// 预置只读：测试种子绕过作者路径（SaveDraft/Activate 已拒绝预置 ID），
-	// 直接持久化修订+激活+草稿，并用当前编译器重写离线证据后整体装载。
-	definitions, err := builtin.Definitions()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, value := range definitions {
-		var definition protocol.Definition
-		if err := value.Decode(&definition); err != nil {
-			t.Fatal(err)
-		}
-		seedGatewayDefinition(t, s, definition, false)
-	}
-	service, err := s.protocolService()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := service.Reload(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-}
+func newRefreshTestServer(t *testing.T) *Server { return newNativeTestServer(t) }

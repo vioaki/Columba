@@ -114,7 +114,7 @@ func TestNativeRetryRecordsFailedUsageAndStopsAfterOutput(t *testing.T) {
 	s := newNativeTestServer(t)
 	seedNative(t, s, "a", "openai", provider.URL)
 	seedNative(t, s, "b", "openai", provider.URL)
-	c, rec := adminProtocolContext(http.MethodPost, "/v1/chat/completions", `{"model":"raw-model"}`)
+	c, rec := adminTestContext(http.MethodPost, "/v1/chat/completions", `{"model":"raw-model"}`)
 	s.serveNative(contextForTest(c), c)
 	flushTestResponse(c)
 	if calls.Load() != 2 || rec.Code != 200 {
@@ -168,7 +168,7 @@ func TestNativeContinuationBindsOriginalChannelAndCredential(t *testing.T) {
 	seedNative(t, s, "a", "responses", pa.URL)
 	seedNative(t, s, "b", "responses", pb.URL)
 	call := func(body string) int {
-		c, r := adminProtocolContext(http.MethodPost, "/v1/responses", body)
+		c, r := adminTestContext(http.MethodPost, "/v1/responses", body)
 		s.serveNative(contextForTest(c), c)
 		flushTestResponse(c)
 		return r.Code
@@ -201,7 +201,7 @@ func TestNativeCancellationDoesNotRetry(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
-		c, _ := adminProtocolContext(http.MethodPost, "/v1/chat/completions", `{"model":"raw-model"}`)
+		c, _ := adminTestContext(http.MethodPost, "/v1/chat/completions", `{"model":"raw-model"}`)
 		s.serveNative(ctx, c)
 		close(done)
 	}()

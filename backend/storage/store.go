@@ -12,12 +12,11 @@ import (
 	"time"
 
 	"columba.local/backend/internal/dbpath"
-	"columba.local/backend/internal/storagequery"
 	"github.com/bytedance/sonic"
 )
 
 const sqliteBusyTimeout = 5 * time.Second
-const currentSchemaVersion = 5
+const currentSchemaVersion = 6
 
 func Open(path string) (*Store, error) {
 	return OpenWithKey(path, nil)
@@ -124,12 +123,6 @@ func (s *Store) init(ctx context.Context) error {
 	if err := s.createSchema(ctx); err != nil {
 		return err
 	}
-	if err := s.createGenerationJobTables(ctx); err != nil {
-		return err
-	}
-	if err := s.createConversionTables(ctx); err != nil {
-		return err
-	}
 	_, err := s.db.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version=%d", currentSchemaVersion))
 	return err
 }
@@ -157,12 +150,13 @@ func (s *Store) SetSetting(ctx context.Context, key string, value any) error {
 	if err != nil {
 		return err
 	}
-	return storagequery.New(s.db).SetSetting(ctx, storagequery.SetSettingParams{Key: key, Value: string(payload), UpdatedAt: nowString()})
+	_, err = s.db.ExecContext(ctx, `INSERT INTO settings(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`, key, string(payload), nowString())
+	return err
 }
 
 func (s *Store) GetSetting(ctx context.Context, key string, target any) (bool, error) {
 	var payload string
-	payload, err := storagequery.New(s.db).GetSetting(ctx, key)
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key=?`, key).Scan(&payload)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -177,26 +171,19 @@ func (s *Store) GetSetting(ctx context.Context, key string, target any) (bool, e
 func (s *Store) scanAPIToken(row interface{ Scan(dest ...any) error }) (APIToken, error) {
 	var item APIToken
 	var enabled int
-	var allowedGroups, scopes, created, updated string
-	if err := row.Scan(&item.Name, &item.Token, &enabled, &allowedGroups, &scopes, &created, &updated); err != nil {
+	var created, updated string
+	if err := row.Scan(&item.Name, &item.Token, &enabled, &created, &updated); err != nil {
 		return APIToken{}, err
 	}
 	item.Token = s.decryptOrClear("api token", item.Name, item.Token)
 	item.Enabled = sqlIntToBool(enabled)
-	var err error
-	if item.AllowedGroups, err = decodeStringSlice(allowedGroups); err != nil {
-		return APIToken{}, fmt.Errorf("token %q allowed groups: %w", item.Name, err)
-	}
-	if item.Scopes, err = decodeStringSlice(scopes); err != nil {
-		return APIToken{}, fmt.Errorf("token %q scopes: %w", item.Name, err)
-	}
 	item.CreatedAt = parseTime(created)
 	item.UpdatedAt = parseTime(updated)
 	return item, nil
 }
 
 func (s *Store) ListAPITokens(ctx context.Context) ([]APIToken, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT name, token, enabled, allowed_groups_json, scopes, created_at, updated_at FROM api_tokens ORDER BY name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT name, token, enabled, created_at, updated_at FROM api_tokens ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -212,21 +199,12 @@ func (s *Store) ListAPITokens(ctx context.Context) ([]APIToken, error) {
 	return items, rows.Err()
 }
 
-// decodeStringSlice never turns malformed authorization data into unrestricted access.
-func decodeStringSlice(raw string) ([]string, error) {
-	var out []string
-	if err := sonic.ConfigStd.Unmarshal([]byte(raw), &out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (s *Store) UpsertAPIToken(ctx context.Context, item APIToken) error {
 	return s.writeAPIToken(ctx, s.db, item, true)
 }
 
 func (s *Store) writeAPIToken(ctx context.Context, executor interface {
-	protocolSQLExecutor
+	sqlExecutor
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }, item APIToken, isUpsert bool) error {
 	if strings.TrimSpace(item.Name) == "" {
@@ -247,30 +225,12 @@ func (s *Store) writeAPIToken(ctx context.Context, executor interface {
 	if err != nil {
 		return err
 	}
-	if item.AllowedGroups == nil {
-		item.AllowedGroups = []string{}
-	}
-	item.Scopes = NormalizeScopes(item.Scopes)
-	// 不变式：远程访问 Key（agent 作用域）的绑定组强制为 ["agent"]——
-	// 纯展示值，判定与隔离都不依赖它（推理隔离在 /v1 鉴权层显式拒绝）。
-	// 普通 Key 绑定真实存在的 "agent" 组完全合法，互不影响。
-	if len(item.Scopes) > 0 {
-		item.AllowedGroups = []string{TokenScopeAgent}
-	}
-	allowedGroups, err := sonic.ConfigStd.Marshal(item.AllowedGroups)
-	if err != nil {
-		return err
-	}
-	scopes, err := sonic.ConfigStd.Marshal(item.Scopes)
-	if err != nil {
-		return err
-	}
 	now := nowString()
-	query := `INSERT INTO api_tokens(name, token, token_hash, enabled, allowed_groups_json, scopes, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO api_tokens(name, token, token_hash, enabled, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?)`
 	if isUpsert {
-		query += ` ON CONFLICT(name) DO UPDATE SET token=excluded.token, token_hash=excluded.token_hash, enabled=excluded.enabled, allowed_groups_json=excluded.allowed_groups_json, scopes=excluded.scopes, updated_at=excluded.updated_at`
+		query += ` ON CONFLICT(name) DO UPDATE SET token=excluded.token, token_hash=excluded.token_hash, enabled=excluded.enabled, updated_at=excluded.updated_at`
 	}
-	_, err = executor.ExecContext(ctx, query, item.Name, stored, tokenHash, sqlBoolToInt(item.Enabled), string(allowedGroups), string(scopes), now, now)
+	_, err = executor.ExecContext(ctx, query, item.Name, stored, tokenHash, sqlBoolToInt(item.Enabled), now, now)
 	return err
 }
 
@@ -283,7 +243,7 @@ func (s *Store) DeleteAPIToken(ctx context.Context, name string) error {
 // 供「留空即不变」编辑时保留原 token 使用。
 func (s *Store) FindAPITokenByName(ctx context.Context, name string) (APIToken, bool, error) {
 	item, err := s.scanAPIToken(s.db.QueryRowContext(ctx,
-		`SELECT name, token, enabled, allowed_groups_json, scopes, created_at, updated_at FROM api_tokens WHERE name = ?`, name))
+		`SELECT name, token, enabled, created_at, updated_at FROM api_tokens WHERE name = ?`, name))
 	if errors.Is(err, sql.ErrNoRows) {
 		return APIToken{}, false, nil
 	}

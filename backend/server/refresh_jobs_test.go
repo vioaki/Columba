@@ -13,33 +13,10 @@ import (
 	"columba.local/backend/storage"
 )
 
-// Scheduler tests use a small, verified text protocol with the real discovery
-// operation. Saving a source still verifies and commits its binding, without
-// repeatedly evaluating the entire built-in protocol matrix inside a barrier.
-func newSourceRefreshTestServer(t *testing.T) *Server {
-	t.Helper()
-	s, _ := newProtocolAdminTestServer(t)
-	s.initLifecycle()
-	t.Cleanup(func() {
-		s.lifecycleCancel()
-		s.sourceRefreshJobs().wait()
-	})
-	definition := loadGatewayDefinition(t, "text-alpha")
-	definition.ID, definition.Name = "refresh-jobs", "refresh-jobs"
-	catalog := presetDefinition(t, "openai-chat-completions")
-	definition.Operations["models"] = catalog.Operations["models"]
-	definition.ModelSamples = catalog.ModelSamples
-	activateGatewayDefinition(t, s, definition)
-	// Discovery retains its production context budget. The fixture's generic
-	// HTTP timeout must not cancel the explicitly gated request first.
-	s.protocolTransport.SetTimeout(0)
-	return s
-}
-
 func seedRefreshJobSource(t *testing.T, s *Server, url string, keys []storage.SourceAPIKey, ids ...string) storage.ModelSource {
 	t.Helper()
 	return seedDiscoveryModels(t, s, storage.ModelSource{
-		ID: "discovery", Name: "discovery", BaseURL: url, Platform: "custom:refresh-jobs",
+		ID: "discovery", Name: "discovery", BaseURL: url, Platform: "openai",
 		Enabled: true, AutoFetchModels: true, APIKeys: keys,
 	}, ids...)
 }
@@ -75,7 +52,7 @@ func TestSourceRefreshJobDedup(t *testing.T) {
 	s := newSourceRefreshTestServer(t)
 	ctx := context.Background()
 	source := storage.ModelSource{
-		ID: "src1", Name: "slow", BaseURL: srv.URL, Platform: "custom:refresh-jobs",
+		ID: "src1", Name: "slow", BaseURL: srv.URL, Platform: "openai",
 		Enabled: true, AutoFetchModels: true, APIKey: "k",
 	}
 	if err := s.store.UpsertSource(ctx, source); err != nil {
@@ -119,7 +96,7 @@ func TestSourceRefreshJobRecordsError(t *testing.T) {
 	s := newSourceRefreshTestServer(t)
 	ctx := context.Background()
 	source := storage.ModelSource{
-		ID: "src1", Name: "unauthorized", BaseURL: srv.URL, Platform: "custom:refresh-jobs",
+		ID: "src1", Name: "unauthorized", BaseURL: srv.URL, Platform: "openai",
 		Enabled: true, AutoFetchModels: true, APIKey: "bad-key",
 	}
 	if err := s.store.UpsertSource(ctx, source); err != nil {
@@ -307,4 +284,11 @@ func TestSourceRefreshCanceledCallerKeepsPendingSave(t *testing.T) {
 	if calls.Load() != 2 || !slices.Equal(discoveryModelIDs(t, s), []string{"latest"}) {
 		t.Fatalf("caller cancellation lost the pending save: calls=%d models=%v", calls.Load(), discoveryModelIDs(t, s))
 	}
+}
+
+func newSourceRefreshTestServer(t *testing.T) *Server {
+	s := newNativeTestServer(t)
+	s.initLifecycle()
+	t.Cleanup(func() { s.lifecycleCancel(); s.sourceRefreshJobs().wait() })
+	return s
 }

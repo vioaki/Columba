@@ -152,6 +152,11 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 	if limit <= 0 {
 		limit = 64 << 20
 	}
+	if err := s.acquireGatewayPreparation(ctx, c, limit); err != nil {
+		nativeError(c, preparationStatus(err), err.Error())
+		return
+	}
+	defer s.releaseGatewayPreparation(c)
 	body, err := io.ReadAll(io.LimitReader(requestBody(c), limit+1))
 	if err != nil {
 		nativeError(c, 400, "cannot read request body")
@@ -241,13 +246,15 @@ func (s *Server) serveNative(ctx context.Context, c *app.RequestContext) {
 	if len(stateIDs) > 0 {
 		maxAttempts = 1
 	}
-	record := s.initUsageRecord(ctx, c, time.Now(), body, inputFormatFromPath(path))
+	record := s.initUsageRecord(ctx, c, time.Now(), body, wire)
 	record.ModelID = modelID
 	record.ModelName = modelID
 	record.Platform = wire
 	record.Stream = streaming
 	record.RelayMode = "passthrough"
-	record.RequestedModelGroup = modelID
+	record.SourceFormat = wire
+	record.TargetFormat = wire
+	installDownstreamCapture(c, record, downstreamCaptureLimit(s.usageLogConfig()))
 	defer func() {
 		record.EndedAt = time.Now()
 		record.DurationMs = record.EndedAt.Sub(record.StartedAt).Milliseconds()

@@ -16,7 +16,6 @@ import (
 	"columba.local/backend/internal/atomicfile"
 	"columba.local/backend/internal/outbound"
 	log "columba.local/backend/logging"
-	"columba.local/backend/protocol"
 	"github.com/bytedance/sonic"
 )
 
@@ -33,14 +32,11 @@ type Config struct {
 	EnablePprof     bool               `json:"enablePprof,omitempty"`
 	MaxBodyBytes    int64              `json:"maxBodyBytes,omitempty"`
 	Preparation     PreparationConfig  `json:"preparation,omitempty"`
-	Responses       ResponsesConfig    `json:"responses,omitempty"` // Responses API 开关
-	Usage           UsageConfig        `json:"usage,omitempty"`     // 用量估算配置
 	SystemLog       LogRetentionConfig `json:"systemLog,omitempty"`
 	UsageLog        UsageLogConfig     `json:"usageLog,omitempty"`     // 请求日志留存与内容策略
 	HTTPTimeout     int                `json:"httpTimeout,omitempty"`  // HTTP 请求超时时间（秒），0 为不限制
 	DebugMode       bool               `json:"debugMode,omitempty"`    // 调试模式
 	VerboseLog      bool               `json:"verboseLog,omitempty"`   // 详细日志模式
-	HealthCheck     HealthCheckConfig  `json:"healthCheck,omitempty"`  // 可选的后台健康检测
 	Outbound        OutboundConfig     `json:"outbound,omitempty"`     // 出站网络策略：禁止拨号的 IP 段（CIDR 列表，可编辑）
 	ModelCatalog    ModelCatalogConfig `json:"modelCatalog,omitempty"` // 模型能力元数据目录（默认 models.dev）
 	// OpenBrowserOnStart 控制启动时是否在系统默认浏览器打开控制台。
@@ -76,16 +72,6 @@ func (c ModelCatalogConfig) ModelCatalogSyncInterval() (time.Duration, bool) {
 	return time.Duration(*c.SyncIntervalMinutes) * time.Minute, true
 }
 
-// HealthCheckConfig 控制可选的后台模型健康检测。默认关闭（Enabled=false）。
-// 启用后，后台 goroutine 周期性探测各模型，连续失败则自动禁用（available=0），
-// 探测恢复后自动重新启用。
-type HealthCheckConfig struct {
-	Enabled          bool `json:"enabled,omitempty"`
-	IntervalSeconds  int  `json:"intervalSeconds,omitempty"`  // 探测间隔，默认 300s
-	TimeoutSeconds   int  `json:"timeoutSeconds,omitempty"`   // 单次探测超时，默认 10s
-	FailureThreshold int  `json:"failureThreshold,omitempty"` // 连续失败多少次后禁用，默认 3
-}
-
 // OutboundConfig 是出站网络策略：禁止拨号的 IP 段（CIDR）列表。
 // 默认 = outbound.DefaultDeniedIPRanges（私网/环回/保留段全禁，即 SSRF 防护）；
 // 列表可整体替换（运行时配置页 / agent 工具）：删掉环回段即可用 127.0.0.1
@@ -99,18 +85,6 @@ type OutboundConfig struct {
 type ServerConfig struct {
 	Host string `json:"host"`
 	Port int    `json:"port"`
-}
-
-type ResponsesConfig struct {
-	Enabled *bool `json:"enabled,omitempty"`
-}
-
-type UsageConfig struct {
-	EstimateWhenMissing         *bool `json:"estimateWhenMissing,omitempty"`
-	CharsPerToken               int   `json:"charsPerToken,omitempty"`
-	DefaultOutputTokenEstimate  int   `json:"defaultOutputTokenEstimate,omitempty"`
-	ImageInputTokenEstimate     int   `json:"imageInputTokenEstimate,omitempty"`
-	FileInputTokenEstimatePerKB int   `json:"fileInputTokenEstimatePerKB,omitempty"`
 }
 
 // UsageLogConfig 控制请求日志（usage_records）的留存与内容策略。
@@ -165,58 +139,6 @@ type UsageLogResolved struct {
 	CleanupInterval  time.Duration
 }
 
-type AccessToken struct {
-	Token         string   `json:"token,omitempty"`
-	Name          string   `json:"name"`
-	Enabled       bool     `json:"enabled"`
-	AllowedGroups []string `json:"allowedGroups,omitempty"` // 允许访问的模型组；空表示不限制
-	Scopes        []string `json:"scopes,omitempty"`        // 端点作用域（agent=可控制 AI 助手）；空表示仅推理
-}
-
-type ModelGroupConfig struct {
-	ID                    string     `json:"id"`
-	Name                  string     `json:"name"`
-	Enabled               bool       `json:"enabled"`
-	Models                []ModelRef `json:"models"`
-	Strategy              string     `json:"strategy"`
-	MaxRetries            int        `json:"maxRetries"`
-	RetryInterval         int        `json:"retryInterval"`
-	MaxConcurrency        int        `json:"maxConcurrency,omitempty"`
-	DailyLimitMaxRequests int        `json:"dailyLimitMaxRequests,omitempty"`
-	DailyLimitMaxTokens   int        `json:"dailyLimitMaxTokens,omitempty"`
-	Type                  string     `json:"type"`
-	MaxTokens             int        `json:"maxTokens,omitempty"`
-	VisionCapable         *bool      `json:"visionCapable,omitempty"`
-	ToolsCapable          *bool      `json:"toolsCapable,omitempty"`
-}
-
-type ModelRef struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	BaseURL  string `json:"baseUrl"`
-	APIKey   string `json:"apiKey,omitempty"`
-	Platform string `json:"platform"`
-	// 模型级能力（来自模型表，目录回填/用户编辑）：用于组内候选软过滤——
-	// 请求携带多模态输入或工具时优先选择声明支持的候选，不参与硬拒绝。
-	VisionCapable bool `json:"visionCapable,omitempty"`
-	ToolsCapable  bool `json:"toolsCapable,omitempty"`
-	// 多 Key（方向6）：所属源的有效 key 列表与调度策略。非空时由
-	// expandCandidatesByKeyStrategy 在请求时为每次尝试选定实际使用的 key
-	// （写入克隆后的 APIKey），APIKey 保留为单 key 回退值。
-	APIKeys     []string `json:"apiKeys,omitempty"`
-	KeyStrategy string   `json:"keyStrategy,omitempty"`
-	SourceID    string   `json:"sourceId,omitempty"`
-	// CacheSynthesis 来自源级开关：目标声明 cache.breakpoints 且调用方未打满
-	// 上限时，透传前补结构断点。默认关闭，不改变既有请求体。
-	CacheSynthesis bool `json:"cacheSynthesis,omitempty"`
-}
-
-// Identifier 返回上行请求使用的模型标识：ID 是上游 API 的调用名（拉取模型
-// 的裸 id、手动模型的「模型 ID」），Name 只是显示名（如 Gemini displayName）。
-func (r ModelRef) Identifier() string {
-	return r.ID
-}
-
 // Global and catalog-specific proxies share the same current URL contract.
 func (c *Config) validateProxySettings() error {
 	for _, raw := range []string{c.Outbound.ProxyURL, c.ModelCatalog.Proxy} {
@@ -247,7 +169,7 @@ func Load(path string) (*Config, error) {
 	if err := cfg.validateProxySettings(); err != nil {
 		return nil, err
 	}
-	if err := protocol.ValidateRequestBodyLimit(cfg.MaxBodyBytes); err != nil {
+	if err := ValidateRequestBodyLimit(cfg.MaxBodyBytes); err != nil {
 		return nil, err
 	}
 	if err := cfg.ValidateLocalHost(); err != nil {
@@ -293,7 +215,7 @@ func (c *Config) applyBootstrapDefaults(path string) {
 		c.WebUIDir = filepath.Join(filepath.Dir(path), c.WebUIDir)
 	}
 	if c.MaxBodyBytes <= 0 {
-		c.MaxBodyBytes = protocol.DefaultRequestBodyBytes
+		c.MaxBodyBytes = DefaultRequestBodyBytes
 	}
 	c.normalizeOutboundLocked()
 }
@@ -520,7 +442,7 @@ func (c *Config) Reload() error {
 	if err := newCfg.validateProxySettings(); err != nil {
 		return err
 	}
-	if err := protocol.ValidateRequestBodyLimit(newCfg.MaxBodyBytes); err != nil {
+	if err := ValidateRequestBodyLimit(newCfg.MaxBodyBytes); err != nil {
 		return err
 	}
 	if err := newCfg.validateLogSettings(); err != nil {
@@ -611,23 +533,6 @@ func (c *Config) GetDatabasePath() string {
 	return c.DatabasePath
 }
 
-// GetHealthCheckConfig 返回应用默认值后的健康检测配置。
-func (c *Config) GetHealthCheckConfig() HealthCheckConfig {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	cfg := c.HealthCheck
-	if cfg.IntervalSeconds <= 0 {
-		cfg.IntervalSeconds = 300
-	}
-	if cfg.TimeoutSeconds <= 0 {
-		cfg.TimeoutSeconds = 10
-	}
-	if cfg.FailureThreshold <= 0 {
-		cfg.FailureThreshold = 3
-	}
-	return cfg
-}
-
 // GetDBEncryptionKey 返回用于 SQLite 敏感字段（token / api_key）透明加密的密钥。
 // 来源优先级：
 //  1. 环境变量 COLUMBA_MASTER_KEY；
@@ -681,42 +586,6 @@ func (c *Config) GetDBEncryptionKey() []byte {
 // constantTimeEqual 以常量时间比较两个字符串，避免通过比较耗时差异
 // 逐字节爆破 token（时序侧信道）。长度不同直接返回 false，但仍调用
 // subtle.ConstantTimeCompare 以减少长度上的时序泄漏。
-
-func (c *Config) GetResponsesConfig() ResponsesConfig {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	cfg := c.Responses
-	if cfg.Enabled == nil {
-		v := true
-		cfg.Enabled = &v
-	}
-	return cfg
-}
-
-func (c *Config) GetUsageConfig() UsageConfig {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	cfg := c.Usage
-	if cfg.EstimateWhenMissing == nil {
-		v := true
-		cfg.EstimateWhenMissing = &v
-	}
-	if cfg.CharsPerToken <= 0 {
-		cfg.CharsPerToken = 4
-	}
-	if cfg.DefaultOutputTokenEstimate <= 0 {
-		cfg.DefaultOutputTokenEstimate = 1024
-	}
-	if cfg.ImageInputTokenEstimate <= 0 {
-		cfg.ImageInputTokenEstimate = 300
-	}
-	if cfg.FileInputTokenEstimatePerKB <= 0 {
-		cfg.FileInputTokenEstimatePerKB = 128
-	}
-	return cfg
-}
 
 // DefaultUsageLogResolved 返回全默认的日志策略：持久化开启、正文保存关闭、
 // 开启正文保存时默认外置媒体、自动清理关闭。供无 config 的 Server 兜底。
@@ -834,15 +703,12 @@ func (c *Config) publishSettingsLocked(newCfg *Config) {
 	c.EnablePprof = newCfg.EnablePprof
 	c.MaxBodyBytes = newCfg.MaxBodyBytes
 	c.Preparation = newCfg.Preparation
-	c.Responses = newCfg.Responses
-	c.Usage = newCfg.Usage
 	c.UsageLog = newCfg.UsageLog
 	c.SystemLog = newCfg.SystemLog
 	c.ModelCatalog = newCfg.ModelCatalog
 	c.HTTPTimeout = newCfg.HTTPTimeout
 	c.DebugMode = newCfg.DebugMode
 	c.VerboseLog = newCfg.VerboseLog
-	c.HealthCheck = newCfg.HealthCheck
 	c.Outbound = newCfg.Outbound
 	c.OpenBrowserOnStart = newCfg.OpenBrowserOnStart
 }

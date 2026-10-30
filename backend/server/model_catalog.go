@@ -16,11 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/config"
 	"columba.local/backend/internal/atomicfile"
 	"columba.local/backend/internal/outbound"
 	"columba.local/backend/storage"
+	"github.com/bytedance/sonic"
 )
 
 // 内置能力目录快照（scripts/update-model-catalog.mjs 生成，随仓库维护）：

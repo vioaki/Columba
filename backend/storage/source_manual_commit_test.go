@@ -13,16 +13,15 @@ func TestSourceManualCatalogCommitsAtomically(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { store.Close() }()
-	update := BoundSourceUpdate{
+	update := SourceUpdate{
 		Source:   ModelSource{ID: "source", Name: "original", Enabled: true, ManualModels: []Model{{ID: "one", Name: "one", Origin: "manual", Enabled: true}}},
-		Bindings: []ProtocolBinding{{Kind: "source", SourceID: "source", Unbound: true}},
 		IsCreate: true, SyncManualModels: true,
 	}
-	if err := store.SaveBoundSource(t.Context(), update); err != nil {
+	if err := store.SaveSource(t.Context(), update); err != nil {
 		t.Fatal(err)
 	}
 	update.Source.Name = "duplicate"
-	if err := store.SaveBoundSource(t.Context(), update); !errors.Is(err, ErrSourceExists) {
+	if err := store.SaveSource(t.Context(), update); !errors.Is(err, ErrSourceExists) {
 		t.Fatal("duplicate source was not rejected", err)
 	}
 	update.IsCreate = false
@@ -30,7 +29,7 @@ func TestSourceManualCatalogCommitsAtomically(t *testing.T) {
 	if _, err := store.db.ExecContext(t.Context(), `CREATE TRIGGER fail_model BEFORE INSERT ON models BEGIN SELECT RAISE(ABORT, 'model write failed'); END`); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.SaveBoundSource(t.Context(), update); err == nil {
+	if err := store.SaveSource(t.Context(), update); err == nil {
 		t.Fatal("model failure did not abort source commit")
 	}
 	if err := store.Close(); err != nil {

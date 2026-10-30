@@ -38,7 +38,6 @@ func respondFail(ctx context.Context, c *app.RequestContext, status int, code, m
 }
 
 func (s *Server) setupAdminRoutes(admin *route.RouterGroup) {
-	s.setupProtocolRevisionRoutes(admin)
 	admin.GET("/runtime-config", s.adminRuntimeConfig)
 	admin.PUT("/runtime-config", s.adminUpdateRuntimeConfig)
 	admin.POST("/reload", s.adminReload)
@@ -53,18 +52,14 @@ func (s *Server) setupAdminRoutes(admin *route.RouterGroup) {
 	admin.POST("/model-catalog/refresh", s.adminModelCatalogRefresh)
 	// 协议设计器：协议 CRUD（SQLite）+ 字段目录 + 渲染预览 + 真实测试（AI 助手见 agent 路由）。
 	admin.GET("/models", s.adminListModels)
+	admin.GET("/model-routing", s.adminModelRouting)
+	admin.PUT("/model-routing", s.adminSaveModelRouting)
 	admin.POST("/models/refresh", s.adminRefreshModels)
 	// modelId 走 query 而非路径段：模型 ID 常含 "/"（如 org/model），路径参数
 	// 在 Hertz 路由前已被 URL 解码，%2F 会拆成多段导致 404；query 值只经一次
 	// 解码、不参与路由匹配，对任意字符稳健。
 	admin.PATCH("/models/:sourceId", s.adminUpdateModel)
 	admin.DELETE("/models/:sourceId", s.adminDeleteModel)
-	admin.GET("/model-groups", s.adminListGroups)
-	admin.POST("/model-groups", s.adminUpsertGroup)
-	admin.PUT("/model-groups/:id", s.adminUpsertGroup)
-	admin.DELETE("/model-groups/:id", s.adminDeleteGroup)
-	admin.POST("/model-groups/:id/models", s.adminAddGroupMembers)
-	admin.DELETE("/model-groups/:id/models", s.adminRemoveGroupMembers)
 	admin.GET("/api-tokens", s.adminListTokens)
 	admin.GET("/api-tokens/:name/reveal", s.adminRevealToken)
 	admin.POST("/api-tokens", s.adminUpsertToken)
@@ -338,7 +333,7 @@ func (s *Server) adminUpsertSource(ctx context.Context, c *app.RequestContext) {
 		item.ID = slugID(item.Name)
 	}
 	if err := s.validateSourceProtocol(&item); err != nil {
-		respondFail(ctx, c, 400, "invalid_custom_protocol_source", err.Error())
+		respondFail(ctx, c, 400, "invalid_native_protocol", err.Error())
 		return
 	}
 	// 「留空即不变」：编辑时若未填 apiKey，保留已有记录的原 key，避免被清空。
@@ -508,8 +503,9 @@ func (s *Server) adminListModels(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	filter := storage.ModelListFilter{
-		SourceID: strings.TrimSpace(c.Query("sourceId")),
-		Search:   strings.TrimSpace(c.Query("search")),
+		ShouldIncludeDisabledSources: true,
+		SourceID:                     strings.TrimSpace(c.Query("sourceId")),
+		Search:                       strings.TrimSpace(c.Query("search")),
 	}
 	items, err := store.ListModelsFiltered(ctx, filter)
 	if err != nil {
@@ -596,129 +592,6 @@ func (s *Server) adminDeleteModel(ctx context.Context, c *app.RequestContext) {
 	respondOK(ctx, c, utils.H{"deleted": true})
 }
 
-// adminAddGroupMembers 向现有组追加成员（方向3：批量「添加到已有组」原子端点）。
-func (s *Server) adminAddGroupMembers(ctx context.Context, c *app.RequestContext) {
-	store, okStore := s.requireStore(ctx, c)
-	if !okStore {
-		return
-	}
-	var payload struct {
-		Models []string `json:"models"`
-	}
-	if err := bindJSON(ctx, c, &payload); err != nil {
-		respondFail(ctx, c, 400, "invalid_json", err.Error())
-		return
-	}
-	if len(payload.Models) == 0 {
-		respondFail(ctx, c, 400, "models_required", "models list must not be empty")
-		return
-	}
-	added, err := store.AddGroupMembers(ctx, c.Param("id"), payload.Models)
-	if err != nil {
-		respondFail(ctx, c, 400, "add_group_models_failed", err.Error())
-		return
-	}
-	s.invalidateRouteCache()
-	respondOK(ctx, c, utils.H{"added": added})
-}
-
-// adminRemoveGroupMembers 从组移除成员（方向3）。
-func (s *Server) adminRemoveGroupMembers(ctx context.Context, c *app.RequestContext) {
-	store, okStore := s.requireStore(ctx, c)
-	if !okStore {
-		return
-	}
-	var payload struct {
-		Models []string `json:"models"`
-	}
-	if err := bindJSON(ctx, c, &payload); err != nil {
-		respondFail(ctx, c, 400, "invalid_json", err.Error())
-		return
-	}
-	if len(payload.Models) == 0 {
-		respondFail(ctx, c, 400, "models_required", "models list must not be empty")
-		return
-	}
-	removed, err := store.RemoveGroupMembers(ctx, c.Param("id"), payload.Models)
-	if err != nil {
-		respondFail(ctx, c, 400, "remove_group_models_failed", err.Error())
-		return
-	}
-	s.invalidateRouteCache()
-	respondOK(ctx, c, utils.H{"removed": removed})
-}
-
-func (s *Server) adminListGroups(ctx context.Context, c *app.RequestContext) {
-	store, okStore := s.requireStore(ctx, c)
-	if !okStore {
-		return
-	}
-	items, err := store.ListGroups(ctx)
-	if err != nil {
-		respondFail(ctx, c, 500, "list_groups_failed", err.Error())
-		return
-	}
-	respondOK(ctx, c, utils.H{"items": items})
-}
-
-func (s *Server) adminUpsertGroup(ctx context.Context, c *app.RequestContext) {
-	store, okStore := s.requireStore(ctx, c)
-	if !okStore {
-		return
-	}
-	var item storage.ModelGroup
-	if err := bindJSON(ctx, c, &item); err != nil {
-		respondFail(ctx, c, 400, "invalid_json", err.Error())
-		return
-	}
-	if id := c.Param("id"); id != "" {
-		item.ID = id
-	}
-	if item.ID == "" {
-		item.ID = slugID(item.Name)
-	}
-	if err := store.UpsertGroup(ctx, item); err != nil {
-		respondFail(ctx, c, 400, "save_group_failed", err.Error())
-		return
-	}
-	s.invalidateRouteCache()
-	s.logSystemEvent("info", "model group saved", map[string]any{"groupId": item.ID, "groupName": item.Name})
-	respondOK(ctx, c, item)
-}
-
-func (s *Server) adminDeleteGroup(ctx context.Context, c *app.RequestContext) {
-	store, okStore := s.requireStore(ctx, c)
-	if !okStore {
-		return
-	}
-	disabledTokens, err := s.deleteGroupCascade(ctx, store, c.Param("id"))
-	if err != nil {
-		respondFail(ctx, c, 500, "delete_group_failed", err.Error())
-		return
-	}
-	respondOK(ctx, c, utils.H{"deleted": true, "disabledTokens": disabledTokens})
-}
-
-// deleteGroupCascade 删除模型组并清理运行时状态（限流/RR 游标/亲和缓存、
-// 路由缓存）；返回授权被清空而级联禁用的令牌名单（空列表=无级联）。
-func (s *Server) deleteGroupCascade(ctx context.Context, store *storage.Store, id string) ([]string, error) {
-	disabledTokens, err := store.DeleteGroup(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	s.invalidateRouteCache()
-	s.forgetGroupRuntimeState(id)
-	if len(disabledTokens) > 0 {
-		// 授权列表被清空的 token 已随删除级联禁用（空列表=不限制，静默保留
-		// 会扩权），名单透出给调用方以便后续处置。
-		s.logEvent("info").Str("group_id", id).Strs("disabled_tokens", disabledTokens).Msg("group deleted; disabled tokens whose only allowed group was removed")
-	}
-	s.logSystemEvent("warn", "model group deleted", map[string]any{
-		"groupId": id, "disabledTokens": disabledTokens,
-	})
-	return disabledTokens, nil
-}
-
 func (s *Server) adminListTokens(ctx context.Context, c *app.RequestContext) {
 	store, okStore := s.requireStore(ctx, c)
 	if !okStore {
@@ -771,16 +644,12 @@ func (s *Server) adminUpsertToken(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	item := payload.APIToken
-	if len(item.Scopes) > 0 {
-		respondFail(ctx, c, 400, "retired_scope", "assistant keys are no longer supported")
-		return
-	}
 	if name := c.Param("name"); name != "" {
 		item.Name = name
 	}
 	isNew := string(c.Method()) == http.MethodPost
 	saved, err := store.SaveAPIToken(ctx, item.Name, storage.APITokenUpdate{
-		NewName: payload.NewName, Token: item.Token, Enabled: payload.Enabled, AllowedGroups: item.AllowedGroups, Scopes: item.Scopes,
+		NewName: payload.NewName, Token: item.Token, Enabled: payload.Enabled,
 	}, isNew)
 	if err != nil {
 		status := http.StatusBadRequest

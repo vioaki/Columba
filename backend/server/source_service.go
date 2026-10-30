@@ -70,13 +70,12 @@ func (s *Server) deleteSourceCascade(ctx context.Context, store *storage.Store, 
 	}
 	s.sourceRefreshJobs().forget(id)
 	s.logSystemEvent("warn", "model source deleted", map[string]any{"sourceId": id})
-	s.scheduler.ForgetSource(id)
 	s.invalidateRouteCache()
 	return nil
 }
 
 func preserveSourceCredentials(item *storage.ModelSource, existing storage.ModelSource) {
-	if strings.TrimSpace(item.APIKey) != "" {
+	if item.APIKeys != nil || strings.TrimSpace(item.APIKey) != "" {
 		return
 	}
 	item.APIKey = existing.APIKey

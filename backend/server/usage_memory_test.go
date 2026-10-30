@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/storage"
+	"github.com/bytedance/sonic"
 )
 
 func TestUsageBodyMemoryDifferential(t *testing.T) {

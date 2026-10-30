@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR, { mutate as globalMutate, type SWRConfiguration } from 'swr'
 import { api } from './api'
-import { protocolAPI } from './protocol-v2'
+
 
 /** Agent 用量在统计页的 key_name 标签（与后端常量一致）。 */
-const AGENT_USAGE_KEY_NAME = 'AI 助手'
+
 import type { UsageQueryParams } from './types'
 import { uniqueSorted } from './utils'
 
@@ -75,9 +75,6 @@ export function useSources(refreshInterval = 0) {
   return useSWR('model-sources', () => api.listSources(), { ...defaultConfig, refreshInterval })
 }
 
-export function useEnabledProtocols(enabled = true) {
-  return useSWR(enabled ? 'enabled-protocols' : null, protocolAPI.enabled, defaultConfig)
-}
 
 /** 能力目录（models.dev）状态：未加载或加载失败时模型能力不会被自动回填，
  * 供 sources 页提示用户自诊断（目录不可达 → 配置 modelCatalog.url/proxy）。 */
@@ -95,9 +92,6 @@ export function useModels(refreshInterval = 0) {
 }
 
 /** 模型组列表。 */
-export function useGroups() {
-  return useSWR('model-groups', () => api.listGroups(), defaultConfig)
-}
 
 /** API token 列表（列表值已脱敏）。 */
 export function useTokens() {
@@ -106,13 +100,12 @@ export function useTokens() {
 
 /** Usage 统计 / 调用日志共用的筛选下拉选项。 */
 export function useUsageFilterOptions() {
-  const { data: groups } = useGroups()
   const { data: models } = useModels()
   const { data: tokens } = useTokens()
-  const groupOptions = useMemo(() => uniqueSorted((groups ?? []).map((g) => g.name)), [groups])
+  const groupOptions: string[] = []
   const modelOptions = useMemo(() => uniqueSorted((models ?? []).map((m) => m.name)), [models])
   const keyOptions = useMemo(
-    () => uniqueSorted([...(tokens ?? []).map((t) => t.name), AGENT_USAGE_KEY_NAME]),
+    () => uniqueSorted((tokens ?? []).map((t) => t.name)),
     [tokens],
   )
   return { groupOptions, modelOptions, keyOptions }
@@ -199,7 +192,6 @@ export function useSystemLogs(params: { limit?: number; offset?: number; level?:
 export const revalidate = {
   sources: () => globalMutate('model-sources'),
   models: () => globalMutate('models'),
-  groups: () => globalMutate('model-groups'),
   runtimeConfig: () => globalMutate('runtime-config'),
   modelCatalogStatus: () => globalMutate('model-catalog-status'),
   usage: () =>

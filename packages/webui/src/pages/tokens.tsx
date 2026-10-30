@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
-import { RoleWatermark } from '@/components/role-watermark'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,34 +15,27 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { AsyncState } from '@/components/ui/states'
-import { CapChip } from '@/components/badges'
 import { SecretInput } from '@/components/secret-input'
 import { CopyButton } from '@/components/copy-button'
 import { RevealCopyButton } from '@/components/reveal-copy-button'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useToast } from '@/components/ui/use-toast'
-import { useTokens, useGroups, revalidate } from '@/lib/hooks'
+import { useTokens, revalidate } from '@/lib/hooks'
 import { api } from '@/lib/api'
 import { useApiAction } from '@/lib/use-api-action'
 import { useEntityFormDialog } from '@/lib/use-entity-form-dialog'
-import { cn, formatDateTime } from '@/lib/utils'
+import { formatDateTime } from '@/lib/utils'
 import type { ApiToken } from '@/lib/types'
 
 export function TokensPage() {
   const { confirm, dialog } = useConfirm()
   const { data, isLoading, error, mutate } = useTokens()
-  const { data: groups } = useGroups()
   const form = useEntityFormDialog<ApiToken | null>(null)
   const editing = form.item
   const formOpen = form.open
   const { openCreate, openEdit } = form
   const { run, isBusy } = useApiAction()
-  // 两类 Key 共用存储；远程访问 Key 只在运行配置管理。按作用域区分，
-  // 普通 Key 绑定名为 agent 的模型组仍属于推理令牌。
-  const inferenceTokens = data?.filter((token) => !(token.scopes ?? []).includes('agent'))
-
-  // 当前存在的模型组名集合，用于标记列表中已失效的组名。
-  const validGroupNames = new Set((groups ?? []).map((g) => g.name))
+  const inferenceTokens = data
 
   const toggleToken = (token: ApiToken) =>
     run(token.name, async () => {
@@ -52,7 +44,6 @@ export function TokensPage() {
       await api.updateToken(token.name, {
         name: token.name,
         enabled: !token.enabled,
-        allowedGroups: token.allowedGroups ?? [],
       })
     }, {
       success: { title: token.enabled ? '已停用 API Key' : '已启用 API Key', description: token.name },
@@ -77,12 +68,11 @@ export function TokensPage() {
 
   return (
     <>
-      <RoleWatermark className="-right-8 top-0 opacity-[0.05] dark:opacity-[0.08]" />
 
       <div className="relative z-[1] space-y-6">
         <PageHeader
-          title="访问令牌"          actions={
-            <Button variant="primary" onClick={openCreate}>新增令牌</Button>
+          title="调用 Key"          actions={
+            <Button variant="primary" onClick={openCreate}>新增 Key</Button>
           }
         />
 
@@ -92,9 +82,9 @@ export function TokensPage() {
           data={inferenceTokens}
           onRetry={() => mutate()}
           loadingColumns={5}
-          emptyTitle="暂无任何访问令牌"
+          emptyTitle="暂无任何调用 Key"
           emptyAction={
-            <Button variant="primary" className="h-9 px-5" onClick={openCreate}>新增令牌</Button>
+            <Button variant="primary" className="h-9 px-5" onClick={openCreate}>新增 Key</Button>
           }
         >
           {(tokens) => (
@@ -104,7 +94,6 @@ export function TokensPage() {
                   <TableRow className="border-b border-border/60 hover:bg-transparent">
                     <TableHead className="py-3.5 pl-4">名称</TableHead>
                     <TableHead className="py-3.5">Key 凭证</TableHead>
-                    <TableHead className="py-3.5">绑定模型组</TableHead>
                     <TableHead className="py-3.5">创建时间</TableHead>
                     <TableHead className="py-3.5 text-center">状态</TableHead>
                     <TableHead className="py-3.5 pr-4 text-right font-semibold text-2xs uppercase tracking-wider text-muted-foreground">操作</TableHead>
@@ -118,25 +107,6 @@ export function TokensPage() {
                       <span className="flex items-center gap-1.5">
                         <RevealCopyButton name={token.name} maskedToken={token.token || '••••'} />
                       </span>
-                    </TableCell>
-                    <TableCell className="py-3.5">
-                      {token.allowedGroups && token.allowedGroups.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {token.allowedGroups.map((g) => (
-                            <CapChip
-                              key={g}
-                              className={cn(!validGroupNames.has(g) && 'line-through opacity-60')}
-                              title={validGroupNames.has(g) ? undefined : '该模型组已不存在，编辑后将自动清除'}
-                            >
-                              {g}
-                            </CapChip>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center rounded border border-border px-1.5 py-0.5 font-mono text-2xs text-muted-foreground">
-                          全部模型组
-                        </span>
-                      )}
                     </TableCell>
                     <TableCell className="py-3.5 whitespace-nowrap font-mono text-xs text-muted-foreground">
                       {token.createdAt ? formatDateTime(token.createdAt) : '—'}
@@ -191,12 +161,10 @@ function TokenFormDialog({
   onSaved: () => void
 }) {
   const toast = useToast()
-  const { data: groups } = useGroups()
   const isEdit = !!token
   const [name, setName] = useState('')
   const [secret, setSecret] = useState('')
   const [enabled, setEnabled] = useState(true)
-  const [allowedGroups, setAllowedGroups] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
   // 打开时初始化一次表单。deps 刻意不含 groups：对话框开着时任何
@@ -207,17 +175,8 @@ function TokenFormDialog({
       setName(token?.name ?? '')
       setSecret('')
       setEnabled(token?.enabled ?? true)
-      const validNames = new Set((groups ?? []).map((g) => g.name))
-      setAllowedGroups((token?.allowedGroups ?? []).filter((g) => validNames.has(g)))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, token])
-
-  function toggleGroup(groupName: string) {
-    setAllowedGroups((prev) =>
-      prev.includes(groupName) ? prev.filter((g) => g !== groupName) : [...prev, groupName],
-    )
-  }
 
   async function handleSave() {
     if (!name.trim()) {
@@ -230,7 +189,7 @@ function TokenFormDialog({
     }
     setSaving(true)
     try {
-      const payload: ApiToken = { name: name.trim(), enabled, allowedGroups }
+      const payload: ApiToken = { name: name.trim(), enabled }
       if (secret.trim()) payload.token = secret.trim()
       if (isEdit && token) await api.updateToken(token.name, payload)
       else await api.createToken(payload)
@@ -251,7 +210,7 @@ function TokenFormDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? '编辑访问令牌' : '新增访问令牌'}
+            {isEdit ? '编辑调用 Key' : '新增调用 Key'}
           </DialogTitle>
           <DialogDescription>
             明文 Key 仅在此处录入，保存后不再展示完整值。
@@ -277,34 +236,6 @@ function TokenFormDialog({
                 onChange={(e) => setSecret(e.target.value)}
               />
               {secret.trim() && <CopyButton value={secret.trim()} title="复制" />}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>可访问模型组</Label>
-            <p className="text-xs text-muted-foreground">不选则可访问全部模型组；选择后仅限所选组。</p>
-            <div className="flex flex-wrap gap-2">
-              {(groups ?? []).length === 0 ? (
-                <span className="text-xs text-muted-foreground">暂无模型组</span>
-              ) : (
-                (groups ?? []).map((g) => {
-                  const active = allowedGroups.includes(g.name)
-                  return (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => toggleGroup(g.name)}
-                      className={cn(
-                        'inline-flex h-[29px] items-center gap-1.5 rounded-full border px-3 text-xs transition-colors',
-                        active
-                          ? 'border-rose bg-wash font-semibold text-rose'
-                          : 'border-border bg-card text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {g.name}
-                    </button>
-                  )
-                })
-              )}
             </div>
           </div>
           <label className="flex items-center gap-3">

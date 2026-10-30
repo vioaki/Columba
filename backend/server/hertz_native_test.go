@@ -71,7 +71,7 @@ func TestHertzDisconnectCancelsBeforeFirstResponse(t *testing.T) {
 func TestHertzUncommittedStreamCanReturnHTTPError(t *testing.T) {
 	e := newTestEngine(t)
 	e.GET("/stream", func(ctx context.Context, c *app.RequestContext) {
-		c.Header("Trailer", gatewayStreamErrorTrailer)
+		c.Header("Trailer", "X-Test-Error")
 		startStream(c)
 		discardUncommittedStream(c)
 		c.JSON(502, map[string]string{"error": "before first frame"})

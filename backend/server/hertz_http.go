@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"columba.local/backend/config"
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
 	hserver "github.com/cloudwego/hertz/pkg/app/server"
@@ -16,8 +17,6 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/tracer/stats"
 	"github.com/cloudwego/hertz/pkg/protocol/http1/ext"
 	"github.com/cloudwego/hertz/pkg/route"
-	"columba.local/backend/config"
-	"columba.local/backend/protocol"
 )
 
 func newHTTPEngine(cfg *config.Config, extra ...hconfig.Option) *route.Engine {
@@ -115,7 +114,7 @@ func queryValues(c *app.RequestContext, key string) []string {
 }
 
 func bindJSON(ctx context.Context, c *app.RequestContext, target any) error {
-	body, err := protocol.ReadBoundedBody(requestBody(c), protocol.RequestBodyLimit(ctx))
+	body, err := readBoundedBody(requestBody(c), config.DefaultRequestBodyBytes)
 	if err != nil {
 		return err
 	}

@@ -4,15 +4,10 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/utils"
-
-	"columba.local/backend/config"
-	"columba.local/backend/protocol/builtin"
-	"columba.local/backend/storage"
 )
 
 func (s *Server) authMiddleware() app.HandlerFunc {
@@ -22,26 +17,17 @@ func (s *Server) authMiddleware() app.HandlerFunc {
 		message := ""
 		if !ok {
 			message = "Incorrect API key provided"
-		} else if accessTokenHasScope(accessToken, storage.TokenScopeAgent) {
-			message = "This API key is reserved for AI assistant remote control"
 		}
 		if message != "" {
 			c.Abort()
 			// Inference authentication errors use the caller's wire protocol.
-			writeProtocolError(ctx, c, inputFormatFromPath(string(c.Path())), &builtin.GatewayError{
-				Class: builtin.ErrorClassAuthentication, Message: message,
-			})
+			nativeError(c, http.StatusUnauthorized, message)
 			return
 		}
 		c.Set("elysiaKeyName", accessToken.Name)
 		c.Set("elysiaKeyHash", shortTokenHash(token))
-		c.Set("elysiaAllowedGroups", accessToken.AllowedGroups)
 		c.Next(ctx)
 	}
-}
-
-func accessTokenHasScope(token config.AccessToken, scope string) bool {
-	return slices.Contains(token.Scopes, scope)
 }
 
 func extractAccessToken(c *app.RequestContext) string {
@@ -80,9 +66,4 @@ func isLoopbackRequest(c *app.RequestContext) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
-}
-
-func (s *Server) tokenAllowsGroup(ctx context.Context, c *app.RequestContext, groupName string) bool {
-	allowed := c.GetStringSlice("elysiaAllowedGroups")
-	return len(allowed) == 0 || slices.Contains(allowed, groupName)
 }

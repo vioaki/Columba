@@ -7,12 +7,11 @@ import (
 	"testing"
 
 	"columba.local/backend/config"
-	"columba.local/backend/relay"
 )
 
 func TestRuntimeConfigRejectsWholeInvalidPatch(t *testing.T) {
 	s := &Server{config: &config.Config{HTTPTimeout: 12}}
-	c, recorder := adminProtocolContext(http.MethodPut, "/runtime-config", `{"httpTimeout":321,"port":70000}`)
+	c, recorder := adminTestContext(http.MethodPut, "/runtime-config", `{"httpTimeout":321,"port":70000}`)
 	s.adminUpdateRuntimeConfig(contextForTest(c), c)
 	flushTestResponse(c)
 	if recorder.Code != 400 || s.config.GetHTTPTimeout() != 12 {
@@ -29,7 +28,7 @@ func TestRuntimeConfigSaveFailureHasNoSideEffects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &Server{config: cfg, protocolTransport: relay.NewProtocolTransport(0)}
+	s := &Server{config: cfg}
 	s.usageRetention = newUsageRetention(s)
 	t.Cleanup(s.usageRetention.cancel)
 	if err := os.Rename(path, path+".original"); err != nil {
@@ -38,7 +37,7 @@ func TestRuntimeConfigSaveFailureHasNoSideEffects(t *testing.T) {
 	if err := os.Mkdir(path, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	c, recorder := adminProtocolContext(http.MethodPut, "/runtime-config", `{"host":"192.0.2.1","httpTimeout":321,"usageLog":{"maxRecords":1},"outbound":{"deniedIpRanges":[]}}`)
+	c, recorder := adminTestContext(http.MethodPut, "/runtime-config", `{"host":"127.0.0.1","httpTimeout":321,"usageLog":{"maxRecords":1},"outbound":{"deniedIpRanges":[]}}`)
 	s.adminUpdateRuntimeConfig(contextForTest(c), c)
 	flushTestResponse(c)
 	if recorder.Code != 500 || cfg.GetHTTPTimeout() != 12 || cfg.GetUsageLogConfig().MaxRecords != 0 || len(cfg.GetOutboundConfig().DeniedIPRanges) == 0 || s.restartRequired {

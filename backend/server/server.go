@@ -13,8 +13,6 @@ import (
 	"columba.local/backend/internal/admission"
 	"columba.local/backend/internal/routing"
 	"columba.local/backend/logging"
-	"columba.local/backend/protocol"
-	"columba.local/backend/relay"
 	"columba.local/backend/storage"
 )
 
@@ -28,21 +26,14 @@ type Server struct {
 	engine              *route.Engine
 	store               *storage.Store
 	logger              *logging.Logger
-	protocolTransport   *relay.ProtocolTransport
 	startupErr          error
 
 	// Routing components own their synchronization and mutable state.
-	routes          routing.Cache
-	scheduler       routing.Scheduler
-	limiter         routing.Limiter
-	affinity        *affinityCache
-	conversionPlans gatewayConversionPlans
 	preparationOnce sync.Once
 	preparation     *admission.Limiter
 
-	refreshJobs   sourceRefreshJobs
-	catalog       *modelCatalog
-	healthChecker *healthChecker
+	refreshJobs sourceRefreshJobs
+	catalog     *modelCatalog
 
 	// Request producers stop before usage persistence is canceled and drained.
 	usageWriterMu    sync.Mutex
@@ -77,16 +68,4 @@ type Server struct {
 
 	// Test-only preflight bypass for local httptest upstreams; false in production.
 	skipOutboundValidation bool
-
-	protocolServiceOnce       sync.Once
-	protocolServiceInst       *protocol.Service
-	protocolServiceErr        error
-	isProtocolRuntimeRequired atomic.Bool
-	protocolRuntimeReady      atomic.Bool
-	protocolRuntimeFailure    atomic.Pointer[string]
-	protocolStartupFailure    atomic.Pointer[protocolStartupFailure]
-	protocolStartupMu         sync.Mutex
-	gatewaySessions           gatewaySessionSet
-	protocolUses              protocolRevisionUses
-	gatewayJobs               gatewayJobService
 }

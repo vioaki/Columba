@@ -3,7 +3,6 @@ package server
 import (
 	"errors"
 	"strings"
-	"time"
 
 	"columba.local/backend/config"
 )
@@ -32,9 +31,6 @@ func (s *Server) updateRuntimeConfig(payload runtimeConfigPayload) (bool, error)
 		return false, err
 	}
 	s.Logger().Configure(s.config.GetLoggingOptions())
-	if payload.HTTPTimeout != nil {
-		s.protocolTransport.SetTimeout(time.Duration(s.config.GetHTTPTimeout()) * time.Second)
-	}
 	if payload.Outbound != nil {
 		s.syncOutboundPolicy()
 	}

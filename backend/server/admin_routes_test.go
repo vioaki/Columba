@@ -1,25 +1,19 @@
 package server
 
 import (
-	"testing"
-	"time"
-
 	"columba.local/backend/config"
-	"columba.local/backend/relay"
+	"strings"
+	"testing"
 )
 
-// 协议设计器新增路由与既有 admin 路由注册不冲突（冲突会在启动时 panic）。
-func TestAdminRoutesRegisterWithProtocolEndpoints(t *testing.T) {
-	s := &Server{config: &config.Config{}, engine: newTestEngine(t), protocolTransport: relay.NewProtocolTransport(10 * time.Second)}
+func TestAdminRoutesExcludeRetiredFeatures(t *testing.T) {
+	s := &Server{config: &config.Config{}, engine: newTestEngine(t)}
 	s.setupRoutes()
-	found := 0
-	for _, route := range s.engine.Routes() {
-		switch route.Path {
-		case "/api/admin/protocols", "/api/admin/protocols/schema", "/api/admin/protocols/preview", "/api/admin/protocols/test", "/api/admin/protocols/:id/draft":
-			found++
+	for _, r := range s.engine.Routes() {
+		for _, prefix := range []string{"/gateway/", "/api/admin/protocols", "/api/admin/model-groups", "/api/admin/agent", "/mcp", "/a2a"} {
+			if strings.HasPrefix(r.Path, prefix) {
+				t.Errorf("retired route %s", r.Path)
+			}
 		}
-	}
-	if found != 6 {
-		t.Fatalf("expected 6 custom-protocol route entries (PUT+DELETE share :id), got %d", found)
 	}
 }

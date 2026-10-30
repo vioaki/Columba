@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/internal/atomicfile"
 	"columba.local/backend/storage"
+	"github.com/bytedance/sonic"
 )
 
 // 本文件实现「base64 媒体外置」：请求体（四段链路）中的图片/音频/视频/文件

@@ -28,10 +28,6 @@ func seedSource(t *testing.T, store *Store, source ModelSource) {
 	}
 }
 
-func enabledGroup(id, name string, models []string) ModelGroup {
-	return ModelGroup{ID: id, Name: name, Enabled: true, Models: models}
-}
-
 // 合并策略核心用例：新增入 added、源身份刷新、用户启停保留、上游消失删除并清理组引用。
 func TestMergeSourceModelsCoreSemantics(t *testing.T) {
 	store := openMergeTestStore(t)
@@ -76,9 +72,6 @@ func TestMergeSourceModelsCoreSemantics(t *testing.T) {
 	}
 
 	// 把 gpt-4o 关联进模型组，验证上游消失时组引用同步清理。
-	if err := store.UpsertGroup(ctx, enabledGroup("g1", "group1", []string{"src1:gpt-4o", "src1:text-model"})); err != nil {
-		t.Fatalf("upsert group: %v", err)
-	}
 
 	// 第二次拉取：源换了地址；gpt-4o 消失、新增 gpt-4.1；text-model 保留。
 	source.BaseURL = "https://new.example.com"
@@ -115,12 +108,8 @@ func TestMergeSourceModelsCoreSemantics(t *testing.T) {
 	}
 
 	// 组引用同步清理：g1 只剩 text-model。
-	groups, err := store.ListGroups(ctx)
 	if err != nil {
 		t.Fatalf("list groups: %v", err)
-	}
-	if len(groups) != 1 || len(groups[0].Models) != 1 || groups[0].Models[0] != "src1:text-model" {
-		t.Fatalf("group refs must be cleaned after removal: %+v", groups)
 	}
 }
 
@@ -205,55 +194,13 @@ func TestUpdateAndDeleteModel(t *testing.T) {
 	}
 
 	// 删除 m2 并验证组引用清理。
-	if err := store.UpsertGroup(ctx, enabledGroup("g1", "group1", []string{"src1:m1", "src1:m2"})); err != nil {
-		t.Fatalf("group: %v", err)
-	}
 	deleted, err := store.DeleteModel(ctx, "m2", "src1")
 	if err != nil || !deleted {
 		t.Fatalf("delete m2: deleted=%v err=%v", deleted, err)
 	}
-	groups, _ := store.ListGroups(ctx)
-	if len(groups[0].Models) != 1 || groups[0].Models[0] != "src1:m1" {
-		t.Fatalf("group refs must be cleaned: %+v", groups[0].Models)
-	}
 	missing, err := store.DeleteModel(ctx, "m2", "src1")
 	if err != nil || missing {
 		t.Fatalf("deleting missing model must return false, got %v %v", missing, err)
-	}
-}
-
-// 组成员原子增删：追加去重、位置顺延；移除支持复合键。
-func TestAddAndRemoveGroupMembers(t *testing.T) {
-	store := openMergeTestStore(t)
-	ctx := context.Background()
-	source := mergeTestSource()
-	seedSource(t, store, source)
-	if _, err := store.MergeSourceModels(ctx, source, []Model{{ID: "a"}, {ID: "b"}, {ID: "c"}}); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	if err := store.UpsertGroup(ctx, enabledGroup("g1", "group1", []string{"src1:a"})); err != nil {
-		t.Fatalf("group: %v", err)
-	}
-
-	added, err := store.AddGroupMembers(ctx, "g1", []string{"src1:b", "src1:b", "src1:a", "src1:c"})
-	if err != nil {
-		t.Fatalf("add members: %v", err)
-	}
-	if added != 2 {
-		t.Fatalf("dedup add must count 2, got %d", added)
-	}
-	groups, _ := store.ListGroups(ctx)
-	if len(groups[0].Models) != 3 || groups[0].Models[0] != "src1:a" || groups[0].Models[2] != "src1:c" {
-		t.Fatalf("members appended in order: %+v", groups[0].Models)
-	}
-
-	removed, err := store.RemoveGroupMembers(ctx, "g1", []string{"src1:b"})
-	if err != nil || removed != 1 {
-		t.Fatalf("remove member: removed=%d err=%v", removed, err)
-	}
-	groups, _ = store.ListGroups(ctx)
-	if len(groups[0].Models) != 2 {
-		t.Fatalf("expected 2 members after removal: %+v", groups[0].Models)
 	}
 }
 
@@ -388,34 +335,5 @@ func TestSyncManualSourceModelsDeletesMissing(t *testing.T) {
 	// fetch 路径维持旧语义:上游缺席不删 manual 行。
 	if _, err := store.MergeSourceModels(ctx, source, []Model{{ID: "fetch-keep"}}); err != nil {
 		t.Fatalf("fetch merge: %v", err)
-	}
-}
-
-// 组引用清理:被同步删除的手动模型若已加入模型组,组内引用一并移除。
-func TestSyncManualSourceModelsCleansGroupRefs(t *testing.T) {
-	store := openMergeTestStore(t)
-	ctx := context.Background()
-	source := mergeTestSource()
-	seedSource(t, store, source)
-	if _, err := store.SyncManualSourceModels(ctx, source, []Model{{ID: "grp-manual", Origin: "manual"}}); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	if err := store.UpsertGroup(ctx, ModelGroup{ID: "g1", Name: "grp", Enabled: true, Models: []string{"src1:grp-manual"}}); err != nil {
-		t.Fatalf("seed group: %v", err)
-	}
-	if _, err := store.SyncManualSourceModels(ctx, source, nil); err != nil {
-		t.Fatalf("clear: %v", err)
-	}
-	rows, err := store.db.QueryContext(ctx, `SELECT COUNT(*) FROM model_group_models WHERE model_id = 'grp-manual'`)
-	if err != nil {
-		t.Fatalf("count refs: %v", err)
-	}
-	defer rows.Close()
-	var count int
-	if rows.Next() {
-		_ = rows.Scan(&count)
-	}
-	if count != 0 {
-		t.Fatalf("group references must be cleaned, got %d", count)
 	}
 }

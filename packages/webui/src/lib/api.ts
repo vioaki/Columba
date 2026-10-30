@@ -7,7 +7,7 @@ import type {
   ApiToken,
   Health,
   Model,
-  ModelGroup,
+  ModelRouting,
   ModelSource,
   RuntimeConfig,
   RuntimeConfigUpdate,
@@ -196,22 +196,8 @@ export const api = {
       method: 'DELETE',
     }),
 
-  listGroups: () => request<ListEnvelope<ModelGroup>>('/model-groups').then((r) => r.items),
-  createGroup: (body: ModelGroup) => request<ModelGroup>('/model-groups', { method: 'POST', body }),
-  updateGroup: (id: string, body: ModelGroup) =>
-    request<ModelGroup>(`/model-groups/${encodeURIComponent(id)}`, { method: 'PUT', body }),
-  deleteGroup: (id: string) =>
-    request<{ deleted: boolean }>(`/model-groups/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  addGroupMembers: (id: string, models: string[]) =>
-    request<{ added: number }>(`/model-groups/${encodeURIComponent(id)}/models`, {
-      method: 'POST',
-      body: { models },
-    }),
-  removeGroupMembers: (id: string, models: string[]) =>
-    request<{ removed: number }>(`/model-groups/${encodeURIComponent(id)}/models`, {
-      method: 'DELETE',
-      body: { models },
-    }),
+  modelRouting: () => request<{ items: unknown[]; policies: ModelRouting[] }>('/model-routing'),
+  saveModelRouting: (body: ModelRouting) => request<ModelRouting>('/model-routing', { method: 'PUT', body }),
 
   listTokens: () => request<ListEnvelope<ApiToken>>('/api-tokens').then((r) => r.items ?? []),
   revealToken: (name: string) =>

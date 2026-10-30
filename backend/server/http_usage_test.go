@@ -4,119 +4,27 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net/http"
+
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
+
 	"testing"
 	"time"
 
+	"columba.local/backend/config"
+	"columba.local/backend/logging"
+	"columba.local/backend/storage"
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/network"
 	"github.com/cloudwego/hertz/pkg/network/standard"
-	"columba.local/backend/config"
-	"columba.local/backend/logging"
-	"columba.local/backend/protocol"
-	"columba.local/backend/storage"
 )
-
-func TestGatewayFinalizeFailureSettlesOnce(t *testing.T) {
-	for _, shouldFail := range []bool{false, true} {
-		t.Run(map[bool]string{false: "success", true: "finalize-error"}[shouldFail], func(t *testing.T) {
-			server, _ := newProtocolAdminTestServer(t)
-			bodyLimit, errorsOnly := 1024, true
-			server.config.SetUsageLogConfig(config.UsageLogConfig{BodyMaxKB: &bodyLimit, BodyOnErrorOnly: &errorsOnly})
-			events := make(requestLogEvents, 16)
-			server.logger = logging.New(logging.Options{Level: "debug", Format: "json"}, nil)
-			server.logger.SetOutput(events)
-			server.engine.Use(server.requestLifecycle(), server.requestLogging(), func(ctx context.Context, c *app.RequestContext) {
-				c.Next(ctx)
-				if shouldFail {
-					stream := currentResponseStream(c)
-					if stream == nil {
-						t.Error("fixture did not start a stream")
-						return
-					}
-					stream.ExtWriter = &finalizeFailureWriter{ExtWriter: stream.ExtWriter, err: errors.New("synthetic final chunk failure")}
-				}
-			})
-			activateDiscoveryPresets(t, server)
-			service, _ := server.protocolService()
-			upstream, _ := service.Pin(protocol.PresetChatCompletionsID)
-			var calls atomic.Int32
-			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				calls.Add(1)
-				_, _ = io.Copy(io.Discard, r.Body)
-				w.Header().Set("Content-Type", "text/event-stream")
-				_, _ = io.WriteString(w, openAIChunk("c1", map[string]any{"role": "assistant", "content": "synthetic complete response"}, "", nil))
-				_, _ = io.WriteString(w, openAIChunk("c1", map[string]any{}, "stop", map[string]any{"prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5})+openAIDone())
-			}))
-			defer provider.Close()
-			setupGatewayModel(t, server, upstream, provider.URL)
-			web := startTestServer(server.engine)
-			defer web.Close()
-			request, _ := http.NewRequest("POST", web.URL+"/gateway/"+protocol.PresetChatCompletionsID+"/chat/completions", strings.NewReader(`{"model":"group","stream":true,"messages":[{"role":"user","content":"synthetic"}]}`))
-			request.Header.Set("Authorization", "Bearer gateway-test-token")
-			request.Header.Set("Content-Type", "application/json")
-			response, err := web.Client().Do(request)
-			if err != nil {
-				t.Fatal(err)
-			}
-			body, readErr := io.ReadAll(response.Body)
-			response.Body.Close()
-			if response.StatusCode != 200 || !strings.Contains(string(body), "synthetic complete response") || (readErr != nil) != shouldFail {
-				t.Fatal("unexpected wire outcome", response.StatusCode, readErr)
-			}
-			var completion map[string]any
-			deadline := time.NewTimer(3 * time.Second)
-			defer deadline.Stop()
-			for completion["message"] != "request completed" {
-				select {
-				case event := <-events:
-					if err := sonic.ConfigStd.Unmarshal(event, &completion); err != nil {
-						t.Fatal(err)
-					}
-				case <-deadline.C:
-					t.Fatal("missing completion log")
-				}
-			}
-			_, records, err := server.store.QueryUsageLogs(t.Context(), storage.UsageQuery{})
-			if err != nil || len(records) != 1 || calls.Load() != 1 {
-				t.Fatal("duplicate or missing settlement", len(records), calls.Load(), err)
-			}
-			var record usageRecord
-			if err := sonic.ConfigStd.Unmarshal([]byte(storedRecordJSON(t, server.store, records[0].RequestID)), &record); err != nil {
-				t.Fatal(err)
-			}
-			wantStatus, wantOutcome := 200, deliveryCompleted
-			if shouldFail {
-				wantStatus, wantOutcome = 502, deliveryFailed
-			}
-			if record.StatusCode != wantStatus || record.Delivery == nil || record.Delivery.HTTPStatus != 200 || record.Delivery.Outcome != wantOutcome || records[0].TotalTokens != 5 {
-				t.Fatalf("logical and wire results diverged: status=%d delivery=%+v tokens=%d", record.StatusCode, record.Delivery, records[0].TotalTokens)
-			}
-			if completion["status_code"] != float64(200) {
-				t.Fatal("completion rewrote the committed wire status", completion)
-			}
-			if shouldFail && (record.Delivery.Phase != deliveryFinalize || record.ErrorKind != deliveryTransport || record.Error == "") {
-				t.Fatal(record.Delivery, record.ErrorKind)
-			}
-			if shouldFail && !strings.Contains(record.DownstreamResponse.Content, "synthetic complete response") {
-				t.Fatal("error-only logging discarded the late delivery failure body")
-			}
-			if !shouldFail && record.DownstreamResponse.Content != "" {
-				t.Fatal("error-only logging retained a successful body")
-			}
-		})
-	}
-}
 
 func TestHTTPUsagePanicKeepsLogicalAndWireOutcomesDistinct(t *testing.T) {
 	for _, isCommitted := range []bool{false, true} {
 		t.Run(map[bool]string{false: "buffered", true: "committed"}[isCommitted], func(t *testing.T) {
-			server, _ := newProtocolAdminTestServer(t)
+			server, _ := newAdminTestServer(t)
 			bodyLimit, errorsOnly := 1024, true
 			server.config.SetUsageLogConfig(config.UsageLogConfig{BodyMaxKB: &bodyLimit, BodyOnErrorOnly: &errorsOnly})
 			events := make(requestLogEvents, 8)
@@ -183,7 +91,7 @@ func TestHTTPUsagePanicKeepsLogicalAndWireOutcomesDistinct(t *testing.T) {
 }
 
 func TestHTTPUsageResetKeepsOriginalSettlementGeneration(t *testing.T) {
-	server, _ := newProtocolAdminTestServer(t)
+	server, _ := newAdminTestServer(t)
 	request := newTestContext(httptest.NewRecorder())
 	record := server.initUsageRecord(t.Context(), request, time.Now(), nil, "")
 	server.recordHTTPUsage(request, record)
@@ -203,7 +111,7 @@ func TestHTTPUsageResetKeepsOriginalSettlementGeneration(t *testing.T) {
 }
 
 func TestHTTPUsageReleasesCaptureAndKeepsPrimary(t *testing.T) {
-	server, _ := newProtocolAdminTestServer(t)
+	server, _ := newAdminTestServer(t)
 	request := newTestContext(httptest.NewRecorder())
 	record := server.initUsageRecord(t.Context(), request, time.Now(), nil, "")
 	record.bodyOpts.maxBytes = 64
@@ -292,60 +200,8 @@ func TestHertzDeliveryLogHasOneOwner(t *testing.T) {
 	}
 }
 
-func TestGatewayRetryWaitCancellationKeepsLastHTTPFailure(t *testing.T) {
-	for _, status := range []int{http.StatusTooManyRequests, http.StatusServiceUnavailable} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
-			var firstCalls, secondCalls atomic.Int32
-			responded := make(chan struct{}, 1)
-			first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				firstCalls.Add(1)
-				_, _ = io.Copy(io.Discard, r.Body)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(status)
-				_, _ = io.WriteString(w, `{"error":{"type":"server_error","message":"synthetic first attempt rejection"}}`)
-				responded <- struct{}{}
-			}))
-			defer first.Close()
-			second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { secondCalls.Add(1); w.WriteHeader(500) }))
-			defer second.Close()
-			server := newTestServerWithStore(t, []config.ModelGroupConfig{{ID: "group", Name: "group", Enabled: true, Strategy: "sequential", MaxRetries: 2, RetryInterval: 3000, Models: []config.ModelRef{openAIModel("first", first.URL), openAIModel("second", second.URL)}}})
-			defer server.stopUsageWriter()
-			ctx, cancel := context.WithCancelCause(t.Context())
-			defer cancel(nil)
-			request, output := chatRequestContext(`{"model":"group","messages":[{"role":"user","content":"synthetic"}]}`)
-			done := make(chan struct{})
-			go func() { defer close(done); server.chatCompletions(ctx, request); flushTestResponse(request) }()
-			select {
-			case <-responded:
-			case <-time.After(5 * time.Second):
-				t.Fatal("first attempt was not observed")
-			}
-			// The long configured backoff leaves room for local error conversion;
-			// the assertion below also proves that retry admission was reached.
-			timer := time.AfterFunc(250*time.Millisecond, func() { cancel(errHTTPServerShutdown) })
-			defer timer.Stop()
-			select {
-			case <-done:
-			case <-time.After(5 * time.Second):
-				t.Fatal("backoff did not stop on cancellation")
-			}
-			logs := latestUsageRecords(t, server)
-			if len(logs) != 1 || firstCalls.Load() != 1 || secondCalls.Load() != 0 || output.Code != status {
-				t.Fatal("cancellation repeated or replaced an HTTP attempt", len(logs), firstCalls.Load(), secondCalls.Load(), output.Code)
-			}
-			var record usageRecord
-			if err := sonic.ConfigStd.Unmarshal([]byte(storedRecordJSON(t, server.store, logs[0].RequestID)), &record); err != nil {
-				t.Fatal(err)
-			}
-			if record.StatusCode != status || len(record.RetryEvents) != 1 || !strings.Contains(record.Error, "synthetic first attempt rejection") || record.ErrorKind == ErrorKindClientCanceled || record.ErrorKind == deliveryShutdown {
-				t.Fatal("backoff cancellation lost the established primary", record.StatusCode, record.ErrorKind, len(record.RetryEvents), record.Error)
-			}
-		})
-	}
-}
-
 func TestHTTPUsageFinalizationSettlesBeforeShutdownClosesWriter(t *testing.T) {
-	server, configPath := newProtocolAdminTestServer(t)
+	server, configPath := newAdminTestServer(t)
 	server.startUsageWriter()
 	server.engine.Use(server.requestLifecycle(), server.requestLogging())
 	entered := make(chan struct{}, 1)
@@ -398,5 +254,22 @@ func TestHTTPUsageFinalizationSettlesBeforeShutdownClosesWriter(t *testing.T) {
 	}
 	if record.StatusCode != 503 || record.ErrorKind != deliveryShutdown || record.Delivery == nil || record.Delivery.HTTPStatus != 200 || record.Delivery.Outcome != deliveryFailed {
 		t.Fatal("shutdown was mislabeled or escaped the persistence barrier", record.StatusCode, record.ErrorKind, record.Delivery)
+	}
+}
+
+type heldFinalizeWriter struct {
+	network.ExtWriter
+	ctx     context.Context
+	entered chan<- struct{}
+	release <-chan struct{}
+}
+
+func (w *heldFinalizeWriter) Finalize() error {
+	w.entered <- struct{}{}
+	select {
+	case <-w.release:
+		return w.ExtWriter.Finalize()
+	case <-w.ctx.Done():
+		return w.ctx.Err()
 	}
 }

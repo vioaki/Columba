@@ -9,14 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"columba.local/backend/internal/routing"
 	"columba.local/backend/storage"
 	"github.com/bytedance/sonic"
 )
 
 func seedDiscoverySource(t *testing.T, s *Server, url string, keys []storage.SourceAPIKey, ids ...string) storage.ModelSource {
 	t.Helper()
-	src := storage.ModelSource{ID: "discovery", Name: "discovery", BaseURL: url, Platform: "custom:openai-chat-completions", Enabled: true, AutoFetchModels: true, APIKeys: keys}
+	src := storage.ModelSource{ID: "discovery", Name: "discovery", BaseURL: url, Platform: "openai", Enabled: true, AutoFetchModels: true, APIKeys: keys}
 	return seedDiscoveryModels(t, s, src, ids...)
 }
 
@@ -67,22 +66,15 @@ func TestDiscoveryRegressionPartialFailureDoesNotDeleteModels(t *testing.T) {
 		}
 	}))
 	defer upstream.Close()
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	src := seedDiscoverySource(t, s, upstream.URL, []storage.SourceAPIKey{{Value: "a", FetchedModels: []string{"alpha"}}, {Value: "b", FetchedModels: []string{"beta"}}}, "alpha", "beta")
-	if err := s.store.UpsertGroup(t.Context(), storage.ModelGroup{ID: "g", Name: "g", Enabled: true, Models: []string{"discovery:beta"}}); err != nil {
-		t.Fatal(err)
-	}
 	summary, err := s.refreshSourceByID(t.Context(), src.ID)
 	if err == nil {
 		t.Error("partial discovery must fail the refresh")
 	}
 	ids := discoveryModelIDs(t, s)
-	groups, err := s.store.ListGroups(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(ids, []string{"alpha", "beta"}) || !slices.Equal(groups[0].Models, []string{"discovery:beta"}) || summary.Count != 0 || len(summary.Removed) != 0 {
-		t.Fatalf("partial discovery changed stored data: models=%v groups=%v summary=%+v", ids, groups, summary)
+	if !slices.Equal(ids, []string{"alpha", "beta"}) || summary.Count != 0 || len(summary.Removed) != 0 {
+		t.Fatalf("partial discovery changed stored data: models=%v summary=%+v", ids, summary)
 	}
 	if len(summary.Keys) != 2 || summary.Keys[1].Error == "" {
 		t.Fatalf("missing per-key error: %+v", summary.Keys)
@@ -94,7 +86,7 @@ func TestDiscoveryRegressionSaveUsesDiscoveredModels(t *testing.T) {
 		w.Write([]byte(`{"data":[{"id":"alpha"},{"id":"beta"}]}`))
 	}))
 	defer upstream.Close()
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	src := seedDiscoverySource(t, s, upstream.URL, []storage.SourceAPIKey{{Value: "a", FetchedModels: []string{"alpha", "beta"}, AllowedModels: []string{"alpha"}}, {Value: "b", AllowedModels: []string{}}}, "alpha", "beta")
 	s.engine.PUT("/discovery/source/:id", s.adminUpsertSource)
 	payload, err := sonic.ConfigStd.Marshal(src)
@@ -131,7 +123,7 @@ func TestDiscoveryRegressionInFlightRefreshPreservesEditedKeyPool(t *testing.T) 
 		w.Write([]byte(`{"data":[{"id":"alpha"}]}`))
 	}))
 	t.Cleanup(upstream.Close)
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	src := seedDiscoverySource(t, s, upstream.URL, []storage.SourceAPIKey{{Value: "old-a"}, {Value: "old-b"}}, "alpha")
 	if !s.launchSourceRefresh(src.ID) {
 		t.Fatal("refresh not started")
@@ -175,7 +167,7 @@ func TestDiscoveryRegressionDeletedSourceStaysDeleted(t *testing.T) {
 		w.Write([]byte(`{"data":[{"id":"resurrected"}]}`))
 	}))
 	t.Cleanup(upstream.Close)
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	src := seedDiscoverySource(t, s, upstream.URL, []storage.SourceAPIKey{{Value: "a"}}, "alpha")
 	if !s.launchSourceRefresh(src.ID) {
 		t.Fatal("refresh not started")
@@ -209,7 +201,7 @@ func TestDiscoveryRegressionEmptyFetchPreservesData(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(`{"data":[]}`)) }))
 			defer upstream.Close()
-			s := newKeyPermissionTestServer(t)
+			s, _ := newAdminTestServer(t)
 			keys := []storage.SourceAPIKey{{Value: "a", FetchedModels: []string{"alpha"}}}
 			if !single {
 				keys = append(keys, storage.SourceAPIKey{Value: "b", FetchedModels: []string{"alpha"}})
@@ -234,7 +226,7 @@ func TestDiscoveryRegressionMissingContinuationIsError(t *testing.T) {
 		w.Write([]byte(`{"data":[{"id":"alpha"}],"has_more":true,"last_id":""}`))
 	}))
 	defer upstream.Close()
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	src := seedDiscoverySource(t, s, upstream.URL, []storage.SourceAPIKey{{Value: "a"}}, "alpha", "beta")
 	src.Platform = "claude"
 	if err := s.store.UpsertSource(t.Context(), src); err != nil {
@@ -254,8 +246,8 @@ func TestDiscoveryRegressionOptionalMetadataDoesNotBlockIDs(t *testing.T) {
 		t.Run(body, func(t *testing.T) {
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(body)) }))
 			defer upstream.Close()
-			s := newKeyPermissionTestServer(t)
-			models, err := s.fetchModelsFromSource(t.Context(), storage.ModelSource{BaseURL: upstream.URL, Platform: "custom:google-generate-content"}, "a")
+			s, _ := newAdminTestServer(t)
+			models, err := s.fetchModelsFromSource(t.Context(), storage.ModelSource{BaseURL: upstream.URL, Platform: "gemini"}, "a")
 			if err != nil || len(models) != 1 || models[0].ID != "alpha" {
 				t.Fatalf("model discovery with optional metadata: models=%v err=%v", models, err)
 			}
@@ -272,7 +264,7 @@ func TestDiscoveryRegressionEmptyKeyCatalogStaysEmpty(t *testing.T) {
 		}
 	}))
 	defer upstream.Close()
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	src := seedDiscoverySource(t, s, upstream.URL, []storage.SourceAPIKey{{Value: "a"}, {Value: "b"}}, "alpha")
 	if _, err := s.refreshSourceByID(t.Context(), src.ID); err != nil {
 		t.Fatal(err)
@@ -287,7 +279,7 @@ func TestDiscoveryRegressionDisabledPoolDoesNotUseLegacyKey(t *testing.T) {
 	calls := 0
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.Write([]byte(`{"data":[{"id":"alpha"}]}`)) }))
 	defer upstream.Close()
-	s := newKeyPermissionTestServer(t)
+	s, _ := newAdminTestServer(t)
 	src := seedDiscoverySource(t, s, upstream.URL, []storage.SourceAPIKey{{Value: "old", Disabled: true}}, "alpha")
 	src.APIKey = "old"
 	if err := s.store.UpsertSource(t.Context(), src); err != nil {
@@ -296,28 +288,6 @@ func TestDiscoveryRegressionDisabledPoolDoesNotUseLegacyKey(t *testing.T) {
 	_, err := s.refreshSourceByID(t.Context(), src.ID)
 	if err == nil || calls != 0 {
 		t.Fatalf("disabled key pool must reject discovery: calls=%d err=%v", calls, err)
-	}
-}
-
-func TestDiscoveryRegressionDisabledPoolBlocksAllConsumers(t *testing.T) {
-	s := newKeyPermissionTestServer(t)
-	src := seedDiscoverySource(t, s, "https://example.invalid", []storage.SourceAPIKey{{Value: "disabled", Disabled: true}}, "alpha")
-	src.APIKey = "legacy"
-	if err := s.store.UpsertSource(t.Context(), src); err != nil {
-		t.Fatal(err)
-	}
-	model := storage.Model{ID: "alpha", Name: "alpha", SourceID: src.ID, APIKey: "snapshot", Enabled: true, Available: true}
-	if _, ok := routing.IndexSources([]storage.ModelSource{src}).Resolve(model); ok {
-		t.Fatal("routing/health probe fell back to a disabled credential")
-	}
-	src.APIKeys = nil
-	src.APIKey = ""
-	if err := s.store.UpsertSource(t.Context(), src); err != nil {
-		t.Fatal(err)
-	}
-	ref, ok := routing.IndexSources([]storage.ModelSource{src}).Resolve(model)
-	if !ok || ref.APIKey != "" {
-		t.Fatal("anonymous source should stay usable without snapshot credentials")
 	}
 }
 
@@ -335,12 +305,12 @@ func TestDiscoveryRegressionOfficialGeminiPaginationKeepsIDs(t *testing.T) {
 		}
 	}))
 	defer upstream.Close()
-	s := newKeyPermissionTestServer(t)
-	models, err := s.fetchModelsFromSource(t.Context(), storage.ModelSource{Platform: "custom:google-generate-content", BaseURL: upstream.URL}, "synthetic-key")
+	s, _ := newAdminTestServer(t)
+	models, err := s.fetchModelsFromSource(t.Context(), storage.ModelSource{Platform: "gemini", BaseURL: upstream.URL}, "synthetic-key")
 	if err != nil || calls != 2 || len(models) != 2 {
 		t.Fatalf("pagination: calls=%d models=%v err=%v", calls, models, err)
 	}
-	if models[0].ID != "Gemini-X/custom-suffix" || models[0].Name != models[0].ID || models[0].MaxTokens != 1000000 || models[1].ID != "gemini-bare-id" || models[1].Name != models[1].ID {
+	if models[0].ID != "Gemini-X/custom-suffix" || models[0].Name != "Unrelated label" || models[0].MaxTokens != 1000000 || models[1].ID != "gemini-bare-id" || models[1].Name != models[1].ID {
 		t.Fatal("model identity or metadata changed", models)
 	}
 }

@@ -1,62 +1,26 @@
 package server
 
 import (
+	"columba.local/backend/storage"
 	"context"
+	"crypto/subtle"
 	"strings"
-
-	"columba.local/backend/config"
-	"columba.local/backend/internal/routing"
 )
 
-// All source/group/token mutations invalidate this snapshot after persistence.
-func (s *Server) invalidateRouteCache() { s.routes.Invalidate() }
-
-func (s *Server) forgetGroupRuntimeState(groupID string) {
-	if groupID == "" {
-		return
+func (s *Server) invalidateRouteCache() { s.nativeScheduler.Reset() }
+func (s *Server) findAccessToken(token string) (storage.APIToken, bool) {
+	if s.store == nil || strings.TrimSpace(token) == "" {
+		return storage.APIToken{}, false
 	}
-	s.limiter.Forget(groupID)
-	s.scheduler.ForgetGroup(groupID)
-	s.affinity.removeGroup(groupID)
-}
-
-func (s *Server) routeSnapshot() *routing.Snapshot {
-	if s.store == nil {
-		return nil
-	}
-	snapshot, err := s.routes.Load(context.Background(), func(ctx context.Context) (*routing.Snapshot, error) {
-		return routing.Load(ctx, s.store)
-	})
+	items, err := s.store.ListAPITokens(context.Background())
 	if err != nil {
-		s.logEvent("error").Err(err).Msg("failed to load routes from sqlite")
+		s.logEvent("error").Err(err).Msg("cannot read calling keys")
+		return storage.APIToken{}, false
 	}
-	return snapshot
-}
-
-func (s *Server) getGroups() []config.ModelGroupConfig {
-	if snapshot := s.routeSnapshot(); snapshot != nil {
-		return snapshot.Groups
-	}
-	return nil
-}
-
-func (s *Server) findGroupByName(name string) *config.ModelGroupConfig {
-	for _, group := range s.getGroups() {
-		if group.Name == name {
-			// Copy only the matched group; the cached snapshot remains read-only.
-			groupCopy := group
-			return &groupCopy
+	for _, item := range items {
+		if item.Enabled && subtle.ConstantTimeCompare([]byte(item.Token), []byte(token)) == 1 {
+			return item, true
 		}
 	}
-	return nil
-}
-
-func (s *Server) findAccessToken(token string) (config.AccessToken, bool) {
-	if strings.TrimSpace(token) != "" {
-		if snapshot := s.routeSnapshot(); snapshot != nil {
-			item, ok := snapshot.Tokens[token]
-			return item, ok
-		}
-	}
-	return config.AccessToken{}, false
+	return storage.APIToken{}, false
 }

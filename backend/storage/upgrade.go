@@ -185,7 +185,7 @@ func inspectDatabase(ctx context.Context, path string, logs bool) (int, error) {
 	if logs {
 		minimum, current, required = 1, logSchemaVersion, "usage_records"
 	}
-	if version < minimum || version > current {
+	if version != minimum && version != current {
 		return 0, fmt.Errorf("unsupported database schema %d at %s (supported %d..%d)", version, path, minimum, current)
 	}
 	var found int
@@ -194,6 +194,19 @@ func inspectDatabase(ctx context.Context, path string, logs bool) (int, error) {
 	}
 	if found != 1 {
 		return 0, fmt.Errorf("database %s is missing %s", path, required)
+	}
+	checks := []string{`SELECT key,value,updated_at FROM settings LIMIT 0`, `SELECT id,name,base_url,api_key,api_keys,platform,manual_models_json FROM model_sources LIMIT 0`, `SELECT id,source_id,platform,enabled FROM models LIMIT 0`, `SELECT name,token,token_hash,enabled FROM api_tokens LIMIT 0`}
+	if logs {
+		checks = []string{`SELECT request_id,record_json,started_ms,source_id,usage_report_mask FROM usage_records LIMIT 0`, `SELECT id,fields_json FROM system_logs LIMIT 0`}
+	} else if version == 2 {
+		checks = append(checks, `SELECT id,strategy,max_retries,retry_interval FROM model_groups LIMIT 0`, `SELECT binding FROM protocol_bindings LIMIT 0`, `SELECT scopes FROM api_tokens LIMIT 0`)
+	}
+	for _, query := range checks {
+		rows, err := db.QueryContext(ctx, query)
+		if err != nil {
+			return 0, fmt.Errorf("unsupported database format at %s: %w", path, err)
+		}
+		rows.Close()
 	}
 	return version, nil
 }
@@ -223,6 +236,11 @@ func migrateDatabase(ctx context.Context, db *sql.DB, version int, logs bool) er
 	}
 	if !logs && version < 5 {
 		if _, err := tx.ExecContext(ctx, nativeContinuationSchema); err != nil {
+			return err
+		}
+	}
+	if !logs && version < 6 {
+		if err := migrateNativeModels(ctx, tx); err != nil {
 			return err
 		}
 	}

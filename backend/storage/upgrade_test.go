@@ -12,29 +12,6 @@ import (
 	"columba.local/backend/internal/dbpath"
 )
 
-func previousDatabases(t *testing.T) (string, string, []byte) {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "business.sqlite3")
-	key := []byte("test master key")
-	s, err := OpenWithKey(path, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.UpsertAPIToken(t.Context(), APIToken{Name: "client", Token: "test-secret", Enabled: true}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.db.Exec("PRAGMA user_version=2"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.LogStore.db.Exec("PRAGMA user_version=1"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return path, dbpath.DefaultLogPath(path), key
-}
-
 func TestUpgradeLatestPairPreservesEncryptedCredentials(t *testing.T) {
 	path, logs, key := previousDatabases(t)
 	config := filepath.Join(filepath.Dir(path), "config.json")
@@ -249,4 +226,47 @@ func TestUpgradeRetiresAssistantWithoutPromotingItsKeys(t *testing.T) {
 	if err := backup.QueryRow(`SELECT count(*) FROM agent_sessions`).Scan(&count); err != nil || count != 1 {
 		t.Fatal("backup lost retired data", count, err)
 	}
+}
+
+func previousDatabases(t *testing.T) (string, string, []byte) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "business.sqlite3")
+	key := []byte("test master key")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile("testdata/latest-business.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(string(raw)); err != nil {
+		t.Fatal(err)
+	}
+	codec, err := newSecretCodec(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret, err := codec.encrypt("test-secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO api_tokens(name,token,token_hash,created_at,updated_at) VALUES('client',?,?,'','')`, secret, hashToken("test-secret")); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	logs := dbpath.DefaultLogPath(path)
+	ls, err := OpenLogStore(logs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ls.db.Exec("PRAGMA user_version=1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ls.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return path, logs, key
 }

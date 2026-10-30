@@ -269,12 +269,11 @@ func TestUsageCacheReadsDoNotExtendTTL(t *testing.T) {
 func TestCacheShutdownStopsMaintenance(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		s := &Server{affinity: newAffinityCache()}
+		s := &Server{}
 		defer s.closeCaches()
 		entries := s.usageCache.cache()
-		s.affinity.set("key", "group", "model")
 		s.closeCaches()
-		if s.affinity.entries.StopAllGoroutines() || entries.StopAllGoroutines() {
+		if entries.StopAllGoroutines() {
 			t.Fatal("server cache cleanup left maintenance running")
 		}
 		var unused usageResponseCache

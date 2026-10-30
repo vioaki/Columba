@@ -56,15 +56,10 @@ func (s *Server) ListenAndServe() (result error) {
 
 func (s *Server) startServices(context.Context) error {
 	s.startUsageWriter()
-	if err := s.startGatewayJobs(); err != nil {
-		return err
-	}
 	if s.store != nil {
 		s.store.StartRollupBackfill()
 	}
 	go s.catalog.runPeriodic()
-	s.healthChecker = newHealthChecker(s)
-	s.healthChecker.start()
 	s.usageRetention = newUsageRetention(s)
 	s.usageRetention.start()
 	return nil
@@ -105,9 +100,6 @@ func (s *Server) doShutdown() {
 		s.httpRequests.stop()
 		s.preparationLimiter().Close()
 		s.lifecycleCancel()
-		if s.healthChecker != nil {
-			s.healthChecker.cancel()
-		}
 		if s.catalog != nil {
 			s.catalog.cancel()
 		}
@@ -116,8 +108,6 @@ func (s *Server) doShutdown() {
 		}
 		storageSafe := true
 		// Sessions and jobs own long-lived connections and stop before HTTP drains.
-		s.gatewaySessions.stop()
-		s.gatewayJobs.stop()
 		if s.engine != nil && s.engine.IsRunning() {
 			httpCtx, stopHTTP := context.WithTimeout(ctx, 5*time.Second)
 			if err := s.engine.Shutdown(httpCtx); err != nil || httpCtx.Err() != nil {
@@ -136,9 +126,6 @@ func (s *Server) doShutdown() {
 			s.logEvent("error").Err(ctx.Err()).Msg("request shutdown error")
 			s.shutdownErr = errors.Join(s.shutdownErr, ctx.Err())
 			storageSafe = false
-		}
-		if s.healthChecker != nil {
-			s.healthChecker.shutdown()
 		}
 		if s.catalog != nil {
 			s.catalog.shutdown()
@@ -174,6 +161,8 @@ func (s *Server) doShutdown() {
 }
 
 func (s *Server) closeCaches() {
-	s.affinity.close()
 	s.usageCache.close()
+	if s.nativeTransport != nil {
+		s.nativeHTTPClient().CloseIdleConnections()
+	}
 }
