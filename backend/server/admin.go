@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -143,13 +142,6 @@ func (s *Server) adminRuntimeConfig(ctx context.Context, c *app.RequestContext) 
 			// 未配置（nil）时回填默认 1440 供表单显示；显式 0 = 不启用定期同步。
 			"syncIntervalMinutes": config.ResolveModelCatalogInterval(catalog),
 		},
-		"agentRemote": utils.H{
-			"enabled":   s.config.GetAgentRemote().AgentRemoteEnabled(),
-			"publicUrl": s.config.GetAgentRemote().PublicURL,
-		},
-		"agent": utils.H{
-			"toolLoopLimit": s.config.ResolveAgentToolLoopLimit(),
-		},
 	})
 }
 
@@ -171,21 +163,6 @@ type runtimeConfigPayload struct {
 	ModelCatalog    *struct {
 		SyncIntervalMinutes *int `json:"syncIntervalMinutes"`
 	} `json:"modelCatalog"`
-	AgentRemote *agentRemoteConfigPayload `json:"agentRemote"`
-	Agent       *agentDefaultsPayload     `json:"agent"`
-}
-
-// agentDefaultsPayload 是 AI 助手全局默认的增量更新体。
-type agentDefaultsPayload struct {
-	ToolLoopLimit *int `json:"toolLoopLimit"`
-}
-
-// agentRemoteConfigPayload 是 AI 助手远程暴露面的增量更新体：块存在即
-// 合并进当前配置（未提供的子字段保持原值；publicUrl 显式空串 = 清空，
-// 回退按请求 Host 推导）。
-type agentRemoteConfigPayload struct {
-	Enabled   *bool   `json:"enabled"`
-	PublicURL *string `json:"publicUrl"`
 }
 
 // outboundConfigPayload merges supplied fields; an empty array clears the denylist.
@@ -236,10 +213,6 @@ func validateRuntimeConfigPayload(p *runtimeConfigPayload) *runtimeConfigError {
 			return &runtimeConfigError{400, "invalid_log_level", "logPersistLevel must be debug/info/warn/error"}
 		}
 	}
-	if p.Agent != nil && p.Agent.ToolLoopLimit != nil && (*p.Agent.ToolLoopLimit < 0 || *p.Agent.ToolLoopLimit > 100) {
-		return &runtimeConfigError{400, "invalid_tool_loop_limit", "toolLoopLimit must be between 0 and 100 (0 uses the default)"}
-	}
-
 	if p.HTTPTimeout != nil && *p.HTTPTimeout < 0 {
 		return &runtimeConfigError{400, "invalid_http_timeout", "httpTimeout must not be negative"}
 	}
@@ -263,13 +236,6 @@ func validateRuntimeConfigPayload(p *runtimeConfigPayload) *runtimeConfigError {
 
 	if p.ModelCatalog != nil && p.ModelCatalog.SyncIntervalMinutes != nil && *p.ModelCatalog.SyncIntervalMinutes < 0 {
 		return &runtimeConfigError{400, "invalid_sync_interval", "syncIntervalMinutes must not be negative"}
-	}
-	if p.AgentRemote != nil && p.AgentRemote.PublicURL != nil {
-		if raw := strings.TrimSpace(*p.AgentRemote.PublicURL); raw != "" {
-			if parsed, err := url.Parse(raw); err != nil || parsed.Scheme == "" || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-				return &runtimeConfigError{400, "invalid_public_url", "publicUrl must be an absolute http(s) URL (e.g. https://gw.example.com)"}
-			}
-		}
 	}
 	if p.Outbound != nil {
 		if p.Outbound.ProxyURL != nil {
@@ -805,6 +771,10 @@ func (s *Server) adminUpsertToken(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	item := payload.APIToken
+	if len(item.Scopes) > 0 {
+		respondFail(ctx, c, 400, "retired_scope", "assistant keys are no longer supported")
+		return
+	}
 	if name := c.Param("name"); name != "" {
 		item.Name = name
 	}

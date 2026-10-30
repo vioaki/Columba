@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -18,19 +17,5 @@ func TestProtocolSchemaLibraryHTTPAndCLI(t *testing.T) {
 	}
 	if definition["$defs"].(map[string]any)["CapabilitySet"] == nil {
 		t.Fatal("named map definition missing over HTTP")
-	}
-	for _, command := range []string{
-		"elysia protocol schema --section definition --type Expression",
-		"elysia protocol schema --section semantic --type CacheIntent",
-		"elysia protocol schema --section binding --type CapabilitySet",
-	} {
-		result := s.runCLI(t.Context(), &opsTestContext{}, command)
-		if !result.OK {
-			t.Fatalf("schema CLI failed: %+v", result)
-		}
-		output := result.Data.(map[string]any)["output"].(string)
-		if !strings.Contains(output, `"type":"object"`) {
-			t.Fatalf("missing schema: %s", output)
-		}
 	}
 }

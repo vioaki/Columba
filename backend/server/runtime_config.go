@@ -85,19 +85,6 @@ func applyRuntimeConfig(candidate *config.Config, payload runtimeConfigPayload) 
 	if payload.ModelCatalog != nil && payload.ModelCatalog.SyncIntervalMinutes != nil {
 		candidate.SetModelCatalogSyncInterval(*payload.ModelCatalog.SyncIntervalMinutes)
 	}
-	if payload.Agent != nil && payload.Agent.ToolLoopLimit != nil {
-		candidate.SetAgentToolLoopLimit(*payload.Agent.ToolLoopLimit)
-	}
-	if payload.AgentRemote != nil {
-		remote := candidate.GetAgentRemote()
-		if payload.AgentRemote.Enabled != nil {
-			remote.Enabled = payload.AgentRemote.Enabled
-		}
-		if payload.AgentRemote.PublicURL != nil {
-			remote.PublicURL = strings.TrimSpace(*payload.AgentRemote.PublicURL)
-		}
-		candidate.SetAgentRemote(remote)
-	}
 	if payload.Host != "" {
 		candidate.SetHost(payload.Host)
 	}

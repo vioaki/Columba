@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/protocol"
+	"github.com/bytedance/sonic"
 )
 
 type ProtocolHistory struct {
@@ -224,21 +224,7 @@ func (s *Store) protocolRevisionReferences(ctx context.Context, tx *sql.Tx, id, 
 		return nil, err
 	}
 	rows.Close()
-	// Editor sessions retain a protocol ID rather than a revision hash. Preserve
-	// its history until that session reference is removed by the operator.
-	sessions, err := tx.QueryContext(ctx, `SELECT id,title FROM agent_sessions WHERE protocol_id=?`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer sessions.Close()
-	for sessions.Next() {
-		ref := ProtocolReference{Kind: "session"}
-		if err := sessions.Scan(&ref.ID, &ref.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, ref)
-	}
-	return items, sessions.Err()
+	return items, nil
 }
 
 func (s *Store) ProtocolRevisionReferences(ctx context.Context, id, hash string) ([]ProtocolReference, error) {

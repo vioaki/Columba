@@ -12,7 +12,7 @@ import (
 
 func TestRuntimeConfigRejectsWholeInvalidPatch(t *testing.T) {
 	s := &Server{config: &config.Config{HTTPTimeout: 12}}
-	c, recorder := adminProtocolContext(http.MethodPut, "/runtime-config", `{"httpTimeout":321,"agent":{"toolLoopLimit":101}}`)
+	c, recorder := adminProtocolContext(http.MethodPut, "/runtime-config", `{"httpTimeout":321,"port":70000}`)
 	s.adminUpdateRuntimeConfig(contextForTest(c), c)
 	flushTestResponse(c)
 	if recorder.Code != 400 || s.config.GetHTTPTimeout() != 12 {
@@ -22,7 +22,7 @@ func TestRuntimeConfigRejectsWholeInvalidPatch(t *testing.T) {
 
 func TestRuntimeConfigSaveFailureHasNoSideEffects(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	if err := os.WriteFile(path, []byte(`{"logLifecycleVersion":1,"httpTimeout":12,"agent":{"toolLoopLimit":17}}`), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"logLifecycleVersion":1,"httpTimeout":12}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := config.Load(path)
@@ -38,10 +38,10 @@ func TestRuntimeConfigSaveFailureHasNoSideEffects(t *testing.T) {
 	if err := os.Mkdir(path, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	c, recorder := adminProtocolContext(http.MethodPut, "/runtime-config", `{"host":"192.0.2.1","httpTimeout":321,"agent":{"toolLoopLimit":25},"usageLog":{"maxRecords":1},"outbound":{"deniedIpRanges":[]}}`)
+	c, recorder := adminProtocolContext(http.MethodPut, "/runtime-config", `{"host":"192.0.2.1","httpTimeout":321,"usageLog":{"maxRecords":1},"outbound":{"deniedIpRanges":[]}}`)
 	s.adminUpdateRuntimeConfig(contextForTest(c), c)
 	flushTestResponse(c)
-	if recorder.Code != 500 || cfg.GetHTTPTimeout() != 12 || cfg.ResolveAgentToolLoopLimit() != 17 || cfg.GetUsageLogConfig().MaxRecords != 0 || len(cfg.GetOutboundConfig().DeniedIPRanges) == 0 || s.restartRequired {
+	if recorder.Code != 500 || cfg.GetHTTPTimeout() != 12 || cfg.GetUsageLogConfig().MaxRecords != 0 || len(cfg.GetOutboundConfig().DeniedIPRanges) == 0 || s.restartRequired {
 		t.Fatalf("failed save mutated runtime: status=%d timeout=%d", recorder.Code, cfg.GetHTTPTimeout())
 	}
 	if s.usageRetention.snapshotStats().Pending {

@@ -19,7 +19,6 @@ Python and vision dependencies are required only to regenerate login assets, not
 
 ```text
 backend/
-  agent/       # Agent engine
   config/      # Explicit configuration loading and runtime policies
   internal/
     routing/   # Route snapshots, scheduling and quotas
@@ -140,7 +139,6 @@ The Chinese CLI reference is generated from command definitions and help rendere
 UPDATE_AGENT_CLI_DOCS=1 go test ./server -run '^TestCLIReferenceUpToDate$' -count=1
 ```
 
-The generation template in `agent_cli_contract_test.go` controls the introduction, navigation, and section formatting. The English reference is a complete maintained translation. When commands change, update arguments, examples, and permission descriptions in both languages; run the same test without the update variable to check freshness.
 
 ## Contribution checks
 

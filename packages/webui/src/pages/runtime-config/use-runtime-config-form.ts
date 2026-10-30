@@ -4,23 +4,17 @@ import type { RuntimeConfig, UsageLogRuntimeConfig, LogRetentionConfig } from '@
 /** 目录同步周期的表单默认（与后端 ResolveModelCatalogInterval 默认一致）。 */
 const defaultCatalogSyncMinutes = 1440
 
-// 远程访问表单缺省值（后端 enabled 缺省视为 true）。
-const defaultAgentRemote = { enabled: true, publicUrl: '' }
 
 /** 归一化后的表单类型：数据入口 effect 补齐 usageLog/modelCatalog/outbound/agentRemote 后必非空。 */
 export type RuntimeConfigForm = Omit<
   RuntimeConfig,
-  'usageLog' | 'modelCatalog' | 'outbound' | 'agentRemote'
+  'usageLog' | 'modelCatalog' | 'outbound'
 > & {
   usageLog: UsageLogRuntimeConfig
   modelCatalog: NonNullable<RuntimeConfig['modelCatalog']>
   outbound: NonNullable<RuntimeConfig['outbound']>
-  agentRemote: { enabled: boolean; publicUrl: string }
-  agent: { toolLoopLimit: number }
 }
 
-/** 工具循环上限表单默认（与后端 defaultAgentToolLoopLimit 一致）。 */
-const defaultToolLoopLimit = 30
 
 /**
  * 运行配置表单：数据入口一次性补默认块并快照 pristine 基线；更新走三个
@@ -40,11 +34,6 @@ export function useRuntimeConfigForm(data: RuntimeConfig | undefined) {
         enabled: true, url: '', syncIntervalMinutes: defaultCatalogSyncMinutes,
       },
       outbound: saved.outbound ?? { deniedIpRanges: [] },
-      agentRemote: {
-        enabled: saved.agentRemote?.enabled ?? defaultAgentRemote.enabled,
-        publicUrl: saved.agentRemote?.publicUrl ?? defaultAgentRemote.publicUrl,
-      },
-      agent: { toolLoopLimit: saved.agent?.toolLoopLimit ?? defaultToolLoopLimit },
     }
     lastBodyMaxKB.current = saved.usageLog.bodyMaxKB > 0 ? saved.usageLog.bodyMaxKB : 1024
     pristineRef.current = normalized
@@ -81,19 +70,6 @@ export function useRuntimeConfigForm(data: RuntimeConfig | undefined) {
     )
   }
 
-  /** 远程访问子字段更新。 */
-  function updateAgentRemote<K extends 'enabled' | 'publicUrl'>(
-    key: K,
-    value: RuntimeConfigForm['agentRemote'][K],
-  ) {
-    setForm((prev) => (prev ? { ...prev, agentRemote: { ...prev.agentRemote, [key]: value } } : prev))
-  }
-
-  /** AI 助手全局默认子字段更新。 */
-  function updateAgentDefaults(key: 'toolLoopLimit', value: number) {
-    setForm((prev) => (prev ? { ...prev, agent: { ...prev.agent, [key]: value } } : prev))
-  }
-
   /** 恢复出站禁止段为服务端下发的默认段。 */
   function resetOutboundDefaults() {
     setForm((prev) =>
@@ -127,13 +103,7 @@ export function useRuntimeConfigForm(data: RuntimeConfig | undefined) {
       ...(pristine.modelCatalog.syncIntervalMinutes !== form.modelCatalog.syncIntervalMinutes
         ? { modelCatalog: { syncIntervalMinutes: form.modelCatalog.syncIntervalMinutes } }
         : {}),
-      ...(pristine.agentRemote.enabled !== form.agentRemote.enabled ||
-      pristine.agentRemote.publicUrl.trim() !== form.agentRemote.publicUrl.trim()
-        ? { agentRemote: { enabled: form.agentRemote.enabled, publicUrl: form.agentRemote.publicUrl.trim() } }
-        : {}),
-      ...(pristine.agent.toolLoopLimit !== form.agent.toolLoopLimit
-        ? { agent: { toolLoopLimit: form.agent.toolLoopLimit } }
-        : {}),
+
     }
   }
 
@@ -153,8 +123,6 @@ export function useRuntimeConfigForm(data: RuntimeConfig | undefined) {
     updateSystemLog,
     toggleUsageBody,
     updateOutboundText,
-    updateAgentRemote,
-    updateAgentDefaults,
     resetOutboundDefaults,
     dirtyBlockPayload,
   }

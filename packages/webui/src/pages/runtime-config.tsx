@@ -33,8 +33,6 @@ import { SettingSection, SettingRow } from "@/components/ui/setting-card";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 import { useToast } from "@/components/ui/use-toast";
 import { useRuntimeConfigForm } from "./runtime-config/use-runtime-config-form";
-import { AgentDefaultsSection } from "./runtime-config/agent-defaults-section";
-import { AgentRemoteSection } from "./runtime-config/agent-remote-section";
 import {
   useUsageStorage,
   useLogMaintenance,
@@ -63,8 +61,6 @@ function catalogSourceLabel(source: string): string {
 const configTabs = [
   ["basic", "基础设置"],
   ["security", "安全设置"],
-  ["remote", "远程访问"],
-  ["agent", "AI 助手"],
   ["logs", "日志与存储"],
   ["catalog", "模型目录"],
 ] as const;
@@ -87,8 +83,6 @@ export function RuntimeConfigPage() {
     updateSystemLog,
     toggleUsageBody,
     updateOutboundText,
-    updateAgentRemote,
-    updateAgentDefaults,
     resetOutboundDefaults,
     dirtyBlockPayload,
     isDirty,
@@ -250,7 +244,6 @@ export function RuntimeConfigPage() {
           invalid_database_path: ["basic", "runtime-database"],
           invalid_outbound: ["security", "runtime-outbound"],
           invalid_proxy_url: ["security", "runtime-proxy"],
-          invalid_public_url: ["remote", "runtime-public-url"],
           invalid_sync_interval: ["catalog", "runtime-catalog-interval"],
           invalid_log_level: ["logs", "runtime-log-level"],
         };
@@ -502,20 +495,6 @@ export function RuntimeConfigPage() {
               </div>
             </SettingSection>
 
-          </Tabs.Content>
-          <Tabs.Content value="remote" forceMount className="space-y-8 outline-none data-[state=inactive]:hidden">
-            <AgentRemoteSection
-              form={form}
-              onToggle={(enabled) => updateAgentRemote("enabled", enabled)}
-              onPublicUrlChange={(url) => updateAgentRemote("publicUrl", url)}
-            />
-
-          </Tabs.Content>
-          <Tabs.Content value="agent" forceMount className="space-y-8 outline-none data-[state=inactive]:hidden">
-            <AgentDefaultsSection
-              toolLoopLimit={form?.agent.toolLoopLimit ?? 30}
-              onToolLoopLimitChange={(value) => updateAgentDefaults("toolLoopLimit", value)}
-            />
           </Tabs.Content>
           <Tabs.Content value="logs" forceMount className="grid items-start gap-8 space-y-8 outline-none data-[state=inactive]:hidden lg:grid-cols-2">
             <SettingSection

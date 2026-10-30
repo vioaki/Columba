@@ -1,4 +1,6 @@
 <div align="center">
+
+The local panel requires no login. Inference clients still use API keys. Assistant sessions and REST/MCP/A2A remote management have been removed.
   <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Columba"></p>
   <p><strong>A lightweight, self-hosted AI gateway.</strong><br>
     Model access, protocol conversion, and AI-assisted operations.</p>
@@ -16,9 +18,8 @@
 
 - Protocols: Chat Completions API / Responses API, Anthropic API, and Gemini API; streaming conversion and same-protocol passthrough
 - Routing: model groups, load balancing, multiple API keys, concurrency and quota limits, per-key model discovery
-- Declarative extensions: author bidirectional protocols with the editor or native Agent, verify offline, then activate; HTTP JSON, SSE, NDJSON, WebSocket and persistent asynchronous jobs
+- Declarative extensions: author bidirectional protocols with the editor, verify offline, then activate; HTTP JSON, SSE, NDJSON, WebSocket and persistent asynchronous jobs
 - AI operations: protocol onboarding, usage analysis, and troubleshooting; writes follow session approval policies
-- Management: embedded WebUI and remote REST / MCP / A2A access; CLI commands run through Agent tools
 - Security: sensitive fields encrypted when the master key loads successfully, outbound IP policies, usage records, and request logs
 
 See the [documentation index](docs/README.en.md) for capabilities and implementation details.
@@ -29,7 +30,6 @@ See the [documentation index](docs/README.en.md) for capabilities and implementa
 | :---: | :---: |
 | ![Overview](docs/assets/webui-overview.webp) | ![Protocol mappings](docs/assets/webui-protocol-mapping.webp) |
 | AI assistant | Runtime configuration |
-| ![AI assistant](docs/assets/webui-agent.webp) | ![Runtime configuration](docs/assets/webui-runtime.webp) |
 
 [Login animation](packages/webui/public/assets/elysia-login.mp4)
 
@@ -126,7 +126,6 @@ Run `docker logs columba` to obtain the initial panel token. See [deployment](do
 
    The reply is in `choices[0].message.content`. For 401, check the relay token; if no model is available, check the source, group members and enabled states.
 
-   The panel token is for management, relay tokens are for `/v1` and `/v1beta`, and keys with the `agent` scope are for remote operations. See [authentication](docs/remote-agent-api.en.md#authentication).
 
 ## Configuration
 
@@ -150,9 +149,7 @@ See [deployment](docs/deployment.en.md) for configuration fields, environment va
 - [Custom protocols](docs/protocol-definition-reference.en.md)
 - [Protocol architecture, capabilities and migration](docs/protocol-guide.en.md)
 - [Protocol validation and release checks](docs/protocol-release-readiness.en.md)
-- [Remote AI agent access](docs/remote-agent-api.en.md)
 - [Management API](docs/webui-api.en.md)
-- [CLI reference](docs/agent-cli.en.md)
 
 ## Build
 

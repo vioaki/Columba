@@ -114,18 +114,7 @@ func (s *Server) doShutdown() {
 		if s.usageRetention != nil {
 			s.usageRetention.cancel()
 		}
-		s.agentEngineMu.Lock()
-		s.agentEngineClosed = true
-		agentEngine := s.agentEngineInst
-		s.agentEngineMu.Unlock()
 		storageSafe := true
-		if agentEngine != nil {
-			if err := agentEngine.Shutdown(ctx); err != nil {
-				s.logEvent("error").Err(err).Msg("agent shutdown error")
-				s.shutdownErr = errors.Join(s.shutdownErr, err)
-				storageSafe = false
-			}
-		}
 		// Sessions and jobs own long-lived connections and stop before HTTP drains.
 		s.gatewaySessions.stop()
 		s.gatewayJobs.stop()

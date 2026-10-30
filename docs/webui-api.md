@@ -12,7 +12,7 @@ WebUI 使用 `/api/admin` 管理网关。路由定义见 [admin.go](../backend/s
 Authorization: Bearer <PANEL_TOKEN>
 ```
 
-面板令牌来自 `config.json`。浏览器还可通过 `panel_access_token` Cookie 认证。推理令牌与 Agent Key 不代替面板令牌。请求通常使用 `Content-Type: application/json`。
+管理接口限定回环地址，验证 Host 与浏览器 Origin，不使用面板令牌或 Cookie。
 
 ## 响应
 
@@ -49,13 +49,10 @@ Authorization: Bearer <PANEL_TOKEN>
 {
   "httpTimeout": 120,
   "usageLog": {"bodyMaxKB": 0, "retentionDays": 30},
-  "agentRemote": {"enabled": true, "publicUrl": "https://gw.example.com"}
 }
 ```
 
-可更新字段：`host`、`port`、`logLevel`、`httpTimeout`、`panelAccessToken`、`databasePath`、`enablePprof`、`outbound.deniedIpRanges`、`usageLog`、`systemLog`、`modelCatalog.syncIntervalMinutes`、`agentRemote`。
 
-省略字段保持原值。`usageLog` 支持逐字段更新，`0` 是有效值；`outbound` 替换整个禁止段列表，空列表全部放行。`agentRemote.publicUrl: ""` 清空对外地址。`webuiDir`、`secretKeyPath`、`maxBodyBytes` 不在此更新接口中。
 
 监听地址、端口、数据库路径和 pprof 变更要求重启；HTTP 超时、日志正文策略等可对后续请求生效。`bodyMaxKB` 默认 0，保存正文需显式开启；清理参数在后台下一轮巡检读取。不要记录或公开运行配置响应中的令牌。
 
@@ -142,7 +139,6 @@ Authorization: Bearer <PANEL_TOKEN>
 | PUT / DELETE | `/api/admin/api-tokens/:name` | 更新 / 删除 |
 | GET | `/api/admin/api-tokens/:name/reveal` | 按需读取明文 `{name, token}` |
 
-创建要求非空 token；更新时 token 为空保留原密钥，省略 `allowedGroups` / `scopes` 保留原值，显式空数组清空。改名通过 `newName`；改名失败不回滚此前已保存的属性。普通令牌的空 `allowedGroups` 表示不限制模型组。带 `agent` 作用域的 Key 用于远程运维，被推理端点拒绝。
 
 ## 用量
 
@@ -185,7 +181,6 @@ Authorization: Bearer <PANEL_TOKEN>
 
 客户端的新协议入口为 `/gateway/:protocolId/*path`，按活动定义分派 HTTP、WebSocket 或任务操作；使用网关统一推理授权。既有四个公共协议入口保留，使用同一内核。不能通过协议定义绕过授权或伪造能力，详见[指南](protocol-guide.md)。
 
-`/api/admin/agent/*` 与[远程 REST](remote-agent-api.md#rest)共用会话 handler，但使用面板令牌。创建／编辑会话、消息、审批、停止、截断和草稿恢复均见该文档。助手通过 `elysia_cli` 执行运维，另有 `ask_user`、`update_plan`；模型调用计入用量，`relayMode=agent-assist`。凭证在会话视图中脱敏，测试凭证的复用限协议测试相关命令。
 
 ## 系统日志与健康
 

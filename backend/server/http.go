@@ -62,19 +62,7 @@ func (s *Server) setupRoutes() {
 	admin.Use(s.localPanelMiddleware())
 	{
 		s.setupAdminRoutes(admin)
-		s.setupAgentRoutes(admin)
 	}
-
-	// AI 助手远程面：REST + MCP + A2A，共用 Bearer API key（agent 作用域）
-	// 鉴权与 config.agentRemote 总开关。
-	remote := s.engine.Group("/api")
-	remote.Use(s.agentRemoteGate(), s.agentRemoteAuth())
-	{
-		s.setupAgentRemoteRoutes(remote)
-	}
-	s.engine.Any("/mcp", s.agentRemoteGate(), s.agentRemoteAuth(), s.handleMCP)
-	s.engine.GET("/.well-known/agent-card.json", s.agentRemoteGate(), s.handleAgentCard)
-	s.engine.POST("/a2a", s.agentRemoteGate(), s.agentRemoteAuth(), s.handleA2A)
 
 	s.engine.GET("/health", s.healthCheck)
 	s.engine.POST("/__reload", s.loopbackOnly(), s.localPanelMiddleware(), s.reloadConfig)

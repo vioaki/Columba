@@ -39,23 +39,6 @@ func createDataSchema(ctx context.Context, db *sql.DB, logs bool) error {
 		`CREATE TABLE IF NOT EXISTS usage_asset_refs (asset_file TEXT NOT NULL REFERENCES usage_assets(asset_file), request_id TEXT NOT NULL REFERENCES usage_records(request_id) ON DELETE CASCADE, PRIMARY KEY(asset_file, request_id))`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_asset_refs_request ON usage_asset_refs(request_id)`,
 	}
-	businessStatements = append(businessStatements,
-		`CREATE TABLE IF NOT EXISTS agent_sessions (
-			id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', mode TEXT NOT NULL DEFAULT 'create',
-			protocol_id TEXT NOT NULL DEFAULT '', seed_config TEXT NOT NULL DEFAULT '',
-			draft_config TEXT NOT NULL DEFAULT '', draft_restore TEXT NOT NULL DEFAULT '',
-			test_base_url TEXT NOT NULL DEFAULT '', test_api_key TEXT NOT NULL DEFAULT '',
-			model_source_id TEXT NOT NULL DEFAULT '', model_name TEXT NOT NULL DEFAULT '',
-			thinking_enabled INTEGER NOT NULL DEFAULT 0, thinking_effort TEXT NOT NULL DEFAULT '',
-			plan_mode INTEGER NOT NULL DEFAULT 0, allow_live_test TEXT NOT NULL DEFAULT 'ask',
-			allow_save TEXT NOT NULL DEFAULT 'ask', allow_delete TEXT NOT NULL DEFAULT 'ask',
-			max_model_calls INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'idle',
-			pending_action TEXT, plan_json TEXT NOT NULL DEFAULT '', plan_summary TEXT NOT NULL DEFAULT '',
-			created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS agent_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, seq INTEGER NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, model TEXT NOT NULL DEFAULT '', usage_json TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(session_id, seq))`,
-		`CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(session_id, seq)`,
-		`CREATE INDEX IF NOT EXISTS idx_agent_sessions_updated_at ON agent_sessions(updated_at)`,
-	)
 	logStatements = append(logStatements,
 		`CREATE TABLE IF NOT EXISTS usage_rollup_hour (
 			hour_ms INTEGER NOT NULL, model_name TEXT NOT NULL DEFAULT '', group_name TEXT NOT NULL DEFAULT '',

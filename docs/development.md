@@ -19,7 +19,6 @@ Python 与视觉依赖仅用于重做登录素材，常规前端和发行构建�
 
 ```text
 backend/
-  agent/       # Agent engine
   config/      # Explicit configuration loading and runtime policies
   internal/
     routing/   # Route snapshots, scheduling and quotas
@@ -135,7 +134,6 @@ CLI 中文手册来自命令表及帮助渲染器。不要直接编辑生成结�
 UPDATE_AGENT_CLI_DOCS=1 go test ./server -run '^TestCLIReferenceUpToDate$' -count=1
 ```
 
-文档开头、导航和章节格式由 `agent_cli_contract_test.go` 中的生成模板控制。英文手册是完整人工译本；命令变更时同步检查参数、示例和权限说明，运行不带更新变量的同一测试确认中文未过期。
 
 ## 提交检查
 

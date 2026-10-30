@@ -40,35 +40,6 @@ func (s *Server) authMiddleware() app.HandlerFunc {
 	}
 }
 
-// All remote Agent surfaces share scope checks and WWW-Authenticate responses.
-func (s *Server) agentRemoteAuth() app.HandlerFunc {
-	return func(ctx context.Context, c *app.RequestContext) {
-		accessToken, ok := s.findAccessToken(extractAccessToken(c))
-		if !ok {
-			c.Header("WWW-Authenticate", `Bearer realm="elysia-agent"`)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, utils.H{"error": "invalid or missing API key"})
-			return
-		}
-		if !accessTokenHasScope(accessToken, storage.TokenScopeAgent) {
-			c.Header("WWW-Authenticate", `Bearer realm="elysia-agent", scope="agent"`)
-			c.AbortWithStatusJSON(http.StatusForbidden, utils.H{"error": "this API key does not carry the agent scope"})
-			return
-		}
-		c.Set("elysiaKeyName", accessToken.Name)
-		c.Next(ctx)
-	}
-}
-
-func (s *Server) agentRemoteGate() app.HandlerFunc {
-	return func(ctx context.Context, c *app.RequestContext) {
-		if !s.config.GetAgentRemote().AgentRemoteEnabled() {
-			c.AbortWithStatusJSON(http.StatusNotFound, utils.H{"error": "agent remote surface is disabled"})
-			return
-		}
-		c.Next(ctx)
-	}
-}
-
 func accessTokenHasScope(token config.AccessToken, scope string) bool {
 	return slices.Contains(token.Scopes, scope)
 }

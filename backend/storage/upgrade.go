@@ -211,7 +211,16 @@ func migrateDatabase(ctx context.Context, db *sql.DB, version int, logs bool) er
 		return err
 	}
 	defer tx.Rollback()
-	// Version 3 / 2 establish the Columba migration baseline without data changes.
+	if !logs && version < 4 {
+		for _, statement := range []string{
+			`DELETE FROM api_tokens WHERE EXISTS (SELECT 1 FROM json_each(api_tokens.scopes) WHERE value='agent')`,
+			`DROP TABLE IF EXISTS agent_messages`, `DROP TABLE IF EXISTS agent_sessions`,
+		} {
+			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return err
+			}
+		}
+	}
 	if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version=%d", target)); err != nil {
 		return err
 	}

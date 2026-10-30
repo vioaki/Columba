@@ -16,13 +16,6 @@
   },
   "secretKeyPath": ".master-key",
   "openBrowserOnStart": true,
-  "agentRemote": {
-    "enabled": true,
-    "publicUrl": ""
-  },
-  "agent": {
-    "toolLoopLimit": 30
-  },
   "outbound": {
     "proxyUrl": "",
     "deniedIpRanges": [

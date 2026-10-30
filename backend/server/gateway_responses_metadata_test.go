@@ -2,18 +2,16 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 
-	"github.com/bytedance/sonic"
-	"columba.local/backend/agent"
 	p "columba.local/backend/protocol"
 	"columba.local/backend/protocol/builtin"
 	"columba.local/backend/storage"
+	"github.com/bytedance/sonic"
 )
 
 const gatewayMetadataPayload = `{"openai_chatgpt_moderation_metadata":{"generation":{},"prompt":{"omnimod":{"outputs":[{"protection_type":"fixture"}]}}},"fixture":"auxiliary-metadata-fixture"}`
@@ -233,88 +231,5 @@ func TestGatewayResponsesMetadataFullStreamsAndPreview(t *testing.T) {
 		if !found {
 			t.Fatal("missing metadata combination evidence")
 		}
-	}
-}
-
-func TestAgentCallerResponsesMetadataToolContinuation(t *testing.T) {
-	s := newAgentIntegrationServer(t)
-	const reasoning = `{"type":"reasoning","id":"thought","status":"completed","summary":[],"encrypted_content":"synthetic-agent-encrypted-state"}`
-	const tool = `{"type":"function_call","id":"tool","call_id":"call-agent","name":"elysia_cli","arguments":"{\"command\":\"elysia group ls\"}","status":"completed"}`
-	complete := `{"id":"r","object":"response","created_at":1,"model":"fake-model","status":"completed","output":[` + reasoning + `,` + tool + `],"usage":{"input_tokens":3,"output_tokens":2,"total_tokens":5}}`
-	var initial []p.Value
-	for _, frame := range []string{
-		`{"type":"response.created","response":{"id":"r","object":"response","created_at":1,"model":"fake-model","status":"in_progress","output":[]}}`,
-		`{"type":"response.output_item.added","output_index":0,"item":{"type":"reasoning","id":"thought","status":"in_progress","summary":[]}}`,
-		`{"type":"response.output_item.done","output_index":0,"item":` + reasoning + `}`,
-		`{"type":"response.output_item.added","output_index":1,"item":{"type":"function_call","id":"tool","call_id":"call-agent","name":"elysia_cli","arguments":"","status":"in_progress"}}`,
-		`{"type":"response.function_call_arguments.delta","output_index":1,"item_id":"tool","delta":"{\"command\":\"elysia group ls\"}"}`,
-		`{"type":"response.output_item.done","output_index":1,"item":` + tool + `}`,
-		`{"type":"response.completed","response":` + complete + `}`,
-	} {
-		initial = append(initial, mustProtocolValue(t, frame))
-	}
-	initial = insertResponsesMetadata(t, initial)
-	var followup []p.Value
-	for _, fixture := range cacheWireFixtures() {
-		if fixture.platform == "responses" {
-			for _, line := range strings.Split(fixture.stream, "\n") {
-				if strings.HasPrefix(line, "data: {") {
-					followup = append(followup, mustProtocolValue(t, strings.TrimPrefix(line, "data: ")))
-				}
-			}
-		}
-	}
-	followup = insertResponsesMetadata(t, followup)
-	upstream := newCapturingUpstream(t, func(w http.ResponseWriter, body string, call int) {
-		if call > 1 {
-			for _, want := range []string{`"encrypted_content":"synthetic-agent-encrypted-state"`, `"type":"function_call"`, `"type":"function_call_output"`, `"call_id":"call-agent"`} {
-				if !strings.Contains(body, want) {
-					t.Error("missing continuation history", want)
-				}
-			}
-		}
-		if strings.Contains(body, "auxiliary-metadata-fixture") || strings.Contains(body, "openai_chatgpt_moderation_metadata") {
-			t.Error("metadata entered Agent continuation request")
-		}
-		frames := initial
-		if call > 1 {
-			frames = followup
-		}
-		w.Header().Set("Content-Type", "text/event-stream")
-		for _, frame := range frames {
-			_, _ = io.WriteString(w, "data: "+frame.JSONString()+"\n\n")
-		}
-	})
-	seedCallerModel(t, s, upstream.URL, "responses")
-	bindings, err := s.store.ListProtocolBindings(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, binding := range bindings {
-		binding.Binding.Transports = []p.Transport{p.SSE}
-		if err := s.store.SaveProtocolBinding(t.Context(), binding); err != nil {
-			t.Fatal(err)
-		}
-	}
-	session, err := s.store.CreateAgentSession(t.Context(), storage.AgentSessionUpsert{Mode: "create", Settings: agent.Settings{ModelSourceID: "cs1", ModelName: "fake-model", ThinkingEnabled: true, ThinkingEffort: "high"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	registry, err := agent.NewRegistry(&elysiaCLITool{server: s})
-	if err != nil {
-		t.Fatal(err)
-	}
-	engine := agent.NewEngine(newAgentStreamCaller(s), s.store, registry, newAgentUserContentRenderer(s), nil, agent.Options{})
-	events, err := engine.RunTurn(t.Context(), session.ID, &agent.UserContent{Text: "inspect groups"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for event := range events {
-		if event.Type == agent.EventError {
-			t.Fatal(event.Text)
-		}
-	}
-	if upstream.requestCount() != 2 {
-		t.Fatal("tool round did not complete once", upstream.requestCount())
 	}
 }

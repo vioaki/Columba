@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"path/filepath"
 	"testing"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestTokenMutationConflictsAreAtomic(t *testing.T) {
-	for _, kind := range []string{"admin", "cli"} {
+	for _, kind := range []string{"admin"} {
 		t.Run(kind, func(t *testing.T) {
 			st, err := storage.Open(filepath.Join(t.TempDir(), "review.sqlite"))
 			if err != nil {
@@ -38,14 +37,6 @@ func TestTokenMutationConflictsAreAtomic(t *testing.T) {
 					t.Fatalf("partial mutation: code=%d enabled=%t err=%v", r.Code, first.Enabled, err)
 				}
 				t.Log("conflicting rename leaves DB and cache unchanged")
-			} else {
-				result := (&updateAPIKeyTool{server: s}).Execute(ctx, &opsTestContext{}, json.RawMessage(`{"name":"first","newName":"renamed","newSecret":"synthetic-second"}`))
-				_, old, _ := st.FindAPITokenByName(ctx, "first")
-				_, renamed, _ := st.FindAPITokenByName(ctx, "renamed")
-				if result.OK || !old || renamed {
-					t.Fatalf("partial mutation: ok=%t old=%t renamed=%t", result.OK, old, renamed)
-				}
-				t.Log("duplicate secret rolls rename back")
 			}
 		})
 	}

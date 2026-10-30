@@ -206,3 +206,47 @@ func TestUpgradeBackupIncludesCommittedWAL(t *testing.T) {
 		t.Fatal("committed WAL missing from backup", err)
 	}
 }
+
+func TestUpgradeRetiresAssistantWithoutPromotingItsKeys(t *testing.T) {
+	path, logs, key := previousDatabases(t)
+	db, err := openUpgradeDatabase(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE agent_sessions(id TEXT); INSERT INTO agent_sessions VALUES('retired'); CREATE TABLE agent_messages(id TEXT); INSERT INTO api_tokens(name,token,scopes,created_at,updated_at) VALUES('assistant','old','["agent"]','','')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	if err := UpgradeDatabases(path, logs, ""); err != nil {
+		t.Fatal(err)
+	}
+	st, err := OpenWithKey(path, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if _, found, err := st.FindAPITokenByName(t.Context(), "assistant"); err != nil || found {
+		t.Fatal("assistant key was promoted", err)
+	}
+	var count int
+	if err := st.db.QueryRow(`SELECT count(*) FROM sqlite_schema WHERE name IN ('agent_sessions','agent_messages')`).Scan(&count); err != nil || count != 0 {
+		t.Fatal("retired tables remain", count, err)
+	}
+	var journal upgradeJournal
+	raw, err := os.ReadFile(path + ".upgrade.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &journal); err != nil {
+		t.Fatal(err)
+	}
+	backup, err := openUpgradeDatabase(journal.Files[0].Backup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backup.Close()
+	if err := backup.QueryRow(`SELECT count(*) FROM agent_sessions`).Scan(&count); err != nil || count != 1 {
+		t.Fatal("backup lost retired data", count, err)
+	}
+}

@@ -7,9 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/route"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"columba.local/backend/agent"
 	"columba.local/backend/config"
 	"columba.local/backend/internal/admission"
 	"columba.local/backend/internal/routing"
@@ -75,15 +73,6 @@ type Server struct {
 
 	// Test-only preflight bypass for local httptest upstreams; false in production.
 	skipOutboundValidation bool
-
-	agentEngineOnce   sync.Once
-	agentEngineMu     sync.Mutex
-	agentEngineClosed bool
-	agentEngineInst   *agent.Engine
-	a2aOnce           sync.Once
-	a2aRuntime        *a2aService
-	mcpOnce           sync.Once
-	mcpHandler        *mcp.Server
 
 	protocolServiceOnce       sync.Once
 	protocolServiceInst       *protocol.Service

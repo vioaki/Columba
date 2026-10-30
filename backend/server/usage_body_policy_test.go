@@ -9,9 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bytedance/sonic"
-	"columba.local/backend/agent"
 	"columba.local/backend/config"
+	"github.com/bytedance/sonic"
 )
 
 func TestGatewayUsageBodyPolicy(t *testing.T) {
@@ -94,41 +93,5 @@ func TestGatewayUsageBodyPolicy(t *testing.T) {
 				})
 			}
 		}
-	}
-}
-
-func TestAgentCallerDefaultLogsMetadataOnly(t *testing.T) {
-	for _, fail := range []bool{false, true} {
-		t.Run(fmt.Sprintf("error=%t", fail), func(t *testing.T) {
-			s := newAgentIntegrationServer(t)
-			upstream := newCapturingUpstream(t, func(w http.ResponseWriter, _ string, _ int) {
-				if fail {
-					w.WriteHeader(http.StatusBadRequest)
-					fmt.Fprint(w, `{"error":{"message":"bad request"}}`)
-					return
-				}
-				w.Header().Set("Content-Type", "text/event-stream")
-				fmt.Fprint(w, openAIChunk("c1", map[string]any{"role": "assistant", "content": "private-response"}, "stop", map[string]any{"prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5}), openAIDone())
-			})
-			seedCallerModel(t, s, upstream.URL, "openai")
-			result, err := newAgentStreamCaller(s).Call(t.Context(), callerRequest(), agent.StreamCallbacks{})
-			if (err != nil) != fail {
-				t.Fatalf("Call error=%v", err)
-			}
-			if !fail && (result.Text != "private-response" || result.Usage == nil || result.Usage.Total.Count != 5) {
-				t.Fatalf("result=%+v", result)
-			}
-			logs := latestUsageRecords(t, s)
-			if len(logs) != 1 || (!fail && logs[0].TotalTokens != 5) {
-				t.Fatalf("logs=%+v", logs)
-			}
-			var record usageRecord
-			if err := sonic.ConfigStd.Unmarshal([]byte(storedRecordJSON(t, s.store, logs[0].RequestID)), &record); err != nil {
-				t.Fatal(err)
-			}
-			if record.IncomingBody.Content != "" || record.OutgoingBody.Content != "" || record.ProviderResponse.Content != "" || record.DownstreamResponse.Content != "" {
-				t.Fatalf("agent retained bodies: %+v", record)
-			}
-		})
 	}
 }

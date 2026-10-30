@@ -16,8 +16,6 @@ import (
 
 func TestConfigUpdatePreservesUnknownSectionFields(t *testing.T) {
 	const original = `{"logLifecycleVersion":1,"httpTimeout":5,
-		"agent":{"toolLoopLimit":12,"vendor":{"n":9007199254740993}},
-		"agentRemote":{"publicUrl":"https://old.example","vendor":9007199254740993},
 		"modelCatalog":{"url":"https://old.example/catalog","vendor":9007199254740993},
 		"systemLog":{"maxRecords":100,"vendor":9007199254740993},
 		"usageLog":{"bodyMaxKB":32,"vendor":9007199254740993},
@@ -34,8 +32,7 @@ func TestConfigUpdatePreservesUnknownSectionFields(t *testing.T) {
 		if err := cfg.Update(func(candidate *Config) error {
 			candidate.SetHTTPTimeout(30)
 			if shouldClearSettings {
-				candidate.Agent = AgentDefaultsConfig{}
-				candidate.AgentRemote = AgentRemoteConfig{}
+
 				candidate.ModelCatalog = ModelCatalogConfig{}
 				candidate.SystemLog = LogRetentionConfig{}
 				candidate.UsageLog = UsageLogConfig{}
@@ -54,8 +51,8 @@ func TestConfigUpdatePreservesUnknownSectionFields(t *testing.T) {
 			t.Fatal(err)
 		}
 		for section, managedField := range map[string]string{
-			"agent": "toolLoopLimit", "agentRemote": "publicUrl", "modelCatalog": "url",
-			"systemLog": "maxRecords", "usageLog": "bodyMaxKB", "outbound": "deniedIpRanges",
+			"modelCatalog": "url",
+			"systemLog":    "maxRecords", "usageLog": "bodyMaxKB", "outbound": "deniedIpRanges",
 		} {
 			var fields map[string]json.RawMessage
 			if err := sonic.ConfigStd.Unmarshal(sections[section], &fields); err != nil {
@@ -87,7 +84,7 @@ func TestConfigUpdatePreservesUnknownSectionFields(t *testing.T) {
 
 func TestConfigUpdateRejectsInvalidStoredSection(t *testing.T) {
 	cfg, path := loadUpdateConfig(t)
-	for _, section := range []string{"agent", "agentRemote", "modelCatalog", "usageLog", "systemLog", "outbound"} {
+	for _, section := range []string{"modelCatalog", "usageLog", "systemLog", "outbound"} {
 		invalid := []byte(`{"logLifecycleVersion":1,"` + section + `":42}`)
 		if err := os.WriteFile(path, invalid, 0o600); err != nil {
 			t.Fatal(err)
@@ -99,7 +96,7 @@ func TestConfigUpdateRejectsInvalidStoredSection(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Equal(saved, invalid) || cfg.GetHTTPTimeout() != 0 {
+		if !bytes.Equal(saved, invalid) || cfg.GetHTTPTimeout() != 12 {
 			t.Fatalf("failed %s update changed file or memory", section)
 		}
 	}
@@ -108,7 +105,7 @@ func TestConfigUpdateRejectsInvalidStoredSection(t *testing.T) {
 func loadUpdateConfig(t *testing.T) (*Config, string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "config.json")
-	if err := os.WriteFile(path, []byte(`{"logLifecycleVersion":1,"agent":{"toolLoopLimit":12},"vendor":{"n":9007199254740993},"outbound":{"deniedIpRanges":[]}}`), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(`{"logLifecycleVersion":1,"httpTimeout":12,"vendor":{"n":9007199254740993},"outbound":{"deniedIpRanges":[]}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := Load(path)
@@ -118,9 +115,9 @@ func loadUpdateConfig(t *testing.T) (*Config, string) {
 	return cfg, path
 }
 
-func TestAgentSettingsSaveAndReload(t *testing.T) {
+func TestSettingsSaveAndReload(t *testing.T) {
 	cfg, path := loadUpdateConfig(t)
-	cfg.SetAgentToolLoopLimit(17)
+	cfg.SetHTTPTimeout(17)
 	if err := cfg.Save(); err != nil {
 		t.Fatal(err)
 	}
@@ -128,8 +125,8 @@ func TestAgentSettingsSaveAndReload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.ResolveAgentToolLoopLimit() != 17 {
-		t.Fatal("saved Agent setting lost")
+	if loaded.GetHTTPTimeout() != 17 {
+		t.Fatal("saved setting lost")
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -138,14 +135,23 @@ func TestAgentSettingsSaveAndReload(t *testing.T) {
 	if !strings.Contains(string(raw), "9007199254740993") {
 		t.Fatal("unknown configuration was rounded")
 	}
-	if err := os.WriteFile(path, []byte(strings.Replace(string(raw), "17", "19", 1)), 0o600); err != nil {
+	var settings map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &settings); err != nil {
+		t.Fatal(err)
+	}
+	settings["httpTimeout"] = json.RawMessage("19")
+	raw, err = json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := cfg.Reload(); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ResolveAgentToolLoopLimit() != 19 {
-		t.Fatal("Reload ignored Agent configuration")
+	if cfg.GetHTTPTimeout() != 19 {
+		t.Fatal("Reload ignored configuration")
 	}
 }
 
@@ -153,13 +159,13 @@ func TestConfigUpdateFailureDoesNotPublish(t *testing.T) {
 	cfg, path := loadUpdateConfig(t)
 	before, _ := os.ReadFile(path)
 	if err := cfg.Update(func(candidate *Config) error {
-		candidate.SetAgentToolLoopLimit(70)
+		candidate.SetHTTPTimeout(70)
 		return errors.New("preparation failed")
 	}); err == nil {
 		t.Fatal("expected preparation failure")
 	}
 	after, _ := os.ReadFile(path)
-	if string(before) != string(after) || cfg.ResolveAgentToolLoopLimit() != 12 {
+	if string(before) != string(after) || cfg.GetHTTPTimeout() != 12 {
 		t.Fatal("failed preparation mutated configuration")
 	}
 	if err := os.Rename(path, path+".original"); err != nil {
@@ -168,10 +174,10 @@ func TestConfigUpdateFailureDoesNotPublish(t *testing.T) {
 	if err := os.Mkdir(path, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := cfg.Update(func(candidate *Config) error { candidate.SetAgentToolLoopLimit(80); return nil }); err == nil {
+	if err := cfg.Update(func(candidate *Config) error { candidate.SetHTTPTimeout(80); return nil }); err == nil {
 		t.Fatal("expected storage failure")
 	}
-	if cfg.ResolveAgentToolLoopLimit() != 12 {
+	if cfg.GetHTTPTimeout() != 12 {
 		t.Fatal("failed save published candidate")
 	}
 }
@@ -183,7 +189,6 @@ func TestConfigUpdateSerializesConcurrentChanges(t *testing.T) {
 		workers.Go(func() {
 			if err := cfg.Update(func(candidate *Config) error {
 				candidate.SetHTTPTimeout(candidate.GetHTTPTimeout() + 1)
-				candidate.SetAgentToolLoopLimit(candidate.GetAgentDefaults().ToolLoopLimit + 1)
 				return nil
 			}); err != nil {
 				t.Error(err)
@@ -191,14 +196,14 @@ func TestConfigUpdateSerializesConcurrentChanges(t *testing.T) {
 		})
 	}
 	workers.Wait()
-	if cfg.GetHTTPTimeout() != 10 || cfg.ResolveAgentToolLoopLimit() != 22 {
+	if cfg.GetHTTPTimeout() != 22 {
 		t.Fatal("concurrent update was lost")
 	}
 	loaded, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.GetHTTPTimeout() != 10 || loaded.ResolveAgentToolLoopLimit() != 22 || loaded.GetOutboundConfig().DeniedIPRanges == nil || len(loaded.GetOutboundConfig().DeniedIPRanges) != 0 {
+	if loaded.GetHTTPTimeout() != 22 || loaded.GetOutboundConfig().DeniedIPRanges == nil || len(loaded.GetOutboundConfig().DeniedIPRanges) != 0 {
 		t.Fatal("persisted state differs")
 	}
 }

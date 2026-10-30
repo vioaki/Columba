@@ -187,33 +187,7 @@ func TestProtocolHistoryDurableJobBlocksPurge(t *testing.T) {
 	}
 }
 
-func TestProtocolHistoryEditorSessionBlocksPurge(t *testing.T) {
-	store := newAgentTestStore(t)
-	service := newRevisionService(t, store)
-	_, revision := verifySavedDraft(t, service, revisionFixture(t, "1"), "")
-	session, err := store.CreateAgentSession(t.Context(), AgentSessionUpsert{Title: "编辑中的协议", Mode: "edit", ProtocolID: revision.ProtocolID})
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, _ := store.ProtocolUpgradeBaseline(t.Context())
-	if err := store.ArchiveProtocol(t.Context(), revision.ProtocolID, baseline, "", nil); err != nil {
-		t.Fatal(err)
-	}
-	refs, err := store.ProtocolRevisionReferences(t.Context(), revision.ProtocolID, revision.Hash)
-	if err != nil || len(refs) != 1 || refs[0].Kind != "session" || refs[0].ID != session.ID {
-		t.Fatal(refs, err)
-	}
-	archiveID := revision.ProtocolID + "~" + revision.Hash
-	if err := store.DeleteProtocolHistory(t.Context(), archiveID); !errors.Is(err, protocol.ErrRevisionConflict) {
-		t.Fatal(err)
-	}
-	if _, err := store.DeleteAgentSession(t.Context(), session.ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.DeleteProtocolHistory(t.Context(), archiveID); err != nil {
-		t.Fatal(err)
-	}
-}
+
 
 func TestProtocolHistoryRejectsDeletionOfReferencedRevision(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "refs.sqlite"))

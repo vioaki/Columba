@@ -16,11 +16,9 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"columba.local/backend/agent"
 	"columba.local/backend/config"
-	"columba.local/backend/logging"
 	"columba.local/backend/storage"
+	"github.com/cloudwego/hertz/pkg/app"
 )
 
 func TestCatalogShutdownCancelsAndWaitsForFetch(t *testing.T) {
@@ -57,96 +55,6 @@ func TestCatalogShutdownCancelsAndWaitsForFetch(t *testing.T) {
 	<-done
 	if catalog.triggerRefreshIfNeeded(true) {
 		t.Error("closed catalog accepted a new fetch")
-	}
-}
-
-type shutdownStreamCaller struct {
-	server  *Server
-	started chan struct{}
-	release chan struct{}
-}
-
-func (c *shutdownStreamCaller) Call(ctx context.Context, _ agent.CallRequest, _ agent.StreamCallbacks) (*agent.CallResult, error) {
-	close(c.started)
-	select {
-	case <-ctx.Done():
-	case <-c.release:
-	}
-	c.server.recordUsage(&usageRecord{RequestID: "last-agent-call", StartedAt: time.Now(), EndedAt: time.Now(), StatusCode: 499})
-	c.server.logSystemEvent("info", "agent call canceled during shutdown", map[string]any{"request_id": "last-agent-call"})
-	return &agent.CallResult{Text: "partial response"}, ctx.Err()
-}
-
-func TestShutdownStopsDetachedAgentThenFlushesAndClosesStore(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "shutdown.sqlite3")
-	store, err := storage.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	s := &Server{store: store, config: &config.Config{}}
-	s.logger = logging.New(logging.Options{Level: "error", PersistLevel: "error", Format: "json"}, logging.NewWriter(store.LogStore.WriteSystemLogBatch))
-	s.startUsageWriter()
-	session, err := store.CreateAgentSession(context.Background(), storage.AgentSessionUpsert{Settings: agent.Settings{ModelName: "slow"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	caller := &shutdownStreamCaller{server: s, started: make(chan struct{}), release: make(chan struct{})}
-	registry, err := agent.NewRegistry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.agentEngineInst = agent.NewEngine(caller, store, registry, nil, nil, agent.Options{EventBuffer: 1})
-	events, err := s.agentEngineInst.RunTurn(context.Background(), session.ID, &agent.UserContent{Text: "start"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	<-caller.started
-	// A disconnected browser leaves the event buffer full. Shutdown must still drain.
-	done := make(chan struct{})
-	go func() { s.doShutdown(); close(done) }()
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Error("shutdown did not stop the detached Agent turn")
-	}
-	close(caller.release)
-	<-done
-	if s.agentEngineInst.IsRunning(session.ID) {
-		t.Fatal("agent still owns storage after server shutdown")
-	}
-	if _, err := s.agentEngineInst.RunTurn(context.Background(), session.ID, nil); !errors.Is(err, agent.ErrEngineClosed) {
-		t.Errorf("stopped Agent engine accepted another turn: %v", err)
-	}
-	for range events {
-	}
-	if err := store.Ping(context.Background()); err == nil {
-		t.Error("server shutdown did not close storage")
-	}
-	reopened, err := storage.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reopened.Close()
-	finished, err := reopened.GetSession(context.Background(), session.ID)
-	if err != nil || finished.Status != agent.StatusIdle {
-		t.Fatalf("agent terminal status must be persisted before close: session=%+v err=%v", finished, err)
-	}
-	if _, found, err := reopened.GetUsageRecordJSON(context.Background(), "last-agent-call"); err != nil || !found {
-		t.Fatalf("last usage record must be flushed before close: found=%v err=%v", found, err)
-	}
-	_, logs, err := reopened.QuerySystemLogs(t.Context(), 10, 0, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, event := range logs {
-		if event.Message == "agent call canceled during shutdown" {
-			found = true
-		}
-	}
-	if !found || s.shutdownErr != nil {
-		t.Fatalf("final system event not durable: logs=%+v shutdown=%v", logs, s.shutdownErr)
 	}
 }
 

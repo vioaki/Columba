@@ -1,4 +1,6 @@
 <div align="center">
+
+面板仅本机访问且免登录；推理客户端继续使用调用 Key。助手、会话、REST/MCP/A2A 远程管理已移除。
   <p><img src="docs/assets/elysia-banner.webp" width="100%" alt="Columba"></p>
   <p><strong>轻量、自部署的 AI 网关。</strong><br>
     统一模型接入、协议转换与 AI 运维。</p>
@@ -16,9 +18,8 @@
 
 - 多协议兼容：支持 Chat Completions API / Responses API、Anthropic API、Gemini API，流式转换与同协议透传
 - 流量调度：模型组负载均衡、多 Key 调度、并发/配额限制、Key 权限自动探测
-- 声明式扩展：编辑器或内置 Agent 编写双向协议，经离线验证后启用；支持 HTTP JSON、SSE、NDJSON、WebSocket 与持久化异步任务
+- 声明式扩展：编辑器 编写双向协议，经离线验证后启用；支持 HTTP JSON、SSE、NDJSON、WebSocket 与持久化异步任务
 - AI 运维：内置管控助手，支持协议自动接入、用量分析、故障排查，写操作按会话权限审批
-- 多端管控：内嵌 WebUI，提供 REST / MCP / A2A 远程管控，CLI 命令由 Agent 工具执行
 - 安全加固：主密钥加载成功时加密存储敏感字段、出站 IP 策略、用量与请求日志
 
 > 完整能力、实现原理见 [文档目录](docs/README.md)
@@ -29,7 +30,6 @@
 |:--------------------------------------:|:------------------------------------------------:|
 | ![总览](docs/assets/webui-overview.webp) | ![协议映射](docs/assets/webui-protocol-mapping.webp) |
 | AI 助手                                  | 运行配置                                             |
-| ![AI助手](docs/assets/webui-agent.webp)  | ![运行配置](docs/assets/webui-runtime.webp)          |
 
 [登录页动效](packages/webui/public/assets/elysia-login.mp4)
 
@@ -124,7 +124,6 @@ docker run -d --name columba \
 
    返回 JSON 中的 `choices[0].message.content` 即为模型回复。401 检查推理令牌；无可用模型时检查源、组成员及启停状态。
 
-   > 面板令牌用于管理；推理令牌用于 `/v1` 和 `/v1beta`；带 `agent` 作用域的 Key 用于远程运维。详见[鉴权说明](docs/remote-agent-api.md#鉴权)。
 
 ## 配置
 
@@ -146,9 +145,7 @@ docker run -d --name columba \
 - [自定义协议开发](docs/protocol-definition-reference.md)
 - [协议架构、支持矩阵与迁移](docs/protocol-guide.md)
 - [协议验证与发布检查](docs/protocol-release-readiness.md)
-- [AI Agent 远程接入](docs/remote-agent-api.md)
 - [运维与接口参考](docs/webui-api.md)
-- [CLI 命令手册](docs/agent-cli.md)
 
 ## 构建
 

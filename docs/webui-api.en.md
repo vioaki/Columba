@@ -12,7 +12,7 @@ Use the panel token:
 Authorization: Bearer <PANEL_TOKEN>
 ```
 
-The panel token comes from `config.json`. Browsers may also authenticate with the `panel_access_token` cookie. Relay tokens and Agent keys do not replace it. Requests normally use `Content-Type: application/json`.
+Management endpoints are loopback-only and validate Host and browser Origin; panel tokens and cookies are not used.
 
 ## Responses
 
@@ -49,13 +49,10 @@ Partial update example:
 {
   "httpTimeout": 120,
   "usageLog": {"bodyMaxKB": 0, "retentionDays": 30},
-  "agentRemote": {"enabled": true, "publicUrl": "https://gw.example.com"}
 }
 ```
 
-Writable fields: `host`, `port`, `logLevel`, `httpTimeout`, `panelAccessToken`, `databasePath`, `enablePprof`, `outbound.deniedIpRanges`, `usageLog`, `systemLog`, `modelCatalog.syncIntervalMinutes`, and `agentRemote`.
 
-Omitted fields remain unchanged. `usageLog` merges individual fields and accepts explicit `0`. `outbound` replaces the whole deny list; an empty list permits all ranges. `agentRemote.publicUrl: ""` clears the public address. `webuiDir`, `secretKeyPath`, and `maxBodyBytes` are not writable through this endpoint.
 
 Listener, port, database path, and pprof changes require restart. HTTP timeout and body-capture policies can affect subsequent requests; cleanup settings are read on the next background pass. `bodyMaxKB` defaults to 0 and needs a positive value to capture bodies. Do not log or expose the token in configuration responses.
 
@@ -185,7 +182,6 @@ The old `/custom-protocols` execution endpoints are removed. Saving does not act
 
 Custom client ingress uses `/gateway/:protocolId/*path`, dispatching declared HTTP, WebSocket or task operations under unified inference authorization. The four existing public protocol endpoints retain the shared engine. Definitions cannot bypass authorization or manufacture capabilities; see the [guide](protocol-guide.en.md).
 
-`/api/admin/agent/*` shares session handlers with [remote REST](remote-agent-api.en.md#rest), but uses the panel token. See that document for session creation/editing, messages, approvals, stopping, truncation, and draft restoration. The assistant operates through `elysia_cli`, with `ask_user` and `update_plan` as supporting tools. Model calls count toward usage with `relayMode=agent-assist`. Session views mask credentials; test-credential reuse is limited to protocol-testing commands.
 
 ## System logs and health
 

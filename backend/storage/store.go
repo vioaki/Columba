@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/internal/dbpath"
 	"columba.local/backend/internal/storagequery"
+	"github.com/bytedance/sonic"
 )
 
 const sqliteBusyTimeout = 5 * time.Second
-const currentSchemaVersion = 3
+const currentSchemaVersion = 4
 
 func Open(path string) (*Store, error) {
 	return OpenWithKey(path, nil)

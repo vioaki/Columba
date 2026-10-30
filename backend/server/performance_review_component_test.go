@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/spf13/cobra"
 )
 
 // These wrappers are the only affinity API adaptation installed in the pinned
@@ -53,29 +52,7 @@ func BenchmarkReviewCacheAffinity(b *testing.B) {
 	}
 }
 
-// No command execution or remote calls. Library migration deliberately changed
-// rejection rules, so only shared successful literal-command syntax is paired.
-func BenchmarkReviewCLI(b *testing.B) {
-	b.Run("parse", func(b *testing.B) {
-		b.ReportAllocs()
-		for b.Loop() {
-			statement, err := cliParseStatement("elysia usage logs --status failed | grep timeout | head 5")
-			if err != nil || len(statement.pipes) != 2 || len(statement.args) == 0 {
-				b.Fatal("invalid parsed statement", err)
-			}
-		}
-	})
-	b.Run("resolve", func(b *testing.B) {
-		args := []string{"source", "ls"}
-		b.ReportAllocs()
-		for b.Loop() {
-			invocation, err := cliResolve(args)
-			if err != nil || invocation == nil {
-				b.Fatal("invalid invocation", err)
-			}
-		}
-	})
-}
+
 
 // Explanatory lower-bound experiment, not a production redactor replacement.
 // The fallback regexp requires a literal quote. Nested JSON/SSE dispatch and
@@ -97,31 +74,5 @@ func BenchmarkReviewTurnStateScan(b *testing.B) {
 				}
 			})
 		}
-	}
-}
-
-// Current-only explanatory experiment. Each variant runs in its own benchmark
-// process; never toggle Cobra's process-global hook in a production request.
-func BenchmarkReviewCLIWindowsHook(b *testing.B) {
-	for _, disabled := range []bool{false, true} {
-		b.Run(fmt.Sprintf("disabled=%t", disabled), func(b *testing.B) {
-			original := cobra.MousetrapHelpText
-			b.Cleanup(func() { cobra.MousetrapHelpText = original })
-			if disabled {
-				cobra.MousetrapHelpText = ""
-			} else {
-				// Explicitly restore the dependency hook for this isolated control;
-				// production initialization now disables it before any command runs.
-				cobra.MousetrapHelpText = "synthetic benchmark console hook"
-			}
-			args := []string{"source", "ls"}
-			b.ReportAllocs()
-			for b.Loop() {
-				invocation, err := cliResolve(args)
-				if err != nil || invocation == nil {
-					b.Fatal("invalid invocation", err)
-				}
-			}
-		})
 	}
 }

@@ -14,8 +14,8 @@ Columba 的部署、协议、接口和开发参考。首次使用从[快速开�
 
 | 文档 | 内容 |
 | --- | --- |
-| [Protocol v2](protocol-guide.md) | 统一引擎、编辑器、Agent、支持矩阵与迁移 |
-| [协议历史与诊断](protocol-history-and-diagnostics.md) | 归档恢复、引用替换、取消绑定、Claude Code 和 Agent 工具能力诊断 |
+| [Protocol v2](protocol-guide.md) | 统一引擎、编辑器、支持矩阵与迁移 |
+| [协议历史与诊断](protocol-history-and-diagnostics.md) | 归档恢复、引用替换、取消绑定、Claude Code 能力诊断 |
 | [自定义协议](protocol-definition-reference.md) | JSON 定义、字段映射、条件、流式帧和模型发现 |
 | [可配置转换](conversion-implementation.md) | 规则继承、诊断、客户端输出与签名恢复 |
 | [转换能力与边界](protocol-pair-guarantees.md) | 四协议主要能力、已知降级与拒绝条件 |
@@ -29,15 +29,12 @@ Columba 的部署、协议、接口和开发参考。首次使用从[快速开�
 | --- | --- |
 | [管理 API](webui-api.md) | 配置、模型源、模型组、令牌、用量与日志 |
 | [数据模型](webui-data-model.md) | 字段语义、标识、秘密字段、分页和类型来源 |
-| [远程 Agent](remote-agent-api.md) | REST、MCP、A2A、鉴权、会话与审批 |
-| [CLI 参考](agent-cli.md) | `elysia_cli` 命令、参数、批处理与限制 |
-| [Agent 工具](agent-tools-catalog.md) | 工具职责、帮助来源和权限边界 |
 
 ## 开发与验证
 
 | 文档 | 内容 |
 | --- | --- |
-| [项目架构](architecture.md) | 模块职责、转发路径、Agent、会话和任务 |
+| [项目架构](architecture.md) | 模块职责、转发路径、会话和任务 |
 | [数据库参考](storage-schema.md) | 表结构、加密、迁移与统计约束 |
 | [协议验证与发布](protocol-release-readiness.md) | 测试层次、命令、真实渠道、性能与升级检查 |
 | [开发指南](development.md) | 环境、本地开发、测试、交叉编译与发布产物 |
@@ -54,5 +51,4 @@ Columba 的部署、协议、接口和开发参考。首次使用从[快速开�
 - 文档描述当前检出版本；旧版本请切换到对应 Git tag。
 - 原路径为中文，`.en.md` 为英文；字段名、命令、端点和协议标识保持原样。
 - `<RELAY_TOKEN>` 等尖括号内容是需要替换的占位符；带省略号的结构标为说明性片段。
-- 面板令牌、推理令牌和 Agent Key 各有用途；不要混用。详见[鉴权](remote-agent-api.md#鉴权)。
 - 发现差异时以路由、类型、配置加载器和测试核对；文档维护方式见[开发指南](development.md#文档维护)。

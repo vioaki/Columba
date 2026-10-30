@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,9 +13,8 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/cloudwego/hertz/pkg/app"
 	"columba.local/backend/config"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/cloudwego/hertz/pkg/app"
 )
 
 func TestHertzRejectsUploadBeforeReadingBody(t *testing.T) {
@@ -202,23 +200,5 @@ func TestHertzEmbeddedUI(t *testing.T) {
 				t.Fatal(response.StatusCode, string(body), err)
 			}
 		})
-	}
-}
-
-func TestMCPNativeMirrorHeaders(t *testing.T) {
-	s := newAgentIntegrationServer(t)
-	body := mcpRequest(1, "tools/call", map[string]any{"name": agentToolCLI, "arguments": map[string]any{"command": "elysia help"}})
-	for _, headers := range []map[string]string{{"Mcp-Method": ""}, {"Mcp-Method": "tools/list"}, {"Mcp-Name": ""}, {"Mcp-Name": "other"}} {
-		c, rec := remoteContext("POST", "/mcp", body, mcpHeaders(body, headers))
-		s.handleMCP(contextForTest(c), c)
-		flushTestResponse(c)
-		var response struct {
-			Error struct {
-				Code int `json:"code"`
-			} `json:"error"`
-		}
-		if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil || rec.Code != 400 || response.Error.Code != mcp.CodeHeaderMismatch {
-			t.Fatal(headers, rec.Code, rec.Body.String(), err)
-		}
 	}
 }

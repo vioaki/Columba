@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,12 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bytedance/sonic"
-	"github.com/cloudwego/hertz/pkg/route/param"
-	"columba.local/backend/agent"
 	"columba.local/backend/config"
 	"columba.local/backend/protocol"
 	"columba.local/backend/storage"
+	"github.com/bytedance/sonic"
+	"github.com/cloudwego/hertz/pkg/route/param"
 )
 
 // Exercise every ingress and target once; per-codec control combinations
@@ -650,82 +648,4 @@ func thinkingToolWireMessage(t *testing.T, source string, stream bool, raw []byt
 		message["content"] = blocks
 	}
 	return message
-}
-
-func TestAgentThinkingUsesBoundModelCapabilities(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct{ platform, model, field, value string }{
-		{"openai", "gpt-6.1-sol", "reasoning_effort", `"high"`},
-		{"responses", "gpt-6.1-sol", "effort", `"high"`},
-		{"gemini", "gemini-2.5-flash", "thinkingBudget", "24576"},
-		{"gemini", "gemini-3.8-flash", "thinkingLevel", `"high"`},
-		{"anthropic", "claude-haiku-4-5", "type", `"enabled"`},
-		{"anthropic", "claude-opus-4-6", "type", `"adaptive"`},
-	} {
-		t.Run(tc.model+"/"+tc.platform, func(t *testing.T) {
-			s := newAgentIntegrationServer(t)
-			var response string
-			for _, fixture := range cacheWireFixtures() {
-				if fixture.platform == tc.platform {
-					response = fixture.stream
-				}
-			}
-			if response == "" {
-				t.Fatal("missing fixture")
-			}
-			upstream := newCapturingUpstream(t, func(w http.ResponseWriter, _ string, _ int) {
-				w.Header().Set("Content-Type", "text/event-stream")
-				io.WriteString(w, response)
-			})
-			source := storage.ModelSource{ID: "cs1", Name: "caller-src", BaseURL: upstream.URL, APIKey: "sk-caller-key", Platform: fixturePlatform(tc.platform), Enabled: true}
-			if err := s.saveSource(t.Context(), source); err != nil {
-				t.Fatal(err)
-			}
-			model := storage.Model{ID: tc.model, SourceID: "cs1", Name: tc.model, BaseURL: upstream.URL, Platform: source.Platform, Type: "llm", Enabled: true, Available: true, ToolsCapable: true}
-			if err := s.store.ReplaceSourceModels(t.Context(), source, []storage.Model{model}); err != nil {
-				t.Fatal(err)
-			}
-			request := callerRequest()
-			request.Model = tc.model
-			request.Preferences = protocol.AgentPreferences{ThinkingEnabled: true, ThinkingEffort: "high"}
-			result, err := newAgentStreamCaller(s).Call(t.Context(), request, agent.StreamCallbacks{})
-			if err != nil || result.Text != "ok" {
-				t.Fatal(result, err)
-			}
-			raw := upstream.last().Body
-			if !strings.Contains(raw, `"`+tc.field+`":`+tc.value) {
-				t.Fatal("incorrect model-specific Agent controls", raw)
-			}
-		})
-	}
-}
-
-func TestAgentThinkingDisabledRejectsUnsupportedModel(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct{ platform, model string }{
-		{"gemini", "gemini-3.5-flash-lite"}, {"gemini", "private-alias"},
-		{"openai", "gpt-6.1-sol"}, {"anthropic", "claude-opus-5-5"},
-	} {
-		t.Run(tc.model, func(t *testing.T) {
-			s := newAgentIntegrationServer(t)
-			calls := 0
-			provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(500) }))
-			defer provider.Close()
-			source := storage.ModelSource{ID: "cs1", Name: "caller-src", BaseURL: provider.URL, Platform: fixturePlatform(tc.platform), Enabled: true}
-			if err := s.saveSource(t.Context(), source); err != nil {
-				t.Fatal(err)
-			}
-			model := storage.Model{ID: tc.model, SourceID: source.ID, Name: tc.model, BaseURL: provider.URL, Platform: source.Platform, Type: "llm", Enabled: true, Available: true, ToolsCapable: true}
-			if err := s.store.ReplaceSourceModels(t.Context(), source, []storage.Model{model}); err != nil {
-				t.Fatal(err)
-			}
-			request := callerRequest()
-			request.Model = tc.model
-			_, err := newAgentStreamCaller(s).Call(t.Context(), request, agent.StreamCallbacks{})
-			var failure *protocol.ConversionError
-			if !errors.As(err, &failure) || !failure.CandidateOnly || calls != 0 || !strings.Contains(err.Error(), "cannot disable thinking") {
-				t.Fatal(err, calls)
-			}
-		})
-	}
 }

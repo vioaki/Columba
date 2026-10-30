@@ -2,7 +2,6 @@
 
 [文档索引](README.md) · **简体中文** · [English](webui-data-model.en.md)
 
-管理 API 的核心字段与语义。完整类型以[前端 types.ts](../packages/webui/src/lib/types.ts)、[存储类型](../backend/storage/types.go)和 [Agent 类型](../packages/webui/src/lib/agent/types.ts)为核对入口；请求与响应以对应 handler 为准。WebUI 通过 HTTP 管理数据，不直接读写配置文件。
 
 ## 通用类型
 
@@ -39,7 +38,6 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 | `outbound` | `deniedIpRanges` 与只读 `defaultDeniedIpRanges` |
 | `usageLog` | 正文捕获、持久化及留存参数 |
 | `modelCatalog` | `enabled`、`url`、`proxy`、`syncIntervalMinutes`；显式周期 0 停止定时同步 |
-| `agentRemote` | `enabled`、`publicUrl` |
 
 更新类型 `RuntimeConfigUpdate` 只允许管理接口支持的字段；并非所有读取字段都可写。响应为 `{updated, restartRequired}`。参数默认值、重启要求见[部署](deployment.md#配置)。
 
@@ -145,5 +143,3 @@ interface UsageBody {
 ## 协议与 Agent 类型
 
 自定义协议类型集中在同一 `types.ts` 的 `CustomProtocol*` 定义。接口 schema 提供可配置字段目录；不要将完整内部模型误当作 HTTP 请求体。语义见[自定义协议参考](protocol-definition-reference.md)。
-
-Agent 会话、消息、设置、pending action、图表和 SSE 结构见[远程接口](remote-agent-api.md)及 Agent 类型文件；持久化状态与当前运行状态需区分。

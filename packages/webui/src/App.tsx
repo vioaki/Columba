@@ -12,7 +12,6 @@ const ProtocolDesignerPage = lazy(() =>
 const GroupsPage = lazy(() => import('./pages/groups').then((m) => ({ default: m.GroupsPage })))
 const ConversionPolicyPage = lazy(() => import('./pages/protocol-designer/conversion-page').then((m) => ({ default: m.ConversionPolicyPage })))
 const ProtocolHistoryPage = lazy(() => import('./pages/protocol-designer/history-page').then((m) => ({ default: m.ProtocolHistoryPage })))
-const AgentPage = lazy(() => import('./pages/agent').then((m) => ({ default: m.AgentPage })))
 const TokensPage = lazy(() => import('./pages/tokens').then((m) => ({ default: m.TokensPage })))
 const UsageStatsPage = lazy(() => import('./pages/usage-stats').then((m) => ({ default: m.UsageStatsPage })))
 const UsageLogsPage = lazy(() => import('./pages/usage-logs').then((m) => ({ default: m.UsageLogsPage })))
@@ -75,7 +74,6 @@ export function App() {
               <Route path="/protocols/conversions" element={<ConversionPolicyPage />} />
               <Route path="/protocols/history" element={<ProtocolHistoryPage />} />
               <Route path="/protocols/legacy" element={<Navigate to="/protocols/history" replace />} />
-              <Route path="/agent" element={<AgentPage />} />
               <Route path="/groups" element={<GroupsPage />} />
               <Route path="/tokens" element={<TokensPage />} />
               <Route path="/usage" element={<UsageStatsPage />} />

@@ -2,7 +2,7 @@
 
 [文档索引](README.md) · [开发指南](development.md) · [数据库参考](storage-schema.md)
 
-Columba 是自部署 AI 网关。Go 后端负责鉴权、路由、协议转换、Agent 和 SQLite 存储；React 前端通过管理 API 配置模型源、模型组、协议及运行策略。
+Columba 是自部署 AI 网关。Go 后端负责鉴权、路由、协议转换和 SQLite 存储；React 前端通过管理 API 配置模型源、模型组、协议及运行策略。
 
 ## 模块职责
 
@@ -10,11 +10,10 @@ Columba 是自部署 AI 网关。Go 后端负责鉴权、路由、协议转换�
 | --- | --- |
 | `backend/protocol` | 协议定义、编译、语义模型、转换规则、验证、事件与任务状态 |
 | `backend/protocol/builtin` | 四种内置协议定义与编解码模块 |
-| `backend/server` | 应用装配、HTTP 入口与鉴权、管理 API、CLI、Agent 集成和用量结算 |
+| `backend/server` | 应用装配、HTTP 入口与鉴权、管理 API、用量结算 |
 | `backend/internal/routing` | 路由快照、模型源凭据解析、模型/Key 调度、并发与日配额 |
 | `backend/relay` | 协议 HTTP/WebSocket 传输、流式空闲期限、动态请求超时 |
 | `backend/internal/outbound` | 共享出站代理、URL 预校验、连接时 IP 校验与连接池 |
-| `backend/agent` | 模型调用循环、工具执行、审批、上下文与会话状态 |
 | `backend/storage` | SQLite、加密、迁移、协议修订、任务、日志与统计 |
 | `backend/config` | 显式配置加载、校验、原子保存与可热更新的运行策略 |
 | `backend/internal/dbpath` | 配置与存储共用的数据库路径派生、符号链接/硬链接冲突校验 |
@@ -25,8 +24,8 @@ Columba 是自部署 AI 网关。Go 后端负责鉴权、路由、协议转换�
 ### 依赖方向与职责边界
 
 - `main.go` 是进程入口，负责命令行、首次配置创建、信号和退出码。`config` 不持有全局配置指针，也不通过 `init()` 读写配置或退出进程；多个加载结果相互独立。
-- `server/bootstrap.go` 装配存储、日志、协议和后台服务；`server/lifecycle.go` 统一管理启动、请求排空、后台任务取消及最终持久化。`Server` 持有应用资源；后台组件接收显式依赖，不持有整个 `Server`。网关、CLI 和 Agent 的宿主适配器仍通过 `Server` 协调应用能力，不将其视为可独立复用的业务组件。
-- `server/http.go` 注册 Hertz 原生路由并提供公共 HTTP 端点；`server/http_auth.go` 集中处理凭据优先级、面板/推理/Agent 作用域与回环限制。`app.RequestContext` 停留在 HTTP 边界，业务取消使用显式 `context.Context`。SSE/NDJSON 使用原生 chunk writer，MCP/A2A 使用原生传输。见 [Hertz 迁移说明](backend-hertz-migration.md)。
+- `server/bootstrap.go` 装配存储、日志、协议和后台服务；`server/lifecycle.go` 统一管理启动、请求排空、后台任务取消及最终持久化。`Server` 持有应用资源；后台组件接收显式依赖，不持有整个 `Server`。网关宿主适配器仍通过 `Server` 协调应用能力，不将其视为可独立复用的业务组件。
+- `server/http.go` 注册 Hertz 原生路由并提供公共 HTTP 端点；`server/http_auth.go` 集中处理凭据优先级、推理 Key与回环限制。`app.RequestContext` 停留在 HTTP 边界，业务取消使用显式 `context.Context`。SSE/NDJSON 使用原生 chunk writer，见 [Hertz 迁移说明](backend-hertz-migration.md)。
 - `routing.Repository` 由消费方声明，只要求构建路由所需的四类读取。`storage.Store` 满足该接口；路由组件不打开或关闭数据库，也不写 HTTP 响应。当前边界复用 `config` 的运行时模型类型及 `storage` 的读取 DTO，不重复维护同形模型。
 - `config` 与 `storage` 共享 `dbpath` 的路径规则，`config` 与 `relay` 共享 `outbound` 的网络规则。配置不依赖 SQLite 实现或协议转发适配器。
 - `protocol` 核心只依赖底层 JSON/SSE 工具；`protocol/builtin` 依赖协议核心；`agent` 通过已有的调用、持久化及工具接口接入宿主。业务层不会被 HTTP、CLI 或 SQLite 细节反向牵引。
@@ -62,15 +61,14 @@ Columba 是自部署 AI 网关。Go 后端负责鉴权、路由、协议转换�
 
 ## 配置与运行状态
 
-`config.json` 保存监听、数据库路径和运行策略；模型源、模型组、令牌、协议、Agent 会话及用量存放于 SQLite。敏感字段使用主密钥加密；恢复数据库时必须使用匹配的密钥。
+`config.json` 保存监听、数据库路径和运行策略；模型源、模型组、令牌、协议及用量存放于 SQLite。敏感字段使用主密钥加密；恢复数据库时必须使用匹配的密钥。
 
-协议采用草稿、不可变修订和激活指针。编辑器、Agent、CLI、预览与转发共用编译器和验证服务。请求固定自己的修订与绑定，热更新只影响后续请求。内置预置只读并随程序更新；定制需复制为新 ID。
+协议采用草稿、不可变修订和激活指针。编辑器、预览与转发共用编译器和验证服务。请求固定自己的修订与绑定，热更新只影响后续请求。内置预置只读并随程序更新；定制需复制为新 ID。
 
 SQLite 使用单连接，写吞吐受其约束。小时级汇总降低统计查询成本；原始日志保留期与汇总保留期不同，因此日志条数和长期统计不必相等。详见[数据库参考](storage-schema.md)。
 
 ## Agent、会话与异步任务
 
-Agent 引擎通过 `StreamCaller` 调用模型，通过工具注册表执行操作，不自行解释供应商线格式。服务层提供协议参数、工具权限和会话持久化。远程入口与权限见[远程 Agent](remote-agent-api.md)。
 
 WebSocket 会话固定双端协议和资源归属，使用有界队列、背压、取消与关闭期限；不提供媒体转码或未声明的自动恢复。异步任务先持久化预留，再提交上游；提交结果不确定时不自动重发，结果结算通过事务与 outbox 保持幂等。
 

@@ -2,7 +2,6 @@
 
 [Documentation](README.en.md) · [简体中文](webui-data-model.md) · **English**
 
-Core fields and semantics of management APIs. Use [frontend types.ts](../packages/webui/src/lib/types.ts), [storage types](../backend/storage/types.go), and [Agent types](../packages/webui/src/lib/agent/types.ts) to inspect complete definitions; handlers determine request/response behavior. The WebUI manages data over HTTP rather than reading configuration files directly.
 
 ## Common types
 
@@ -39,7 +38,6 @@ See [protocol-v2.ts](../packages/webui/src/lib/protocol-v2.ts) and the [definiti
 | `outbound` | `deniedIpRanges` and read-only `defaultDeniedIpRanges` |
 | `usageLog` | Body capture, persistence, and retention |
 | `modelCatalog` | `enabled`, `url`, `proxy`, `syncIntervalMinutes`; explicit interval 0 disables periodic sync |
-| `agentRemote` | `enabled`, `publicUrl` |
 
 `RuntimeConfigUpdate` contains only writable management fields, not every returned field. Updates return `{updated, restartRequired}`. See [deployment](deployment.en.md#configuration) for defaults and restart requirements.
 
@@ -105,7 +103,6 @@ Deleting a group disables tokens that lose all explicitly authorized groups; an 
 
 - List and save responses mask `token`; `reveal` returns plaintext on demand.
 - An empty `allowedGroups` is unrestricted for ordinary tokens; otherwise authorization uses group names.
-- A scope containing `agent` is for remote operations and cannot call inference endpoints. Group authorization is independent of this scope.
 - Clear plaintext from forms after saving. Do not submit masked output as a replacement secret.
 
 ## Usage
@@ -145,5 +142,3 @@ Frontend multi-select fields `keyNames`, `groupNames`, `modelNames`, and `source
 ## Protocol and Agent types
 
 Custom protocol types are the `CustomProtocol*` definitions in the same `types.ts`. The schema endpoint supplies the configurable field catalog. Do not use a complete internal model as an HTTP request body. See [custom protocols](protocol-definition-reference.en.md).
-
-For Agent sessions, messages, settings, pending actions, charts, and SSE shapes, see [remote access](remote-agent-api.en.md) and the Agent type file. Distinguish persisted state from current runtime state.

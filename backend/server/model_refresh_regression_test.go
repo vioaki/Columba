@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"columba.local/backend/internal/routing"
 	"columba.local/backend/storage"
+	"github.com/bytedance/sonic"
 )
 
 func seedDiscoverySource(t *testing.T, s *Server, url string, keys []storage.SourceAPIKey, ids ...string) storage.ModelSource {
@@ -310,9 +310,6 @@ func TestDiscoveryRegressionDisabledPoolBlocksAllConsumers(t *testing.T) {
 	if _, ok := routing.IndexSources([]storage.ModelSource{src}).Resolve(model); ok {
 		t.Fatal("routing/health probe fell back to a disabled credential")
 	}
-	if err := applyAgentPermittedKey(t.Context(), s.store, &model); err == nil {
-		t.Fatal("agent fell back to a disabled credential")
-	}
 	src.APIKeys = nil
 	src.APIKey = ""
 	if err := s.store.UpsertSource(t.Context(), src); err != nil {
@@ -321,9 +318,6 @@ func TestDiscoveryRegressionDisabledPoolBlocksAllConsumers(t *testing.T) {
 	ref, ok := routing.IndexSources([]storage.ModelSource{src}).Resolve(model)
 	if !ok || ref.APIKey != "" {
 		t.Fatal("anonymous source should stay usable without snapshot credentials")
-	}
-	if err := applyAgentPermittedKey(t.Context(), s.store, &model); err != nil || model.APIKey != "" {
-		t.Fatal("anonymous agent source reused snapshot credentials", err)
 	}
 }
 

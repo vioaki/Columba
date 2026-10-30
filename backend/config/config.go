@@ -21,30 +21,28 @@ import (
 )
 
 type Config struct {
-	Host            string              `json:"host,omitempty"`
-	Port            int                 `json:"port,omitempty"`
-	DatabasePath    string              `json:"databasePath,omitempty"`
-	LogDatabasePath string              `json:"logDatabasePath,omitempty"`
-	LogLevel        string              `json:"logLevel,omitempty"`
-	LogFormat       string              `json:"logFormat,omitempty"`
-	LogPersistLevel string              `json:"logPersistLevel,omitempty"`
-	SecretKeyPath   string              `json:"secretKeyPath,omitempty"`
-	WebUIDir        string              `json:"webuiDir,omitempty"`
-	EnablePprof     bool                `json:"enablePprof,omitempty"`
-	MaxBodyBytes    int64               `json:"maxBodyBytes,omitempty"`
-	Preparation     PreparationConfig   `json:"preparation,omitempty"`
-	Responses       ResponsesConfig     `json:"responses,omitempty"` // Responses API 开关
-	Usage           UsageConfig         `json:"usage,omitempty"`     // 用量估算配置
-	SystemLog       LogRetentionConfig  `json:"systemLog,omitempty"`
-	UsageLog        UsageLogConfig      `json:"usageLog,omitempty"`     // 请求日志留存与内容策略
-	HTTPTimeout     int                 `json:"httpTimeout,omitempty"`  // HTTP 请求超时时间（秒），0 为不限制
-	DebugMode       bool                `json:"debugMode,omitempty"`    // 调试模式
-	VerboseLog      bool                `json:"verboseLog,omitempty"`   // 详细日志模式
-	HealthCheck     HealthCheckConfig   `json:"healthCheck,omitempty"`  // 可选的后台健康检测
-	Outbound        OutboundConfig      `json:"outbound,omitempty"`     // 出站网络策略：禁止拨号的 IP 段（CIDR 列表，可编辑）
-	ModelCatalog    ModelCatalogConfig  `json:"modelCatalog,omitempty"` // 模型能力元数据目录（默认 models.dev）
-	AgentRemote     AgentRemoteConfig   `json:"agentRemote,omitempty"`  // AI 助手远程暴露面（REST/MCP/A2A）
-	Agent           AgentDefaultsConfig `json:"agent,omitempty"`        // AI 助手全局默认（工具循环上限等）
+	Host            string             `json:"host,omitempty"`
+	Port            int                `json:"port,omitempty"`
+	DatabasePath    string             `json:"databasePath,omitempty"`
+	LogDatabasePath string             `json:"logDatabasePath,omitempty"`
+	LogLevel        string             `json:"logLevel,omitempty"`
+	LogFormat       string             `json:"logFormat,omitempty"`
+	LogPersistLevel string             `json:"logPersistLevel,omitempty"`
+	SecretKeyPath   string             `json:"secretKeyPath,omitempty"`
+	WebUIDir        string             `json:"webuiDir,omitempty"`
+	EnablePprof     bool               `json:"enablePprof,omitempty"`
+	MaxBodyBytes    int64              `json:"maxBodyBytes,omitempty"`
+	Preparation     PreparationConfig  `json:"preparation,omitempty"`
+	Responses       ResponsesConfig    `json:"responses,omitempty"` // Responses API 开关
+	Usage           UsageConfig        `json:"usage,omitempty"`     // 用量估算配置
+	SystemLog       LogRetentionConfig `json:"systemLog,omitempty"`
+	UsageLog        UsageLogConfig     `json:"usageLog,omitempty"`     // 请求日志留存与内容策略
+	HTTPTimeout     int                `json:"httpTimeout,omitempty"`  // HTTP 请求超时时间（秒），0 为不限制
+	DebugMode       bool               `json:"debugMode,omitempty"`    // 调试模式
+	VerboseLog      bool               `json:"verboseLog,omitempty"`   // 详细日志模式
+	HealthCheck     HealthCheckConfig  `json:"healthCheck,omitempty"`  // 可选的后台健康检测
+	Outbound        OutboundConfig     `json:"outbound,omitempty"`     // 出站网络策略：禁止拨号的 IP 段（CIDR 列表，可编辑）
+	ModelCatalog    ModelCatalogConfig `json:"modelCatalog,omitempty"` // 模型能力元数据目录（默认 models.dev）
 	// OpenBrowserOnStart 控制启动时是否在系统默认浏览器打开控制台。
 	// nil = 默认尝试（桌面开箱即用；无桌面环境命令缺失时静默跳过），
 	// false = 不打开（子进程托管场景），true = 强制尝试。
@@ -64,22 +62,6 @@ type ModelCatalogConfig struct {
 	// **显式 0 = 不启用定期后台同步**（仅使用内置快照与本地缓存，管理页
 	// 「立即更新」仍可用）。指针类型用于区分「未配置」与「显式 0」。
 	SyncIntervalMinutes *int `json:"syncIntervalMinutes,omitempty"`
-}
-
-// AgentRemoteConfig 控制 AI 助手的三个远程暴露面（/api/agent/*、/mcp、/a2a）。
-// 面本身始终要求 Bearer API key 且带 agent 作用域；Enabled=false 是整组
-// 下线的总开关（默认启用）。
-type AgentRemoteConfig struct {
-	Enabled   *bool  `json:"enabled,omitempty"`   // 默认启用；false 时三个远程面全部 404
-	PublicURL string `json:"publicUrl,omitempty"` // 对外基础地址（如 https://gw.example.com），Agent Card 绝对 URL 用；空则按请求 Host 推导
-}
-
-// AgentRemoteEnabled 报告远程面是否启用（默认 true）。
-func (c AgentRemoteConfig) AgentRemoteEnabled() bool {
-	if c.Enabled == nil {
-		return true
-	}
-	return *c.Enabled
 }
 
 // ModelCatalogSyncInterval 返回生效的刷新周期与是否启用定期同步：
@@ -373,7 +355,7 @@ func (c *Config) saveLocked() error {
 	}
 	for key, value := range map[string]any{
 		"usageLog": c.UsageLog, "systemLog": c.SystemLog, "modelCatalog": c.ModelCatalog,
-		"agentRemote": c.AgentRemote, "agent": c.Agent, "outbound": c.Outbound,
+		"outbound":    c.Outbound,
 		"preparation": c.Preparation,
 	} {
 		encoded, err := mergeConfigSection(raw[key], value)
@@ -560,45 +542,6 @@ func (c *Config) GetModelCatalog() ModelCatalogConfig {
 	return c.ModelCatalog
 }
 
-// GetAgentRemote 返回 AI 助手远程暴露面配置（含读锁快照）。
-func (c *Config) GetAgentRemote() AgentRemoteConfig {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.AgentRemote
-}
-
-// defaultAgentToolLoopLimit 与 agent.DefaultMaxModelCalls 保持一致（30）；
-// config 包不反向依赖 agent，此处独立声明。
-const defaultAgentToolLoopLimit = 30
-
-// AgentDefaultsConfig 汇总 AI 助手的全局默认项，运行配置页可改、热生效。
-type AgentDefaultsConfig struct {
-	// ToolLoopLimit 是单轮工具循环的模型调用上限；0 = 默认（30）。
-	ToolLoopLimit int `json:"toolLoopLimit,omitempty"`
-}
-
-// GetAgentDefaults 返回 AI 助手全局默认配置（含读锁快照）。
-func (c *Config) GetAgentDefaults() AgentDefaultsConfig {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.Agent
-}
-
-// ResolveAgentToolLoopLimit 归一化工具循环上限（<=0 回落默认 30）。
-func (c *Config) ResolveAgentToolLoopLimit() int {
-	if limit := c.GetAgentDefaults().ToolLoopLimit; limit > 0 {
-		return limit
-	}
-	return defaultAgentToolLoopLimit
-}
-
-// SetAgentToolLoopLimit 运行时修改工具循环上限，随 Save() 落盘并热生效。
-func (c *Config) SetAgentToolLoopLimit(limit int) {
-	c.mu.Lock()
-	c.Agent.ToolLoopLimit = limit
-	c.mu.Unlock()
-}
-
 // ResolveModelCatalogInterval 返回供管理页表单显示的周期值（分钟）：
 // nil → 默认 1440；显式 0 → 0（不启用）；>0 → 原值。
 func ResolveModelCatalogInterval(c ModelCatalogConfig) int {
@@ -614,14 +557,6 @@ func (c *Config) SetModelCatalogSyncInterval(minutes int) {
 	c.mu.Lock()
 	value := minutes
 	c.ModelCatalog.SyncIntervalMinutes = &value
-	c.mu.Unlock()
-}
-
-// SetAgentRemote 运行时修改 AI 助手远程暴露面（REST/MCP/A2A）配置。
-// 每请求读内存配置，写入即热生效（无需重启）。
-func (c *Config) SetAgentRemote(remote AgentRemoteConfig) {
-	c.mu.Lock()
-	c.AgentRemote = remote
 	c.mu.Unlock()
 }
 
@@ -909,9 +844,7 @@ func (c *Config) publishSettingsLocked(newCfg *Config) {
 	c.VerboseLog = newCfg.VerboseLog
 	c.HealthCheck = newCfg.HealthCheck
 	c.Outbound = newCfg.Outbound
-	c.AgentRemote = newCfg.AgentRemote
 	c.OpenBrowserOnStart = newCfg.OpenBrowserOnStart
-	c.Agent = newCfg.Agent
 }
 
 // ValidateLocalHost keeps an unauthenticated panel on the local machine.
