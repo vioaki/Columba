@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { api } from '@/lib/api'
 import { useModels, useSources, revalidate, POLL } from '@/lib/hooks'
 import type { Model, ModelSource, ModelRouting } from '@/lib/types'
+import { ModelPriceDialog } from './sources/model-price-dialog'
 import { SourceFormDialog } from './sources/source-form'
 
 export function SourcesPage() {
@@ -23,6 +24,7 @@ export function SourcesPage() {
   const [selected, setSelected] = useState<{ policy: ModelRouting; models: Model[] } | null>(null)
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
+  const [price, setPrice] = useState<Model | null>(null)
   const grouped = useMemo(() => {
     const map = new Map<string, Model[]>()
     for (const m of models.data ?? []) { const key = JSON.stringify([m.id, m.platform]); map.set(key, [...map.get(key) ?? [], m]) }
@@ -42,7 +44,7 @@ export function SourcesPage() {
       {!models.isLoading && grouped.length === 0 && <p className="rounded-lg border p-6 text-muted-foreground">暂无模型。添加渠道后拉取模型，或在渠道中手动添加。</p>}
       {grouped.map(ms => { const first = ms[0]; const count = ms.filter(m => m.enabled && sources.data?.find(s => s.id === m.sourceId)?.enabled).length; return <details key={JSON.stringify([first.id, first.platform])} className="rounded-lg border bg-card p-4">
         <summary className="cursor-pointer break-all font-medium">{first.id}<span className="ml-3 text-xs text-muted-foreground">{first.platform} · {count} 个启用渠道</span></summary>
-        <div className="mt-4 space-y-3">{ms.map(m => <div key={m.sourceId} className="flex flex-wrap items-center justify-between gap-3 border-t pt-3"><span>{m.sourceName || m.sourceId}</span><label className="flex items-center gap-2 text-sm"><Switch disabled={busy} checked={m.enabled} onCheckedChange={enabled => void action(() => api.updateModel(m.sourceId!, m.id, { enabled }))} />{m.enabled ? '已启用' : '已停用'}</label></div>)}
+        <div className="mt-4 space-y-3">{ms.map(m => <div key={m.sourceId} className="flex flex-wrap items-center justify-between gap-3 border-t pt-3"><span>{m.sourceName || m.sourceId}</span><Button variant="outline" onClick={() => setPrice(m)}>价格</Button><label className="flex items-center gap-2 text-sm"><Switch disabled={busy} checked={m.enabled} onCheckedChange={enabled => void action(() => api.updateModel(m.sourceId!, m.id, { enabled }))} />{m.enabled ? '已启用' : '已停用'}</label></div>)}
           <Button variant="outline" onClick={() => editSchedule(ms)}>高级调度</Button>
         </div>
       </details> })}
@@ -51,6 +53,7 @@ export function SourcesPage() {
       <div className="min-w-0"><h3 className="font-medium">{s.name}</h3><p className="break-all text-xs text-muted-foreground">{s.platform} · {s.baseUrl}</p>{s.refreshState?.refreshing && <p role="status" className="text-xs">正在拉取模型…</p>}{s.refreshState?.lastError && <p role="alert" className="text-sm">{s.refreshState.lastError}</p>}</div>
       <div className="flex flex-wrap items-center gap-2"><Switch aria-label={`启用渠道 ${s.name}`} checked={s.enabled} disabled={busy} onCheckedChange={enabled => void action(() => api.setSourceEnabled(s.id, enabled))} />{s.autoFetchModels && <Button variant="outline" disabled={busy || s.refreshState?.refreshing} onClick={() => void action(() => api.fetchSource(s.id))}>拉取模型</Button>}<Button variant="outline" onClick={() => { setSource(s); setSourceOpen(true) }}>编辑</Button><Button variant="ghost" onClick={async () => { if (await confirm({ title: `删除渠道「${s.name}」？`, description: '该渠道及其模型将停止服务，历史账目保留。', confirmText: '删除' })) void action(() => api.deleteSource(s.id)) }}>删除</Button></div>
     </div>)}</section>
+    {price && <ModelPriceDialog key={`${price.sourceId}/${price.id}`} sourceId={price.sourceId!} modelId={price.id} onClose={() => setPrice(null)} />}
     <SourceFormDialog open={sourceOpen} onOpenChange={setSourceOpen} source={source} onSaved={() => void refresh()} />
     <Dialog open={!!selected} onOpenChange={v => { if (!v) setSelected(null) }}><DialogContent className="max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>高级调度</DialogTitle><DialogDescription>{selected?.policy.modelId} · {selected?.policy.protocol}</DialogDescription></DialogHeader>{selected && <form className="space-y-4" onSubmit={e => { e.preventDefault(); void action(async () => { await api.saveModelRouting(selected.policy); setSelected(null) }) }}>
       <label className="block space-y-2"><span>渠道策略</span><select className="w-full rounded-md border bg-background p-2" value={selected.policy.strategy} onChange={e => setSelected({ ...selected, policy: { ...selected.policy, strategy: e.target.value as ModelRouting['strategy'] } })}><option value="round-robin">等权轮询</option><option value="priority">优先级（数值小优先）</option><option value="weighted">加权轮询</option></select></label>

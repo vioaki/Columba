@@ -52,6 +52,8 @@ func (s *Server) setupAdminRoutes(admin *route.RouterGroup) {
 	admin.POST("/model-catalog/refresh", s.adminModelCatalogRefresh)
 	// 协议设计器：协议 CRUD（SQLite）+ 字段目录 + 渲染预览 + 真实测试（AI 助手见 agent 路由）。
 	admin.GET("/models", s.adminListModels)
+	admin.GET("/model-prices", s.adminModelPrice)
+	admin.PUT("/model-prices", s.adminSaveModelPrice)
 	admin.GET("/model-routing", s.adminModelRouting)
 	admin.PUT("/model-routing", s.adminSaveModelRouting)
 	admin.POST("/models/refresh", s.adminRefreshModels)

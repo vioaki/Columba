@@ -18,6 +18,7 @@ import (
 
 	"columba.local/backend/config"
 	"columba.local/backend/internal/atomicfile"
+	"columba.local/backend/internal/billing"
 	"columba.local/backend/internal/outbound"
 	"columba.local/backend/storage"
 	"github.com/bytedance/sonic"
@@ -47,6 +48,7 @@ type modelCatalog struct {
 	cachePathGetter func() string
 
 	mu         sync.RWMutex
+	exact      map[string]*catalogEntry
 	entries    map[string]*catalogEntry // 规范化 key → 条目（含 provider/id 与裸 id 两种键）
 	count      int                      // 目录内模型条目数（按 provider/model 计，不含裸 id 重复键）
 	lastSync   time.Time
@@ -67,6 +69,7 @@ type modelCatalog struct {
 }
 
 type catalogEntry struct {
+	prices     billing.Prices
 	provider   string
 	id         string
 	name       string
@@ -129,6 +132,7 @@ func (m *modelCatalog) loadFromSnapshot() {
 	}
 	m.mu.Lock()
 	m.entries = dataset.entries
+	m.exact = dataset.exact
 	m.count = dataset.count
 	m.lastSync = snapshot.FetchedAt
 	m.origin = "snapshot"
@@ -166,6 +170,7 @@ func (m *modelCatalog) loadFromCache() {
 	m.mu.Lock()
 	if cached.FetchedAt.After(m.lastSync) {
 		m.entries = dataset.entries
+		m.exact = dataset.exact
 		m.count = dataset.count
 		m.lastSync = cached.FetchedAt
 		m.origin = "cache"
@@ -364,6 +369,7 @@ func (m *modelCatalog) performRefresh(ctx context.Context, cfg config.ModelCatal
 		m.lastError = err.Error()
 	} else {
 		m.entries = dataset.entries
+		m.exact = dataset.exact
 		m.count = dataset.count
 		m.lastSync = time.Now()
 		m.lastError = ""
@@ -379,25 +385,25 @@ func (m *modelCatalog) performRefresh(ctx context.Context, cfg config.ModelCatal
 
 // catalogDataset 是一次成功拉取的解析结果。
 type catalogDataset struct {
+	exact   map[string]*catalogEntry
 	entries map[string]*catalogEntry
 	count   int
 }
 
 // catalogModelJSON 对应 models.dev 条目模型字段的宽容子集（字段缺失按零值处理）。
 type catalogModelJSON struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Type             string `json:"type"`
-	ToolCall         *bool  `json:"tool_call"`
-	StructuredOutput *bool  `json:"structured_output"`
+	Cost             billing.Prices `json:"cost"`
+	ID               string         `json:"id"`
+	Name             string         `json:"name"`
+	Type             string         `json:"type"`
+	ToolCall         *bool          `json:"tool_call"`
+	StructuredOutput *bool          `json:"structured_output"`
 	Modalities       *struct {
 		Input  []string `json:"input"`
 		Output []string `json:"output"`
 	} `json:"modalities"`
-	Reasoning *struct {
-		Supported *bool `json:"supported"`
-	} `json:"reasoning"`
-	Limit *struct {
+	Reasoning json.RawMessage `json:"reasoning"`
+	Limit     *struct {
 		Context int `json:"context"`
 		Output  int `json:"output"`
 	} `json:"limit"`
@@ -483,7 +489,7 @@ func parseCatalogDataset(body []byte) (*catalogDataset, error) {
 			providers = inner
 		}
 	}
-	dataset := &catalogDataset{entries: map[string]*catalogEntry{}}
+	dataset := &catalogDataset{entries: map[string]*catalogEntry{}, exact: map[string]*catalogEntry{}}
 	slugs := make([]string, 0, len(providers))
 	for slug := range providers {
 		slugs = append(slugs, slug)
@@ -537,7 +543,8 @@ func newCatalogEntry(provider string, model catalogModelJSON) *catalogEntry {
 		name:       model.Name,
 		tools:      model.ToolCall != nil && *model.ToolCall,
 		structured: model.StructuredOutput != nil && *model.StructuredOutput,
-		reasoning:  model.Reasoning != nil && model.Reasoning.Supported != nil && *model.Reasoning.Supported,
+		reasoning:  catalogReasoning(model.Reasoning),
+		prices:     model.Cost.Normalize(),
 	}
 	if model.Modalities != nil {
 		for _, modality := range model.Modalities.Input {
@@ -570,6 +577,10 @@ func catalogTypeToStorageType(catalogType string) string {
 // register 把条目登记进索引：provider/id 全键（后者覆盖同名）与裸 id 键（不覆盖，
 // 保证确定性）。count 只按全键计。
 func (d *catalogDataset) register(entry *catalogEntry) {
+	if d.exact == nil {
+		d.exact = map[string]*catalogEntry{}
+	}
+	d.exact[exactCatalogKey(entry.provider, entry.id)] = entry
 	fullKey := catalogKey(entry.provider, entry.id)
 	if _, exists := d.entries[fullKey]; !exists {
 		d.count++
@@ -696,4 +707,19 @@ func (m *modelCatalog) Status() map[string]any {
 		status["lastError"] = m.lastError
 	}
 	return status
+}
+
+func catalogReasoning(raw json.RawMessage) bool {
+	var enabled bool
+	if json.Unmarshal(raw, &enabled) == nil {
+		return enabled
+	}
+	var flags struct {
+		Supported bool `json:"supported"`
+	}
+	return json.Unmarshal(raw, &flags) == nil && flags.Supported
+}
+func exactCatalogKey(provider, model string) string {
+	raw, _ := json.Marshal([]string{provider, model})
+	return string(raw)
 }
