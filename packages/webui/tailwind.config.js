@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-/* 瓷梅刻印主题：颜色由 src/index.css 的语义变量驱动。 */
+/* Neutral semantic colors from src/index.css. */
 export default {
   darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -68,7 +68,7 @@ export default {
           'Segoe UI', 'Microsoft YaHei', 'Helvetica Neue', 'sans-serif',
         ],
         display: [
-          'Fraunces', 'Songti SC', 'SimSun', 'serif',
+          '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif',
         ],
         mono: [
           'ui-monospace', 'SF Mono', 'Cascadia Mono', 'Menlo', 'Consolas', 'monospace',
@@ -101,13 +101,6 @@ export default {
       boxShadow: {
         soft: 'var(--shadow-soft)',
         lg: 'var(--shadow-lg)',
-        'pri-glow': 'inset 0 1px 0 var(--btn-inset-hi), 0 6px 18px -8px var(--halo-a)',
-      },
-      backgroundImage: {
-        // 品牌渐变（KPI 数字、主按钮、进度条、导航菱形、立绘）
-        'brand-grad': 'linear-gradient(135deg, var(--grad-a), var(--grad-b))',
-        // 侧栏纵向渐变
-        'rail-fade': 'linear-gradient(180deg, hsl(var(--secondary)), hsl(var(--background)) 240px)',
       },
       keyframes: {
         'toast-in': {

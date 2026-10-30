@@ -1,0 +1,10 @@
+import { useSearchParams } from 'react-router-dom'
+import * as Tabs from '@radix-ui/react-tabs'
+import { PageHeader } from '@/components/page-header'
+import { RuntimeConfigPage } from './runtime-config'
+import { SystemLogsPage } from './system-logs'
+import { DiagnosticsPage } from './diagnostics'
+export function SettingsPage() {
+ const [params, setParams] = useSearchParams()
+ return <div className="space-y-6"><PageHeader title="设置" /><Tabs.Root value={params.get('tab') ?? 'runtime'} onValueChange={tab => setParams({ tab })}><Tabs.List aria-label="设置分类" className="mb-5 flex gap-2 border-b">{[['runtime', '运行配置'], ['logs', '系统日志'], ['diagnostics', '诊断']].map(([value, label]) => <Tabs.Trigger key={value} value={value} className="rounded-t px-4 py-3 text-sm data-[state=active]:border-b-2 data-[state=active]:border-foreground">{label}</Tabs.Trigger>)}</Tabs.List><Tabs.Content value="runtime"><RuntimeConfigPage /></Tabs.Content><Tabs.Content value="logs"><SystemLogsPage /></Tabs.Content><Tabs.Content value="diagnostics"><DiagnosticsPage /></Tabs.Content></Tabs.Root></div>
+}

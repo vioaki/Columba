@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { KpiCard, KpiGrid } from '@/components/kpi-card'
-import { ElysiaStage } from '@/components/role-watermark'
 import { Seg, type SegOption } from '@/components/ui/seg'
 import { RANGE_OPTIONS } from '@/lib/range-options'
 import { EmptyText, ErrorState } from '@/components/ui/states'
@@ -324,7 +323,6 @@ export function OverviewPage() {
   const { data: healthData, error: healthError } = useHealth(POLL.HEALTH_FAST)
   const health = healthError ? undefined : healthData
 
-  const healthState = healthError ? ('err' as const) : health ? (health.database ? ('ok' as const) : ('err' as const)) : ('off' as const)
 
   // KPI 计算
   const deltaPct =
@@ -383,7 +381,7 @@ export function OverviewPage() {
       const sourceId = model.sourceId || ''
       const current = map.get(sourceId) ?? { total: 0, available: 0 }
       current.total += 1
-      if (model.available) current.available += 1
+      if (model.enabled) current.available += 1
       map.set(sourceId, current)
     }
     return map
@@ -391,18 +389,8 @@ export function OverviewPage() {
   const sourceHealthError = sourcesError ?? modelsError
   const sourceHealthLoading = (sourcesLoading && !sources) || (modelsLoading && !models)
 
-  // 角色光环状态共鸣
-  const stageStatus =
-    healthState === 'err'
-      ? 'err'
-      : lastMinute && lastMinute.requests > 0
-        ? 'active'
-        : 'ok'
-
   return (
     <>
-      {/* 爱莉希雅视觉中枢立绘舞台 */}
-      <ElysiaStage statusState={stageStatus} />
 
       <div className="relative z-[1] space-y-7">
         <PageHeader title="总览" />
@@ -554,7 +542,7 @@ export function OverviewPage() {
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary/70">
                         <div
-                          className={m.muted ? 'h-full rounded-full bg-muted-foreground/40' : 'h-full rounded-full bg-brand-grad'}
+                          className={m.muted ? 'h-full rounded-full bg-muted-foreground/40' : 'h-full rounded-full bg-foreground'}
                           style={{ width: `${Math.max(m.ratio * 100, 3)}%` }}
                         />
                       </div>

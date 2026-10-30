@@ -45,26 +45,7 @@ test('normalized cache creation is an input component and absent counters stay u
   }
 })
 
-test('TTL omission hint uses diagnostic identity instead of its translated explanation', async ({ page }) => {
-  await page.route('**/api/admin/usage/logs/gemini', (route) => route.fulfill({ json: { ok: true, data: {
-    ...details[5], usage: { inputTokens: 180, outputTokens: 200, cacheCreationTokens: 50 },
-    conversionIssues: [{ code: 'conversion_degraded', fidelity: 'lossy_compatible', ruleId: 'event-usage-projection', severity: 'warning', path: '/response/usage/details/ephemeral_5m_input_tokens', reason: 'A localized explanation', suggestion: '' }],
-  } } }))
-  await page.getByRole('button', { name: '查看请求 gemini 详情', exact: true }).click()
-  await expect(page.getByText('上游按 TTL 分桶上报的缓存创建明细已省略', { exact: false })).toBeVisible()
-})
 
-test('request resource failures show the local stage', async ({ page }) => {
-  await page.route('**/api/admin/usage/logs/gemini', (route) => route.fulfill({ json: { ok: true, data: {
-    ...details[5], statusCode: 400, errorKind: 'limit_exceeded', error: 'semantic resource limit exceeded: nodes observed 1600001, limit 1600000',
-    conversionIssues: [{ code: 'limit_exceeded', severity: 'error', direction: 'decode_request', stage: 'conversion.request', path: '/', reason: 'node budget exceeded', suggestion: '' }],
-  } } }))
-  await page.getByRole('button', { name: '查看请求 gemini 详情', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: '调用详情' })
-  await expect(dialog.getByText('本地处理失败（400）', { exact: false })).toBeVisible()
-  await expect(dialog.getByText('资源限制', { exact: false }).first()).toBeVisible()
-  await expect(dialog.getByRole('alert').getByText('decode_request / conversion.request', { exact: false })).toBeVisible()
-})
 
 test('delivery evidence separates HTTP from logical errors and does not infer who canceled', async ({ page }) => {
   const record: UsageLogDetail = {
@@ -81,11 +62,11 @@ test('delivery evidence separates HTTP from logical errors and does not infer wh
   await expect(dialog.getByTestId('delivery-outcome')).toHaveText('交付失败')
   await expect(dialog.getByText('结束响应（response_finalize）')).toBeVisible()
   const downloaded = page.waitForEvent('download')
-  await dialog.getByRole('button', { name: '导出完整日志' }).click()
+  await dialog.getByRole('button', { name: '导出记录' }).click()
   const stream = await (await downloaded).createReadStream()
   let exported = ''
   for await (const chunk of stream!) exported += chunk.toString()
-  expect(JSON.parse(exported).overview).toMatchObject({ statusCode: 502, upstreamHttpStatus: 200, delivery: record.delivery })
+  expect(JSON.parse(exported)).toMatchObject({ statusCode: 502, upstreamHttpStatus: 200, delivery: record.delivery })
   await dialog.getByRole('button', { name: '关闭', exact: true }).last().click()
 
   await page.route('**/api/admin/usage/logs/gemini', (route) => route.fulfill({ json: { ok: true, data: {
@@ -93,7 +74,7 @@ test('delivery evidence separates HTTP from logical errors and does not infer wh
     delivery: { ...record.delivery, cause: 'request_canceled' },
   } } }))
   await page.getByRole('button', { name: '查看请求 gemini 详情', exact: true }).click()
-  await expect(dialog.getByText('请求取消（来源未明）（503）', { exact: false })).toBeVisible()
+  await expect(dialog.getByTestId('logical-status')).toHaveText('503')
   await expect(dialog.getByText('客户端取消', { exact: false })).toHaveCount(0)
 })
 
@@ -112,30 +93,9 @@ test('an aborted response shows the server panic cause without rewriting committ
   await expect(dialog.getByText('服务处理异常（server_panic）', { exact: true })).toBeVisible()
 })
 
-test('source metadata errors show upstream decoding and legacy records keep unknown delivery', async ({ page }) => {
-  await page.getByRole('button', { name: '查看请求 missing 详情', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: '调用详情' })
-  await expect(dialog.getByTestId('upstream-http-status')).toHaveText('未记录')
-  await expect(dialog.getByTestId('downstream-http-status')).toHaveText('未记录')
-  await expect(dialog.getByTestId('delivery-outcome')).toHaveText('未记录交付结果')
-  await dialog.getByRole('button', { name: '关闭', exact: true }).last().click()
-
-  await page.route('**/api/admin/usage/logs/gemini', (route) => route.fulfill({ json: { ok: true, data: {
-    ...details[5], statusCode: 502, upstreamHttpStatus: 200, errorKind: 'unsupported_capability', error: 'unsupported response.metadata field',
-    delivery: { httpStatus: 200, outcome: 'completed', cause: 'request_canceled' },
-    conversionIssues: [{ code: 'unsupported_capability', severity: 'error', direction: 'decode_event', stage: 'decode_event', path: '/metadata', reason: 'unsupported response.metadata field', suggestion: '' }],
-  } } }))
-  await page.getByRole('button', { name: '查看请求 gemini 详情', exact: true }).click()
-  await expect(dialog.getByText('上游事件解码失败（502）', { exact: false })).toBeVisible()
-  await expect(dialog.getByText('协议能力不支持', { exact: false }).first()).toBeVisible()
-  await expect(dialog.getByTestId('delivery-outcome')).toHaveText('服务端交付完成')
-  await dialog.getByLabel('转换诊断').locator('summary').click()
-  await expect(dialog.getByText('阶段：decode_event', { exact: false })).toBeVisible()
-})
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('columba-webui.panel-token', 'test-only')
     localStorage.setItem('columba-webui.theme', 'light')
   })
   await page.route('**/api/admin/**', async (route) => {
@@ -160,127 +120,10 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/#/usage-logs')
 })
 
-test('request model and route stay compact and missing models remain visible', async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await expect(page.getByRole('columnheader', { name: '请求模型 / 路由' })).toBeVisible()
-  const missing = page.getByRole('button', { name: '查看请求 missing 详情', exact: true })
-  await expect(missing).toContainText('gpt-6-luna')
-  await expect(missing).toContainText('未路由')
-  const same = page.getByRole('button', { name: '查看请求 same 详情', exact: true })
-  await expect(same.getByText('deepseek-flash', { exact: true })).toHaveCount(1)
-  await expect(same).toContainText('DeepSeek')
-  const mapped = page.getByRole('button', { name: '查看请求 mapped 详情', exact: true })
-  await expect(mapped).toContainText('→ actual-model · DeepSeek')
-  const model = mapped.getByTitle(details[2].requestedModelGroup, { exact: true })
-  await expect(model).toBeVisible()
-  expect(await model.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true)
-  await page.screenshot({ path: testInfo.outputPath('usage-logs.png'), fullPage: true })
-  await missing.click()
-  const sheet = page.getByRole('dialog', { name: '调用详情' })
-  await expect(sheet.getByText('调用失败（404）', { exact: false })).toBeVisible()
-  await expect(sheet.getByText('gpt-6-luna', { exact: true })).toBeVisible()
-  await expect(sheet.getByText('openai-responses', { exact: true })).toHaveCount(1)
-  await expect(sheet.getByText('未转发', { exact: true })).toBeVisible()
-  await expect(sheet.getByText('未记录正文', { exact: true })).toHaveCount(4)
-  await page.setViewportSize({ width: 375, height: 812 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-})
 
-test('protocol routes stay consistent and status codes stay compact', async ({ page }) => {
-  for (const id of ['same', 'mapped', 'cancelled', 'gemini']) {
-    await page.getByRole('button', { name: `查看请求 ${id} 详情`, exact: true }).click()
-    const sheet = page.getByRole('dialog', { name: '调用详情' })
-    await expect(sheet.getByText('openai-chat-completions', { exact: true })).toHaveCount(1)
-    await expect(sheet.getByText('openai-responses', { exact: true })).toHaveCount(id === 'mapped' ? 1 : 0)
-    await expect(sheet.getByText('google-generate-content', { exact: true })).toHaveCount(id === 'gemini' ? 1 : 0)
-    if (id === 'gemini') {
-      const colors = await sheet.locator('section').filter({ hasText: '协议链路' }).locator('span.rounded-full').evaluateAll((pills) => pills.map((pill) => getComputedStyle(pill).borderColor))
-      expect(new Set(colors).size).toBe(1)
-    }
-    await expect(sheet.getByText('未转发', { exact: true })).toHaveCount(0)
-    await expect(sheet.locator('section').filter({ hasText: '协议链路' }).getByRole('button')).toHaveCount(0)
-    if (id === 'cancelled') await expect(sheet.getByText('客户端取消（499）', { exact: false })).toBeVisible()
-    await sheet.getByRole('button', { name: '关闭', exact: true }).last().click()
-  }
-  await expect(page.getByText('499', { exact: true })).toBeVisible()
-})
 
-test('protocol routes display normalized IDs and deduplicate protocol IDs', async ({ page }) => {
-  for (const [sourceFormat, targetFormat, labels] of [
-    ['openai-chat-completions', 'google-generate-content', ['openai-chat-completions', 'google-generate-content']],
-    ['openai-chat-completions', 'custom:openai-chat-completions', ['openai-chat-completions']],
-    ['anthropic-messages', 'custom:gemini-api', ['anthropic-messages', 'google-generate-content']],
-    ['openai-responses', 'team-relay', ['openai-responses', 'team-relay']],
-    ['custom:team-relay', 'team-relay', ['team-relay']],
-    ['openai_responses', 'custom:responses-api', ['openai-responses']],
-    ['unknown-protocol', 'custom:unknown-target', ['unknown-protocol', 'unknown-target']],
-    ['constructor', 'custom:__proto__', ['constructor', '__proto__']],
-  ] as const) {
-    await page.route('**/api/admin/usage/logs/gemini', (route) => route.fulfill({ json: { ok: true, data: {
-      ...details[5], sourceFormat, targetFormat,
-    } } }))
-    await page.getByRole('button', { name: '查看请求 gemini 详情', exact: true }).click()
-    const sheet = page.getByRole('dialog', { name: '调用详情' })
-    const chain = sheet.locator('section').filter({ hasText: '协议链路' })
-    await expect(chain.locator('span.rounded-full')).toHaveText([...labels])
-    await sheet.getByRole('button', { name: '关闭', exact: true }).last().click()
-  }
-})
 
-test('protocol routes keep distinct IDs after loading duplicate registered names', async ({ page }) => {
-  let release!: () => void
-  const ready = new Promise<void>((resolve) => { release = resolve })
-  await page.route('**/api/admin/protocols/enabled', async (route) => {
-    await ready
-    await route.fulfill({ json: { ok: true, data: { items: [
-      { id: 'openai-responses', name: 'Registered protocol' },
-      { id: 'google-generate-content', name: 'Registered protocol' },
-    ] } } })
-  })
-  await page.route('**/api/admin/usage/logs/gemini', (route) => route.fulfill({ json: { ok: true, data: {
-    ...details[5], sourceFormat: 'openai-responses', targetFormat: 'google-generate-content',
-  } } }))
-  try {
-    await page.getByRole('button', { name: '查看请求 gemini 详情', exact: true }).click()
-    const pills = page.getByRole('dialog', { name: '调用详情' }).locator('section').filter({ hasText: '协议链路' }).locator('span.rounded-full')
-    await expect(pills).toHaveText(['openai-responses', 'google-generate-content'])
-    const loaded = page.waitForResponse('**/api/admin/protocols/enabled')
-    release()
-    await loaded
-    await expect(pills.nth(0)).toHaveAttribute('title', 'openai-responses')
-    await expect(pills.nth(1)).toHaveAttribute('title', 'google-generate-content')
-    await expect(pills).toHaveText(['openai-responses', 'google-generate-content'])
-  } finally { release() }
-})
 
-test('assistant has four labelled bodies, exports metadata, and uses the new filter name', async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 1440, height: 1100 })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.getByRole('button', { name: '查看请求 agent 详情', exact: true }).click()
-  const sheet = page.getByRole('dialog', { name: '调用详情' })
-  await expect(sheet.getByText('内部调用', { exact: true })).toBeVisible()
-  await expect(sheet.getByText('openai-chat-completions', { exact: true })).toHaveCount(1)
-  for (const title of ['① 助手内部请求', '② 后端转发', '③ 上游回传', '④ 返回助手引擎']) {
-    await expect(sheet.getByRole('button', { name: new RegExp(title) })).toBeEnabled()
-    await expect(sheet.getByRole('button', { name: new RegExp(title) })).toHaveAttribute('aria-expanded', 'false')
-  }
-  await sheet.getByRole('button', { name: /④ 返回助手引擎/ }).click()
-  await expect(sheet.locator('#chain-body-downstream')).toHaveAttribute('aria-hidden', 'false')
-  await sheet.getByText('内部调用', { exact: true }).scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('assistant-detail.png'), fullPage: true })
-  const downloaded = page.waitForEvent('download')
-  await sheet.getByRole('button', { name: '导出完整日志' }).click()
-  const stream = await (await downloaded).createReadStream()
-  let body = ''
-  for await (const chunk of stream!) body += chunk.toString()
-  expect(JSON.parse(body).overview).toMatchObject({ requestedModelGroup: 'deepseek-flash', sourceId: 'deepseek', upstreamRevision: 'diagnostic-revision', cacheSynthesis: true, systemStructure: { before: [{ path: '/content/0', metadata: ['attributes'] }] } })
-  await sheet.getByRole('button', { name: '关闭', exact: true }).last().click()
-  await page.getByRole('button', { name: '调用方筛选', exact: true }).click()
-  await expect(page.getByRole('option', { name: 'AI 协议助手', exact: true })).toHaveCount(0)
-  await page.getByRole('option', { name: 'AI 助手', exact: true }).click()
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: /^查看请求 .* 详情$/ })).toHaveCount(1)
-})
 
 for (const viewport of [{ width: 1440, height: 800 }, { width: 1440, height: 500 }, { width: 375, height: 812 }]) {
   test(`opening log details preserves page and sidebar position at ${viewport.width}x${viewport.height}`, async ({ page }) => {
@@ -300,7 +143,7 @@ for (const viewport of [{ width: 1440, height: 800 }, { width: 1440, height: 500
     const navScroll = await nav.evaluate((el) => { el.scrollTop = el.scrollHeight; return el.scrollTop })
     await row.click()
     const sheet = page.getByRole('dialog', { name: '调用详情' })
-    await expect(sheet.getByText('google-generate-content', { exact: true })).toBeVisible()
+    await expect(sheet.getByText('deepseek-flash · gemini', { exact: true })).toBeVisible()
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scrollY)
     await expect.poll(() => sidebar.boundingBox()).toEqual(sidebarBox)
     await expect.poll(() => nav.evaluate((el) => el.scrollTop)).toBe(navScroll)

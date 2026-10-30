@@ -7,20 +7,17 @@ import { RANGE_OPTIONS } from '@/lib/range-options'
 export type RangeKey = '24h' | '7d' | '30d' | 'all'
 
 /**
- * 用量页共用筛选工具栏（调用日志 + Usage 统计）：时间窗 Seg + 模型组 / 模型 /
- * 模型源 / 调用方筛选胶囊。单行紧凑布局，窄屏 flex-wrap 换行为小胶囊而非
+ * 用量页共用筛选工具栏（调用日志 + Usage 统计）：时间窗 Seg + 模型 /
+ * 渠道 / 调用方筛选胶囊。单行紧凑布局，窄屏 flex-wrap 换行为小胶囊而非
  * 堆叠的大配置框；任一维度激活时提供一键「清除筛选」。页面专属筛选控件经
  * children 追加，右侧汇总/指示区经 right 提供。
  */
 export function UsageFilterBar({
   range,
   onRangeChange,
-  groupOptions,
   modelOptions,
   keyOptions,
   sourceOptions,
-  groupNames,
-  onGroupNamesChange,
   modelNames,
   onModelNamesChange,
   sourceIds,
@@ -32,13 +29,10 @@ export function UsageFilterBar({
 }: {
   range: RangeKey
   onRangeChange: (value: RangeKey) => void
-  groupOptions: (string | MultiSelectOption)[]
   modelOptions: (string | MultiSelectOption)[]
   keyOptions: (string | MultiSelectOption)[]
   /** 启用源选项（value 必须是 source id，同名源才能区分）；为空则不显示源筛选。 */
   sourceOptions: (string | MultiSelectOption)[]
-  groupNames: string[]
-  onGroupNamesChange: (value: string[]) => void
   modelNames: string[]
   onModelNamesChange: (value: string[]) => void
   sourceIds: string[]
@@ -51,7 +45,7 @@ export function UsageFilterBar({
   right?: ReactNode
 }) {
   const hasFilters =
-    groupNames.length > 0 || modelNames.length > 0 || sourceIds.length > 0 || keyNames.length > 0
+    modelNames.length > 0 || sourceIds.length > 0 || keyNames.length > 0
 
   return (
     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
@@ -63,13 +57,6 @@ export function UsageFilterBar({
       />
       <span className="h-5 w-px bg-border/70" aria-hidden />
       <MultiSelect
-        label="模型组"
-        options={groupOptions}
-        value={groupNames}
-        onChange={onGroupNamesChange}
-        searchPlaceholder="搜索模型组"
-      />
-      <MultiSelect
         label="模型"
         options={modelOptions}
         value={modelNames}
@@ -78,11 +65,11 @@ export function UsageFilterBar({
       />
       {sourceOptions.length > 0 && (
         <MultiSelect
-          label="模型源"
+          label="渠道"
           options={sourceOptions}
           value={sourceIds}
           onChange={onSourceIdsChange}
-          searchPlaceholder="搜索模型源"
+          searchPlaceholder="搜索渠道"
         />
       )}
       <MultiSelect
@@ -97,7 +84,6 @@ export function UsageFilterBar({
         <button
           type="button"
           onClick={() => {
-            onGroupNamesChange([])
             onModelNamesChange([])
             onSourceIdsChange([])
             onKeyNamesChange([])

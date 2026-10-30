@@ -67,7 +67,7 @@ export function Seg<T extends string | number>({
           aria-hidden
           className={cn(
             'absolute bottom-[2px] left-0 top-[2px] rounded-full border border-[color:var(--seg-key-border)]',
-            'bg-[linear-gradient(180deg,var(--seg-key-a),var(--seg-key-b))]',
+            'bg-card',
             '[box-shadow:var(--seg-key-shadow)]',
             'transition-[transform,width] duration-300 ease-smooth motion-reduce:transition-none',
           )}

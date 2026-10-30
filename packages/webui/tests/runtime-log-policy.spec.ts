@@ -14,7 +14,6 @@ async function mockSettings(page: Page, usageLog: UsageLogRuntimeConfig = logCon
     logLevel: 'info', httpTimeout: 120, enablePprof: false, usageLog, systemLog: { retentionDays: 0, maxRecords: 0, maxContentMB: 0 },
   }
   const updates: RuntimeConfigUpdate[] = []
-  await page.addInitScript(() => localStorage.setItem('columba-webui.panel-token', 'test-only'))
   await page.route('**/api/admin/**', async (route) => {
     const request = route.request()
     const path = new URL(request.url()).pathname
@@ -185,7 +184,7 @@ test('save locks inputs, preserves failed drafts and focuses invalid hidden fiel
   await page.getByRole('tab', { name: '安全设置' }).click()
   const cidr = page.getByRole('textbox', { name: '禁止出站 IP 段（CIDR）', exact: true })
   await cidr.fill('invalid cidr')
-  await page.getByRole('tab', { name: '远程访问' }).click()
+  await page.getByRole('tab', { name: '模型目录' }).click()
   await page.getByRole('button', { name: /^保存(配置|修改)$/ }).click()
   await expect(cidr).toBeFocused()
   await cidr.fill('999.0.0.0/8')
@@ -272,10 +271,9 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 820, height: 900
     await expect(page.getByRole('tab', { name: '模型目录', exact: true })).toBeFocused()
     for (const dark of [false, true]) {
       await page.evaluate((enabled) => document.documentElement.classList.toggle('dark', enabled), dark)
-      for (const name of ['基础设置', '安全设置', '远程访问', '日志与存储', '模型目录']) {
+      for (const name of ['基础设置', '安全设置', '日志与存储', '模型目录']) {
         await page.getByRole('tab', { name, exact: true }).click()
         if (name === '基础设置') await page.getByRole('textbox', { name: '数据库存储路径', exact: true }).fill('/very-long-directory/'.repeat(15) + 'elysia.db')
-        if (name === '远程访问') await page.getByRole('textbox', { name: '对外基础地址', exact: true }).fill('https://example.com/' + 'long-path/'.repeat(12))
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
         await page.screenshot({ path: testInfo.outputPath(`${name}-${dark ? 'dark' : 'light'}.png`), fullPage: true })
       }

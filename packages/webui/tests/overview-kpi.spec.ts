@@ -2,7 +2,6 @@ import { expect, test, type Page } from '@playwright/test'
 
 async function mockAdmin(page: Page) {
   await page.addInitScript(() => {
-    localStorage.setItem('columba-webui.panel-token', 'test-only-token')
     localStorage.setItem('columba-webui.theme', 'light')
   })
   await page.route('**/api/admin/**', async (route) => {

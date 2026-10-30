@@ -57,7 +57,7 @@ export function SheetHeader({ className, ...props }: React.HTMLAttributes<HTMLDi
   return (
     <div
       className={cn(
-        'flex items-center gap-3 border-b border-border bg-rail-fade px-[22px] py-3.5',
+        'flex items-center gap-3 border-b border-border bg-sidebar px-[22px] py-3.5',
         className,
       )}
       {...props}

@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { LogMaintenanceStatus } from "@/components/log-maintenance-status";
 import { PageHeader } from "@/components/page-header";
-import { RoleWatermark } from "@/components/role-watermark";
 import { TitleTabs } from "@/components/ui/title-tabs";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -150,7 +149,7 @@ export function RuntimeConfigPage() {
     setActiveTab(tab);
     // 长分类滚动后切换短分类时，从表单顶部开始阅读。
     if (window.scrollY > 0) {
-      window.scrollTo({ top: 0, behavior: "auto" });
+      headerTopRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
     }
   }
 
@@ -281,7 +280,6 @@ export function RuntimeConfigPage() {
 
   return (
     <>
-      <RoleWatermark className="right-0 top-0 opacity-[0.05] dark:opacity-[0.08]" />
 
       <Tabs.Root value={activeTab} onValueChange={(value) => changeTab(value as ConfigTab)} className="relative z-[1]">
         <PageHeader title="运行配置" />
@@ -327,7 +325,7 @@ export function RuntimeConfigPage() {
                 <SettingRow
                   label="监听 Host"
                   htmlFor="runtime-host"
-                  description="网关绑定的网络接口（如 127.0.0.1 或 0.0.0.0）；需重启生效"
+                  description="仅允许回环地址（127.0.0.1、::1 或 localhost）；需重启生效"
                 >
                   <Input id="runtime-host" aria-describedby="runtime-host-description"
                     className="w-full sm:w-56 font-mono text-xs"
@@ -433,7 +431,7 @@ export function RuntimeConfigPage() {
                 <SettingRow
                   label="出站代理 URL（可选）"
                   htmlFor="runtime-proxy"
-                  description="填写 HTTP 代理地址，支持用户名和密码，可转发 HTTPS 请求。用于模型请求、目录同步及 macOS 更新；本机面板保持直连。留空保持默认连接方式，代理不可用时不会改为直连。"
+                  description="填写 HTTP 代理地址，支持用户名和密码，可转发 HTTPS 请求。用于模型请求与目录同步；本机面板保持直连。留空保持默认连接方式，代理不可用时不会改为直连。"
                   inline={false}
                 >
                   <SecretInput id="runtime-proxy" aria-describedby="runtime-proxy-description"

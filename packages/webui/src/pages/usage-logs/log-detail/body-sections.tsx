@@ -25,13 +25,12 @@ const BodyContent = memo(function BodyContent({ content }: { content: string }) 
 })
 
 export function ChainBodies({ detail }: { detail: UsageLogDetail }) {
-  const internal = detail.relayMode === 'agent-assist'
   const [openSegments, setOpenSegments] = useState<Set<string>>(() => new Set())
   const segments: { key: string; title: string; body: UsageBody | undefined }[] = [
-    { key: 'incoming', title: internal ? '① 助手内部请求' : '① 下游请求', body: detail.incomingBody },
+    { key: 'incoming', title: '① 下游请求', body: detail.incomingBody },
     { key: 'outgoing', title: '② 后端转发', body: detail.outgoingBody },
     { key: 'provider', title: '③ 上游回传', body: detail.providerResponse },
-    { key: 'downstream', title: internal ? '④ 返回助手引擎' : '④ 返回下游', body: detail.downstreamResponse },
+    { key: 'downstream', title: '④ 返回下游', body: detail.downstreamResponse },
   ]
   return (
     <>

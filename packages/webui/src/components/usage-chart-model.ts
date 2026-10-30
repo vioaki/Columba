@@ -2,7 +2,7 @@ import { useLayoutEffect, useEffect, useState } from 'react'
 import { readChartTickSizePx } from '@/lib/utils'
 
 /** 总览折线/面积入场时长：与 recharts 默认一致，脉搏 / 趋势 / 日调用共用。 */
-export const CHART_ENTER_MS = 1500
+export const CHART_ENTER_MS = 0
 
 /** 趋势图与模型日调用图共用的绘图盒，保证横轴与刻度左右对齐。 */
 export const OVERVIEW_CHART = {
@@ -18,25 +18,9 @@ export const OVERVIEW_CHART = {
   xPadding: { left: 10, right: 10 },
 } as const
 
-const MODEL_COLORS = [
-  'var(--rose)',
-  'var(--orchid)',
-  'var(--jade)',
-  'var(--amber)',
-  'var(--ember)',
-  'var(--rose-soft)',
-  '#5B7CFA',
-  '#2A9B8F',
-  '#8B6BCF',
-]
-
-/** 模型序列配色：前 9 序列用品牌色板；其后按黄金角在色相环铺开生成 HSL 色，
- *  并以明度交错降低相邻序列的相似度——日分布 top 放宽后取模循环必然撞色。 */
+// Labels and tooltips identify series; shades are secondary cues.
 export function modelColor(index: number): string {
-  if (index < MODEL_COLORS.length) return MODEL_COLORS[index]
-  const hue = Math.round((index * 137.508) % 360)
-  const lightness = 52 + ((index * 13) % 14)
-  return `hsl(${hue} 46% ${lightness}%)`
+ return `hsl(0 0% ${25 + (index % 7) * 8}%)`
 }
 
 export function ticksFor(values: number[]): number[] {

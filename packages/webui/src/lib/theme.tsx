@@ -1,9 +1,6 @@
-import { createContext, useContext, useEffect, useRef, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 type Theme = 'light' | 'dark'
-/** 主题切换过渡类的移除延时（见 index.css 的逐元素过渡时长）。 */
-const THEME_SWITCH_MS = 480
-
 import { STORAGE_KEYS } from './storage-keys'
 
 const STORAGE_KEY = STORAGE_KEYS.theme
@@ -15,10 +12,6 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
-// 优先用 View Transitions 整页交叉淡化；不支持的浏览器降级为
-// html.theme-transitioning 逐元素过渡（380ms，480ms 后移除，见 index.css）。
-let themeTransitionTimer: number | undefined
-
 function applyThemeToRoot(theme: Theme) {
   const root = document.documentElement
   root.classList.toggle('dark', theme === 'dark')
@@ -27,24 +20,6 @@ function applyThemeToRoot(theme: Theme) {
   } catch {
     /* ignore */
   }
-}
-
-function flushTheme(theme: Theme) {
-  if (typeof window === 'undefined') return
-  const root = document.documentElement
-  if (root.classList.contains('dark') === (theme === 'dark') || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    applyThemeToRoot(theme)
-    return
-  }
-  const doc = document as Document & { startViewTransition?: (update: () => void) => unknown }
-  if (typeof doc.startViewTransition === 'function') {
-    doc.startViewTransition(() => applyThemeToRoot(theme))
-    return
-  }
-  root.classList.add('theme-transitioning')
-  window.clearTimeout(themeTransitionTimer)
-  themeTransitionTimer = window.setTimeout(() => root.classList.remove('theme-transitioning'), THEME_SWITCH_MS)
-  applyThemeToRoot(theme)
 }
 
 function readInitialTheme(): Theme {
@@ -63,16 +38,7 @@ function readInitialTheme(): Theme {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(readInitialTheme)
 
-  // 首帧直接落主题，不走转场。
-  const firstRender = useRef(true)
-  useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false
-      applyThemeToRoot(theme)
-      return
-    }
-    flushTheme(theme)
-  }, [theme])
+  useEffect(() => { applyThemeToRoot(theme) }, [theme])
 
   const value = useMemo<ThemeContextValue>(
     () => ({

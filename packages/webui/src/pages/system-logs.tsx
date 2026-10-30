@@ -3,7 +3,6 @@ import { RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { TonePill } from '@/components/badges'
 import { PaginationBar } from '@/components/pagination'
-import { RoleWatermark } from '@/components/role-watermark'
 import { Button } from '@/components/ui/button'
 import { Seg } from '@/components/ui/seg'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -65,7 +64,6 @@ export function SystemLogsPage() {
 
   return (
     <>
-      <RoleWatermark className="-right-8 top-0 opacity-[0.05] dark:opacity-[0.08]" />
 
       <div className="relative z-[1] space-y-6">
         <PageHeader

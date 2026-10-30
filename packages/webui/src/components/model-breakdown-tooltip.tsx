@@ -27,15 +27,7 @@ interface ModelBreakdownTooltipProps {
   label?: string
 }
 
-const MODEL_PALETTE = [
-  '#F43F85', // 瑰梅粉
-  '#0DA574', // 翡翠绿
-  '#818CF8', // 靛蓝
-  '#F59E0B', // 暖琥珀
-  '#A78BFA', // 兰花紫
-  '#06B6D4', // 青碧
-  '#94A3B8', // 灰蓝
-]
+const MODEL_PALETTE = ['#333333', '#555555', '#777777', '#999999', '#444444', '#666666', '#888888']
 
 /**
  * 趋势图交互悬浮浮层：悬停在 Token 柱或折线点上时展示总览与模型级细分。
@@ -72,7 +64,7 @@ export function ModelBreakdownTooltip({ active, payload, label }: ModelBreakdown
         name: `其他 ${rest.length} 个模型`,
         tokens: restTotal,
         ratio: (restTotal / total) * 100,
-        color: '#64748B',
+        color: '#777777',
       })
     }
 

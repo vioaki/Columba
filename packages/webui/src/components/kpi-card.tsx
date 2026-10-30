@@ -96,7 +96,7 @@ export function KpiCard({
             className={cn(
               'tnum font-display font-medium tracking-tight transition-colors',
               isHero
-                ? 'text-[length:clamp(1.875rem,1.125rem+0.9375vw,2.25rem)] bg-brand-grad bg-clip-text text-transparent leading-none'
+                ? 'text-[length:clamp(1.875rem,1.125rem+0.9375vw,2.25rem)] text-foreground leading-none'
                 : 'text-[length:clamp(1.5rem,0.875rem+0.78125vw,1.875rem)] text-foreground leading-none group-hover:text-foreground',
             )}
           >

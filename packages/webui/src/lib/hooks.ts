@@ -91,7 +91,6 @@ export function useModels(refreshInterval = 0) {
   return useSWR('models', () => api.listModels(), { ...defaultConfig, refreshInterval })
 }
 
-/** 模型组列表。 */
 
 /** API token 列表（列表值已脱敏）。 */
 export function useTokens() {
@@ -102,13 +101,12 @@ export function useTokens() {
 export function useUsageFilterOptions() {
   const { data: models } = useModels()
   const { data: tokens } = useTokens()
-  const groupOptions: string[] = []
   const modelOptions = useMemo(() => uniqueSorted((models ?? []).map((m) => m.name)), [models])
   const keyOptions = useMemo(
     () => uniqueSorted((tokens ?? []).map((t) => t.name)),
     [tokens],
   )
-  return { groupOptions, modelOptions, keyOptions }
+  return { modelOptions, keyOptions }
 }
 
 const usageConfig: SWRConfiguration = {

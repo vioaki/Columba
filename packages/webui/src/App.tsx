@@ -7,11 +7,8 @@ import { AppLayout } from './components/app-layout'
 const OverviewPage = lazy(() => import('./pages/overview').then((m) => ({ default: m.OverviewPage })))
 const SourcesPage = lazy(() => import('./pages/sources').then((m) => ({ default: m.SourcesPage })))
 const TokensPage = lazy(() => import('./pages/tokens').then((m) => ({ default: m.TokensPage })))
+const SettingsPage = lazy(() => import('./pages/settings').then(m => ({ default: m.SettingsPage })))
 const UsagePage = lazy(() => import('./pages/usage').then((m) => ({ default: m.UsagePage })))
-const UsageLogsPage = lazy(() => import('./pages/usage-logs').then((m) => ({ default: m.UsageLogsPage })))
-const SystemLogsPage = lazy(() => import('./pages/system-logs').then((m) => ({ default: m.SystemLogsPage })))
-const RuntimeConfigPage = lazy(() => import('./pages/runtime-config').then((m) => ({ default: m.RuntimeConfigPage })))
-const DiagnosticsPage = lazy(() => import('./pages/diagnostics').then((m) => ({ default: m.DiagnosticsPage })))
 
 /** 登录前/外壳外加载页面的占位：全屏居中。 */
 function BootFallback() {
@@ -65,11 +62,12 @@ export function App() {
               <Route path="/overview" element={<OverviewPage />} />
               <Route path="/sources" element={<SourcesPage />} />
               <Route path="/tokens" element={<TokensPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/usage" element={<UsagePage />} />
-              <Route path="/usage-logs" element={<UsageLogsPage />} />
-              <Route path="/logs" element={<SystemLogsPage />} />
-              <Route path="/runtime" element={<RuntimeConfigPage />} />
-              <Route path="/diagnostics" element={<DiagnosticsPage />} />
+              <Route path="/usage-logs" element={<Navigate to="/usage?tab=calls" replace />} />
+              <Route path="/logs" element={<Navigate to="/settings?tab=logs" replace />} />
+              <Route path="/runtime" element={<Navigate to="/settings?tab=runtime" replace />} />
+              <Route path="/diagnostics" element={<Navigate to="/settings?tab=diagnostics" replace />} />
             </Route>
             <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>

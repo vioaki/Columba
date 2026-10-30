@@ -26,7 +26,6 @@ import {
 } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { KpiCard, KpiGrid } from '@/components/kpi-card'
-import { RoleWatermark } from '@/components/role-watermark'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { EmptyText, ErrorState } from '@/components/ui/states'
 import { LegendChip } from '@/components/ui/legend-chip'
@@ -115,7 +114,6 @@ export function UsageStatsPage() {
 
   return (
     <>
-      <RoleWatermark className="-right-8 top-0 opacity-[0.05] dark:opacity-[0.08]" />
 
       <div className="relative z-[1] space-y-6">
         <PageHeader title="Usage 统计" />

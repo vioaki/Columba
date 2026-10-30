@@ -13,7 +13,6 @@ import { bucketedTimeISO, startOfRange, USAGE_BUCKET_MS } from './utils'
  */
 export function useUsageFilters(onChange?: () => void) {
   const [range, setRangeState] = useState<RangeKey>('7d')
-  const [groupNames, setGroupNamesState] = useState<string[]>([])
   const [modelNames, setModelNamesState] = useState<string[]>([])
   const [sourceIds, setSourceIdsState] = useState<string[]>([])
   const [keyNames, setKeyNamesState] = useState<string[]>([])
@@ -21,10 +20,6 @@ export function useUsageFilters(onChange?: () => void) {
 
   const setRange = (value: RangeKey) => {
     setRangeState(value)
-    onChange?.()
-  }
-  const setGroupNames = (value: string[]) => {
-    setGroupNamesState(value)
     onChange?.()
   }
   const setModelNames = (value: string[]) => {
@@ -40,7 +35,7 @@ export function useUsageFilters(onChange?: () => void) {
     onChange?.()
   }
 
-  const { groupOptions, modelOptions, keyOptions } = useUsageFilterOptions()
+  const { modelOptions, keyOptions } = useUsageFilterOptions()
   const { data: sources } = useSources()
   const sourceOptions = useMemo(
     () => (sources ?? []).filter((s) => s.enabled).map((s) => ({ value: s.id, label: s.name || s.id })),
@@ -52,23 +47,19 @@ export function useUsageFilters(onChange?: () => void) {
     return {
       from: startOfRange(range, new Date(nowMs).toISOString()),
       to: bucketedTimeISO(nowMs, USAGE_BUCKET_MS),
-      groupNames: groupNames.length ? groupNames : undefined,
       modelNames: modelNames.length ? modelNames : undefined,
       sourceIds: sourceIds.length ? sourceIds : undefined,
       keyNames: keyNames.length ? keyNames : undefined,
     }
-  }, [range, groupNames, modelNames, sourceIds, keyNames, minuteTick])
+  }, [range, modelNames, sourceIds, keyNames, minuteTick])
 
   /** UsageFilterBar 的标准接线，页面专属控件经 children 追加。 */
   const barProps = {
     range,
     onRangeChange: setRange,
-    groupOptions,
     modelOptions,
     keyOptions,
     sourceOptions,
-    groupNames,
-    onGroupNamesChange: setGroupNames,
     modelNames,
     onModelNamesChange: setModelNames,
     sourceIds,
@@ -80,17 +71,14 @@ export function useUsageFilters(onChange?: () => void) {
   return {
     minuteTick,
     range,
-    groupNames,
     modelNames,
     sourceIds,
     keyNames,
     setRange,
-    setGroupNames,
     setModelNames,
     setSourceIds,
     setKeyNames,
     sources: sources ?? [],
-    groupOptions,
     modelOptions,
     keyOptions,
     sourceOptions,
