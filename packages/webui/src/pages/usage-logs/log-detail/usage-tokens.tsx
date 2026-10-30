@@ -9,7 +9,7 @@ export function UsageTokens({ usage }: { usage: UsageTokenUsage }) {
   const creation = usage.cacheCreationTokens
   const hasCompleteSplit = read != null && creation != null
   const remainder = input == null ? undefined : Math.max(input - (read ?? 0) - (creation ?? 0), 0)
-  const total = input != null && output != null ? input + output : usage.totalTokens
+  const total = usage.totalTokens ?? (input != null && output != null ? input + output : undefined)
   const segments = [
     { label: '缓存命中', count: read, color: 'rose-soft' },
     { label: hasCompleteSplit ? '未命中输入' : '其余输入', count: remainder, color: 'rose' },

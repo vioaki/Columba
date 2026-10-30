@@ -14,6 +14,7 @@ import (
 
 	"columba.local/backend/config"
 	"columba.local/backend/internal/billing"
+	"columba.local/backend/internal/nativeusage"
 	"columba.local/backend/storage"
 )
 
@@ -257,5 +258,34 @@ func TestNativeCaptureRetainsBothWireDirections(t *testing.T) {
 			t.Fatalf("lost native diagnostic capture: %+v", stored)
 		}
 		upstream.Close()
+	}
+}
+
+func TestNativeStatisticsUseInclusiveCountersWithoutChangingBillingUsage(t *testing.T) {
+	for _, tc := range []struct {
+		protocol, raw        string
+		input, output, total int
+	}{
+		{"openai", `{"input":100,"output":20,"cacheRead":40,"reasoning":10}`, 100, 20, 120},
+		{"claude", `{"input":100,"output":20,"cacheRead":40,"cacheWrite5m":15,"cacheWrite1h":5}`, 160, 20, 180},
+		{"gemini", `{"input":100,"output":20,"reasoning":10}`, 100, 30, 130},
+	} {
+		var u nativeusage.Usage
+		if err := json.Unmarshal([]byte(tc.raw), &u); err != nil {
+			t.Fatal(err)
+		}
+		before, _ := json.Marshal(u)
+		record := &usageRecord{Platform: tc.protocol}
+		addNativeUsage(record, u)
+		after, _ := json.Marshal(u)
+		if derefInt(record.Usage.InputTokens) != tc.input || derefInt(record.Usage.OutputTokens) != tc.output || derefInt(record.Usage.TotalTokens) != tc.total || string(before) != string(after) {
+			t.Fatalf("%s: %+v", tc.protocol, record.Usage)
+		}
+	}
+	missing := &usageRecord{Platform: "openai"}
+	input := int64(4)
+	addNativeUsage(missing, nativeusage.Usage{Input: &input})
+	if missing.Usage.TotalTokens != nil || missing.Usage.OutputTokens != nil {
+		t.Fatal("invented missing usage")
 	}
 }

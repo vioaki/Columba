@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -487,6 +488,38 @@ func nativeRetryStatus(status int) bool {
 }
 
 func addNativeUsage(record *usageRecord, u nativeusage.Usage) {
+	// Charts use inclusive input/output; billing keeps the original protocol counters.
+	sum := func(base *int64, extras ...*int64) *int64 {
+		if base == nil {
+			return nil
+		}
+		n := *base
+		for _, extra := range extras {
+			if extra == nil {
+				continue
+			}
+			if *extra > math.MaxInt64-n {
+				record.RequestWarnings = append(record.RequestWarnings, "provider token counters exceed statistics range")
+				return nil
+			}
+			n += *extra
+		}
+		return &n
+	}
+	input, output, total, write := u.Input, u.Output, u.Total, u.CacheWrite
+	if write == nil && (u.CacheWrite5m != nil || u.CacheWrite1h != nil) {
+		zero := int64(0)
+		write = sum(&zero, u.CacheWrite5m, u.CacheWrite1h)
+	}
+	if record.Platform == "claude" {
+		input = sum(input, u.CacheRead, write)
+	}
+	if record.Platform == "gemini" {
+		output = sum(output, u.Reasoning)
+	}
+	if total == nil && input != nil && output != nil {
+		total = sum(input, output)
+	}
 	add := func(target **int, value *int64) {
 		if value == nil {
 			return
@@ -496,11 +529,11 @@ func addNativeUsage(record *usageRecord, u nativeusage.Usage) {
 		}
 		**target += int(*value)
 	}
-	add(&record.Usage.InputTokens, u.Input)
-	add(&record.Usage.OutputTokens, u.Output)
-	add(&record.Usage.TotalTokens, u.Total)
+	add(&record.Usage.InputTokens, input)
+	add(&record.Usage.OutputTokens, output)
+	add(&record.Usage.TotalTokens, total)
 	add(&record.Usage.CacheHitTokens, u.CacheRead)
-	add(&record.Usage.CacheCreationTokens, u.CacheWrite)
+	add(&record.Usage.CacheCreationTokens, write)
 	add(&record.UsageDetail.ReasoningTokens, u.Reasoning)
 	if u.Input != nil || u.Output != nil {
 		record.UsageSource = "provider"

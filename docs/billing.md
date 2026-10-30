@@ -43,3 +43,8 @@ Observed built-in tool usage marks token costs partial. Reported audio/video or
 image-output token usage is not priced at text rates: counters remain available,
 but the amount is unavailable until those modality-specific prices are supported.
 Interrupted responses retain reported counters and flag possible incomplete usage.
+
+Usage charts normalize Anthropic cache input and Gemini reasoning output into
+inclusive input/output totals. A missing total is summed only from both reported
+components, never from character estimates. Ledger counters retain their original
+protocol basis for pricing and auditing.
